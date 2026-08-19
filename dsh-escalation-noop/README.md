@@ -29,7 +29,7 @@ Error: sandbox escalation to "danger-full-access" is not strictly wider than thi
 
    marker 检测字符串：`local patch (user)`（存在即视为已补丁，跳过）。
 
-2. **自愈插件（升级免疫）**：`index.js` 是零依赖 Cordis 插件（只 import `node:fs` / `node:module` / `node:path`），每次 dsh 启动时：
+2. **自愈插件（升级免疫）**：`index.js` 是零依赖 Cordis 插件（只 import `node:fs` / `node:module` / `node:path`），在**启动时、进程退出时、周期巡检**三个时机：
    - 用 `createRequire(import.meta.url).resolve('@deepseek-ai/dsh-sandbox/package.json')` 定位真实文件（跟随 symlink 到全局安装）；
    - 含 marker → 打印 `already patched` 跳过；缺补丁 → 先备份到 `~/.dsh/patches/dsh-sandbox.index.js.bak`，再做精确字符串替换 + 括号配平校验 + 原子写回（tmp + rename）；
    - 任何异常只打印警告，**绝不让 dsh 启动失败**。
@@ -83,10 +83,13 @@ dsh --profile web --dump-config | grep -A1 escalation-noop
 
 ## 升级后的行为
 
-`npm update -g @deepseek-ai/dsh` 等升级会抹掉 node_modules 里的手工改动，但：
+`npm update -g @deepseek-ai/dsh` 等升级会抹掉 node_modules 里的手工改动。插件在三个时机自愈：
 
-1. 升级后第一次启动，插件自动检测到补丁丢失并重打（日志醒目提示 `restart dsh once`）；
-2. 用户再重启一次即恢复（ESM 缓存约束：文件改动对当前进程无效，只对下次启动生效）。
+1. **启动时**：检测到补丁丢失立即重打（日志醒目提示 `patch applied — restart dsh once`）；
+2. **退出时**：进程干净退出前再打一次——**升级时如果 dsh 正在运行，下一次启动已是干净状态，零手动重启**；
+3. **周期巡检**（默认 5 分钟，`config.intervalMs` 可调，0 关闭）：覆盖进程被杀/崩溃、或应用运行期间文件被外部改动的情况。
+
+**唯一仍需一次手动重启的场景**：升级发生在 dsh 完全停止期间（如升级后才启动应用）。此时第一次启动必然先加载未补丁模块（ESM 缓存 + 工具参数在 registry 层被 deep-freeze 无法进程内拦截 + host 层的 sandbox-policy/fs-sandbox 等行在插件行之前就静态 import 了 dsh-sandbox——均经代码与实测验证），随后插件补好文件并打日志，重启一次即恢复。
 
 ## 回滚
 

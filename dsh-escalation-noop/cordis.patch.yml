@@ -12,6 +12,14 @@
 # re-applies the edit after every dsh upgrade. The package is installed in the
 # web profile (dependencies) and linked into the shared module fallback
 # (~/.dsh/profiles/node_modules), so every profile can resolve it.
+#
+# Restart behavior after an upgrade (upgrades wipe the node_modules edit):
+#   - upgrade while dsh is RUNNING: the plugin re-patches at shutdown and on a
+#     periodic check, so the next start is already clean — 0 restarts.
+#   - upgrade while dsh is STOPPED: the first start imports the unpatched
+#     module before any user code can run (ESM cache + immutable tool args +
+#     host rows import dsh-sandbox early), then the plugin patches the file
+#     and logs a prominent notice — one manual restart restores behavior.
 - insert:
     - id: escalation-noop
       name: dsh-escalation-noop

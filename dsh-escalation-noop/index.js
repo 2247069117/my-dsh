@@ -10,9 +10,26 @@
 // request for the mode the call already runs under becomes a no-op grant
 // (real escalations still prompt for approval, downgrades still throw), and
 // re-applies the rewrite after every dsh upgrade (upgrades wipe node_modules
-// edits). The running process is unaffected by the file edit (ESM cache), so
-// a restart is required once; after an upgrade the first boot re-patches and
-// a second restart restores behavior.
+// edits).
+//
+// Restart behavior (why the file edit only affects the NEXT process): the
+// host composition imports dsh-sandbox during early base rows (sandbox-policy,
+// bash-sandbox, fs-sandbox, ...) while this row activates last, and ESM
+// caches the module; tool arguments are deep-frozen at the registry, so no
+// in-process interception exists. To keep the broken window as small as
+// possible the plugin patches at three moments:
+//   1. BOOT      — after an upgrade the first start re-patches the file and
+//                  logs a prominent "restart dsh once" notice.
+//   2. EXIT      — patching again on clean process exit covers "upgrade while
+//                  the app is running": the next start is already clean, so
+//                  zero manual restarts are needed.
+//   3. INTERVAL  — a periodic re-check (default 5 min, config.intervalMs, 0 to
+//                  disable) covers killed/crashed processes and any external
+//                  wipe while the app keeps running.
+// The only case that still needs one manual restart is an upgrade while dsh
+// is fully stopped: the first start imports the unpatched module before any
+// user code can run (verified empirically), then the boot-time patch fixes
+// the file for the next start.
 //
 // Constraints honored here:
 //   - only Node built-ins are imported (node:fs, node:module, node:path);
@@ -28,6 +45,9 @@ import path from "node:path";
 
 /** Marker that identifies a patched file (also used by the manual script). */
 export const MARKER = "local patch (user)";
+
+/** Default interval between periodic re-checks (0 disables). */
+const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
 
 /** The exact original line (Tab indent), from dsh-sandbox's approveEscalation. */
 const OLD_LINE =
@@ -87,7 +107,8 @@ export function findSandboxLib() {
 /**
  * Core routine: check one lib/index.js and re-apply the patch when missing.
  * Statuses: "already-patched" | "patched" | "version-changed" |
- * "balance-failed" | "unreadable". Never throws.
+ * "balance-failed" | "unreadable" | "write-failed" | "resolve-failed".
+ * Never throws.
  * @param {string} libFile - absolute path of the sandbox lib/index.js.
  * @param {{ backupDir?: string }} [options]
  */
@@ -131,43 +152,77 @@ export function patchEscalationNoop({ backupDir } = {}) {
 }
 
 /**
- * The Cordis plugin row. Runs at boot, after the base bundle has already
- * imported dsh-sandbox (which is fine: the file edit only affects the next
- * process start, as documented above).
+ * The Cordis plugin row. Runs at boot (patches the file), at clean process
+ * exit, and on a periodic interval, as documented at the top of this file.
+ * @param {import("cordis").Context} ctx
  */
 export default function escalationNoop(ctx) {
 	const logger = typeof ctx?.logger === "function" ? ctx.logger("escalation-noop") : null;
 	const info = (message) => (logger ? logger.info(message) : console.info(`[escalation-noop] ${message}`));
 	const warn = (message) => (logger ? logger.warn(message) : console.warn(`[escalation-noop] ${message}`));
 	const home = process.env.DSH_HOME || process.env.HOME;
-	let result;
-	try {
-		result = patchEscalationNoop({ backupDir: home ? path.join(home, ".dsh", "patches") : undefined });
-	} catch (error) {
-		warn(`unexpected failure (boot continues): ${error instanceof Error ? error.message : String(error)}`);
-		return;
+	const backupDir = home ? path.join(home, ".dsh", "patches") : undefined;
+
+	/** Run one check; `loud` controls whether state changes are logged. */
+	function runPatch(loud) {
+		let result;
+		try {
+			result = patchEscalationNoop({ backupDir });
+		} catch (error) {
+			if (loud) warn(`unexpected failure (boot continues): ${error instanceof Error ? error.message : String(error)}`);
+			return;
+		}
+		if (!loud && result.status !== "patched" && result.status !== "version-changed") return;
+		switch (result.status) {
+			case "already-patched":
+				if (loud) info("already patched: same-mode sandbox_permissions is a no-op");
+				break;
+			case "patched":
+				warn("patch applied to @deepseek-ai/dsh-sandbox — restart dsh once for it to take effect (auto re-applied after upgrades)");
+				break;
+			case "version-changed":
+				warn("dsh-sandbox version changed: expected patch text not found — update dsh-escalation-noop (boot continues; the escalation error may recur)");
+				break;
+			case "balance-failed":
+				warn("sanity check failed — patch NOT written (boot continues)");
+				break;
+			case "resolve-failed":
+				warn("@deepseek-ai/dsh-sandbox not resolvable from this profile — is dsh installed globally? (boot continues)");
+				break;
+			case "unreadable":
+			case "write-failed":
+				warn(`${result.status}: ${result.error ?? ""} (boot continues)`);
+				break;
+			default:
+				warn(`unknown status ${result.status} (boot continues)`);
+		}
 	}
-	switch (result.status) {
-		case "already-patched":
-			info("already patched: same-mode sandbox_permissions is a no-op");
-			break;
-		case "patched":
-			warn("patch applied to @deepseek-ai/dsh-sandbox — restart dsh once for it to take effect (auto re-applied after upgrades)");
-			break;
-		case "version-changed":
-			warn("dsh-sandbox version changed: expected patch text not found — update dsh-escalation-noop (boot continues; the escalation error may recur)");
-			break;
-		case "balance-failed":
-			warn("sanity check failed — patch NOT written (boot continues)");
-			break;
-		case "resolve-failed":
-			warn("@deepseek-ai/dsh-sandbox not resolvable from this profile — is dsh installed globally? (boot continues)");
-			break;
-		case "unreadable":
-		case "write-failed":
-			warn(`${result.status}: ${result.error ?? ""} (boot continues)`);
-			break;
-		default:
-			warn(`unknown status ${result.status} (boot continues)`);
+
+	// 1. Boot-time patch (loud: the user must know about the restart).
+	runPatch(true);
+
+	// 2. Exit-time patch: covers "upgrade while running" — the next start is
+	//    already clean, zero manual restarts. Best-effort and silent.
+	const onExit = () => {
+		try {
+			patchEscalationNoop({ backupDir });
+		} catch {
+			// Never interfere with shutdown.
+		}
+	};
+	process.on("exit", onExit);
+
+	// 3. Periodic re-check: covers killed/crashed processes and external
+	//    wipes while the app keeps running. Silent except when it patches.
+	const intervalMs = Number(ctx?.config?.intervalMs ?? DEFAULT_INTERVAL_MS);
+	let intervalDisposer;
+	if (intervalMs > 0 && typeof ctx?.interval === "function") {
+		intervalDisposer = ctx.interval(() => runPatch(false), intervalMs);
 	}
+
+	// Fiber-owned cleanup on stop/update/unmount.
+	return () => {
+		process.removeListener("exit", onExit);
+		if (typeof intervalDisposer === "function") intervalDisposer();
+	};
 }
