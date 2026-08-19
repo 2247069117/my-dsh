@@ -50,12 +50,13 @@ Error: sandbox escalation to "danger-full-access" is not strictly wider than thi
 包已发布到 npm：**`dsh-escalation-noop`**（`https://www.npmjs.com/package/dsh-escalation-noop`）。一条命令：
 
 ```bash
-# 每个想启用的 profile 各执行一次（自动装依赖 + 自动写入 dsh.profile.bundles）
+# WebUI（dsh web）安装：自动装依赖 + 自动写入 dsh.profile.bundles
 dsh plugin --profile web add dsh-escalation-noop
-dsh plugin --profile headless add dsh-escalation-noop
 
 # 然后重启 dsh 一次
 ```
+
+> 备注：如也使用 headless profile（终端一次性任务 `dsh --profile headless "..."`），用同样的命令加装：`dsh plugin --profile headless add dsh-escalation-noop`。
 
 ### 可选配置
 
@@ -95,13 +96,14 @@ dsh --profile web --dump-config | grep -A1 escalation-noop
 ## 回滚
 
 ```bash
-# 从每个 profile 移除（会同时清理依赖与 bundles 条目）
+# 从 WebUI 移除（会同时清理依赖与 bundles 条目）
 dsh plugin --profile web remove dsh-escalation-noop
-dsh plugin --profile headless remove dsh-escalation-noop
 
 # 还原 vendor 补丁文件
 cp ~/.dsh/patches/dsh-sandbox.index.js.orig \
    $(node -e "console.log(require('node:module').createRequire(process.cwd()+'/x.js').resolve('@deepseek-ai/dsh-sandbox/package.json'))" | sed 's|package.json|lib/index.js|')
 ```
+
+> 若 headless 也装过，用同样的命令移除：`dsh plugin --profile headless remove dsh-escalation-noop`。
 
 > 提示：`dsh-sandbox.index.js.orig`（补丁前的原文件）需要在本机打补丁前自行备份；本仓库不包含 vendor 文件副本。
