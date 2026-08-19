@@ -840,7 +840,8 @@ function apply() {
   function applyBeamMode(mode) {
     var card = beamAttachedCard;
     if (!card) return;
-    if (currentBeamMode === mode) return;
+    // Force re-apply even if mode same, to handle card recreation (React)
+    // if (currentBeamMode === mode && card.hasAttribute('data-'+mode)) return;
     currentBeamMode = mode;
     // Clear pulse timer if leaving pulse
     if (mode !== 'pulse' && pulseTimer) { clearTimeout(pulseTimer); pulseTimer=null; }
