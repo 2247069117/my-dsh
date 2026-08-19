@@ -765,21 +765,7 @@ function apply() {
   function ensureBeamStyles(borderRadius, variant) {
     var isDark = getBeamThemeIsDark();
     var r = typeof borderRadius === 'number' ? borderRadius : 16;
-    var v = variant || 'colorful';
-    // Temporarily swap colorPalettes for needed variant if buildBeamCSS uses global colorPalettes
-    // Our buildBeamCSS now supports any variant via colorPalettes, so we ensure it exists
     var css = buildBeamCSS(BEAM_ID, r, isDark);
-    // For variant-specific, we need to regenerate with correct palette: monkey-patch colorPalettes for this call
-    // Simple: if variant is mono/sunset, temporarily replace and regenerate
-    if (v !== 'colorful') {
-      var saved = colorPalettes.colorful;
-      // colorPalettes already has sunset/mono after above init, so we can just call getColorGradients with variant
-      // But our buildBeamCSS currently hardcodes colorful via getColorGradients(isDark,id) without variant param.
-      // So we need to handle variant by post-processing or by calling a variant-aware generator.
-      // For now, for mono/sunset we will generate via same colorful but with CSS filter to desaturate / hue-shift
-      // To keep simple, we rely on CSS filter hue-rotate already, so planning sunset will still look warm via filter.
-      // We will just use colorful and let CSS handle.
-    }
     if (!beamStyleTag) {
       beamStyleTag = document.getElementById("dsh-beam-css");
       if (!beamStyleTag) {
