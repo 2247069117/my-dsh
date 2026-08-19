@@ -154,9 +154,12 @@ export function patchEscalationNoop({ backupDir } = {}) {
 /**
  * The Cordis plugin row. Runs at boot (patches the file), at clean process
  * exit, and on a periodic interval, as documented at the top of this file.
+ * Config arrives as the SECOND argument (cordis passes the resolved row
+ * config there); `ctx.config` is guarded and must not be read.
  * @param {import("cordis").Context} ctx
+ * @param {{ intervalMs?: number }} [config]
  */
-export default function escalationNoop(ctx) {
+export default function escalationNoop(ctx, config) {
 	const logger = typeof ctx?.logger === "function" ? ctx.logger("escalation-noop") : null;
 	const info = (message) => (logger ? logger.info(message) : console.info(`[escalation-noop] ${message}`));
 	const warn = (message) => (logger ? logger.warn(message) : console.warn(`[escalation-noop] ${message}`));
@@ -214,10 +217,13 @@ export default function escalationNoop(ctx) {
 
 	// 3. Periodic re-check: covers killed/crashed processes and external
 	//    wipes while the app keeps running. Silent except when it patches.
-	const intervalMs = Number(ctx?.config?.intervalMs ?? DEFAULT_INTERVAL_MS);
+	//    The timer is a Service: read it with ctx.get (never ctx.interval —
+	//    mixin properties are guard-gated).
+	const intervalMs = Number(config?.intervalMs ?? DEFAULT_INTERVAL_MS);
+	const timer = typeof ctx?.get === "function" ? ctx.get("timer") : undefined;
 	let intervalDisposer;
-	if (intervalMs > 0 && typeof ctx?.interval === "function") {
-		intervalDisposer = ctx.interval(() => runPatch(false), intervalMs);
+	if (intervalMs > 0 && timer && typeof timer.interval === "function") {
+		intervalDisposer = timer.interval(() => runPatch(false), intervalMs);
 	}
 
 	// Fiber-owned cleanup on stop/update/unmount.

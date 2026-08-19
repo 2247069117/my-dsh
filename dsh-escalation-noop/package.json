@@ -1,6 +1,13 @@
 {
   "name": "dsh-escalation-noop",
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "description": "Self-healing no-op patch for same-mode sandbox_permissions in @deepseek-ai/dsh-sandbox (upgrade-immune).",
   "type": "module",
-  "main": "index.js"
+  "main": "index.js",
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
 }

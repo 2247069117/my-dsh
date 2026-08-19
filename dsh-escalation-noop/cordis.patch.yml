@@ -1,25 +1,18 @@
-# User-level patch layer — applied after every profile's own cordis.patch.yml,
-# for every profile (web, headless, ...). Top-level YAML array of loader patch
-# entries; entry syntax: an `insert` key (no id) appends new rows, an id
-# without `insert` overrides an existing row of that id, `!!js` expressions
-# are evaluated when a row activates. See
+# Bundle patch layer for dsh-escalation-noop. Applied to every profile that
+# lists "dsh-escalation-noop" in its `dsh.profile.bundles` — a top-level YAML
+# array of loader patch entries (see
 # ~/.dsh/profiles/node_modules/@deepseek-ai/dsh-base/cordis.patch.yml for the
-# bundle-side example.
+# bundle-side example).
 #
-# escalation-noop — self-healing patch for @deepseek-ai/dsh-sandbox:
-# makes a sandbox_permissions request for the mode the call already runs under
-# a no-op grant (real escalations still prompt, downgrades still throw) and
-# re-applies the edit after every dsh upgrade. The package is installed in the
-# web profile (dependencies) and linked into the shared module fallback
-# (~/.dsh/profiles/node_modules), so every profile can resolve it.
+# The row mounts the self-healing patch plugin: same-mode sandbox_permissions
+# requests become a no-op grant (real escalations still prompt, downgrades
+# still throw), and the plugin re-applies the vendor-file patch at boot, on
+# clean exit, and on a periodic check so dsh upgrades can never disable it.
 #
-# Restart behavior after an upgrade (upgrades wipe the node_modules edit):
-#   - upgrade while dsh is RUNNING: the plugin re-patches at shutdown and on a
-#     periodic check, so the next start is already clean — 0 restarts.
-#   - upgrade while dsh is STOPPED: the first start imports the unpatched
-#     module before any user code can run (ESM cache + immutable tool args +
-#     host rows import dsh-sandbox early), then the plugin patches the file
-#     and logs a prominent notice — one manual restart restores behavior.
+# Optional override via the user patch layer (~/.dsh/cordis.patch.yml):
+#   - id: escalation-noop
+#     config:
+#       intervalMs: 600000   # periodic re-check period; 0 disables
 - insert:
     - id: escalation-noop
       name: dsh-escalation-noop

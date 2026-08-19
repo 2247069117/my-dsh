@@ -1,6 +1,6 @@
 # dsh-escalation-noop
 
-根治 dsh 工具调用报错的零依赖插件方案（**升级免疫**）：
+根治 dsh 工具调用报错的零依赖插件方案（**升级免疫**），以可分发的 **dsh bundle** 形式发布：
 
 ```
 Error: sandbox escalation to "danger-full-access" is not strictly wider than this call's current "danger-full-access" mode
@@ -34,36 +34,58 @@ Error: sandbox escalation to "danger-full-access" is not strictly wider than thi
    - 含 marker → 打印 `already patched` 跳过；缺补丁 → 先备份到 `~/.dsh/patches/dsh-sandbox.index.js.bak`，再做精确字符串替换 + 括号配平校验 + 原子写回（tmp + rename）；
    - 任何异常只打印警告，**绝不让 dsh 启动失败**。
 
-3. **挂载（升级免疫）**：`cordis.patch.yml` 是用户级组合 patch（`~/.dsh/cordis.patch.yml`），对所有 profile 生效、应用顺序在 bundle 与 profile 层之后，dsh 升级不会覆盖它。注意：新行必须包在 `insert:` 里——裸 `- id: ...` 行是"覆盖已有行"语义，目标不存在会被静默跳过。
+3. **挂载（升级免疫）**：本包声明 `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`，是标准 dsh bundle——加入 profile 的 `dsh.profile.bundles` 即自动成为一个组合层（与 `@deepseek-ai/dsh-base` 同机制），dsh 升级不会覆盖它。注意：新行必须包在 `insert:` 里——裸 `- id: ...` 行是"覆盖已有行"语义，目标不存在会被静默跳过。
 
 ## 文件
 
 | 文件 | 作用 |
 |---|---|
-| `index.js` | 插件本体（复制到 `~/.dsh/profiles/web/plugins/dsh-escalation-noop/`） |
-| `package.json` | 插件包清单（`type: module`，零依赖） |
-| `cordis.patch.yml` | 用户级组合 patch 示例（即 `~/.dsh/cordis.patch.yml` 全文） |
+| `index.js` | 插件本体（零依赖、自愈、幂等、优雅失败） |
+| `package.json` | 包清单（`type: module`，`dsh.bundle` 声明） |
+| `cordis.patch.yml` | **包内 bundle 补丁层**：挂载 `escalation-noop` 行 |
 | `README.md` | 本文档 |
 
-## 安装
+## 安装（bundle 形式，推荐）
 
 ```bash
-# 1. 插件包放进 web profile
+# 1. 把本目录放进（或链接到）profile 可解析的位置，例如：
 mkdir -p ~/.dsh/profiles/web/plugins
-cp -R dsh-escalation-noop ~/.dsh/profiles/web/plugins/   # 取 index.js + package.json 即可
+cp -R dsh-escalation-noop ~/.dsh/profiles/web/plugins/
 
-# 2. web profile 声明依赖（先备份 package.json）
-cd ~/.dsh/profiles/web
-# 在 package.json 的 dependencies 加 "dsh-escalation-noop": "file:./plugins/dsh-escalation-noop"
-pnpm install
+# 2. 加入 web profile（会同时写入 dependencies 与 dsh.profile.bundles）
+dsh plugin --profile web add ./plugins/dsh-escalation-noop
 
-# 3. （可选）其他 profile 共享解析：链接进共享 fallback 目录
-ln -s ~/.dsh/profiles/web/plugins/dsh-escalation-noop ~/.dsh/profiles/node_modules/dsh-escalation-noop
+#    —— 等效手写：package.json 加依赖 "dsh-escalation-noop": "file:./plugins/dsh-escalation-noop"
+#    并确认 "dsh": { "profile": { "bundles": [..., "dsh-escalation-noop"] } }，然后 pnpm install
 
-# 4. 用户级 patch 挂载（所有 profile 生效）
-#    把 cordis.patch.yml 内容写入 ~/.dsh/cordis.patch.yml（不存在则新建）
+# 3. 每个想启用的 profile 都要加（headless 同理）
+dsh plugin --profile headless add ./plugins/dsh-escalation-noop
 
-# 5. 重启 dsh 一次
+# 4. 重启 dsh 一次
+```
+
+### 经典挂载（可选，单机用户场景）
+
+不用 bundle 机制、只靠用户级 patch 层也可以（`~/.dsh/cordis.patch.yml` 对所有 profile 生效）：
+
+```yaml
+- insert:
+    - id: escalation-noop
+      name: dsh-escalation-noop
+```
+
+此方式要求包可解析（web profile 依赖 + 共享 fallback 链接），见 `git show 2bed191` 版本的 README。
+
+> ⚠️ **两种方式二选一，不要同时用**：bundle 行和 home patch 行会生成两个同 id 的 `escalation-noop` 行，loader 启动报 `duplicate loader entry id: escalation-noop`（已实测）。从经典挂载切到 bundle 时，先删掉 `~/.dsh/cordis.patch.yml` 里的 insert 行。
+
+### 可选配置（两种挂载方式通用）
+
+在用户级 patch 层覆盖该行：
+
+```yaml
+- id: escalation-noop
+  config:
+    intervalMs: 600000   # 周期巡检间隔（毫秒），0 关闭；默认 300000
 ```
 
 ## 验证
@@ -94,12 +116,17 @@ dsh --profile web --dump-config | grep -A1 escalation-noop
 ## 回滚
 
 ```bash
-# 1. 移除挂载：删除 ~/.dsh/cordis.patch.yml 中的 insert 行（或整个文件）
-# 2. 移除依赖：恢复 web/package.json 备份并 pnpm install
-# 3. 删除插件与链接：
+# bundle 形式：从每个 profile 移除
+dsh plugin --profile web remove dsh-escalation-noop     # 或手改 package.json 后 pnpm install
+dsh plugin --profile headless remove dsh-escalation-noop
+
+# 经典挂载：删除 ~/.dsh/cordis.patch.yml 中的 insert 行（或整个文件）
+
+# 删除插件目录
 rm -rf ~/.dsh/profiles/web/plugins/dsh-escalation-noop
 rm -f ~/.dsh/profiles/node_modules/dsh-escalation-noop
-# 4. 还原补丁文件：
+
+# 还原 vendor 补丁文件
 cp ~/.dsh/patches/dsh-sandbox.index.js.orig \
    $(node -e "console.log(require('node:module').createRequire(process.cwd()+'/x.js').resolve('@deepseek-ai/dsh-sandbox/package.json'))" | sed 's|package.json|lib/index.js|')
 ```
