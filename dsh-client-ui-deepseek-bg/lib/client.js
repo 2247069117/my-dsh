@@ -731,6 +731,8 @@ function apply() {
   var beamResizeObs = null;
   var beamMutObs = null;
   var beamPulseTimer = null;
+  var pendingExecuting = false;
+  var pendingTimer = null;
   var beamPollTimer = null;
   var beamTypingHandler = null;
   var beamState = { mode: 'hairline', idleStrength: 0.65, focusStrength: 1.0, disabled: false };
@@ -817,6 +819,7 @@ function apply() {
   }
   function isExecuting() {
     try {
+      if (pendingExecuting) return true;
       // Primary: stop button aria-label indicates running
       var stopBtn = document.querySelector('[data-composer-card] button[aria-label="Stop generating"], [data-composer-card] button[aria-label="停止生成"], button[aria-label="Stop generating"], button[aria-label="停止生成"]');
       if (stopBtn && !stopBtn.disabled) return true;
@@ -838,6 +841,7 @@ function apply() {
     currentBeamMode = mode;
     // Clear pulse timer if leaving pulse
     if (mode !== 'pulse' && pulseTimer) { clearTimeout(pulseTimer); pulseTimer=null; }
+    if (mode === 'pulse') { pendingExecuting = false; if(pendingTimer){ clearTimeout(pendingTimer); pendingTimer=null; } }
     var isDark = getBeamThemeIsDark();
     var r = resolveBorderRadius(card);
     // Ensure styles exist
@@ -900,14 +904,23 @@ function apply() {
   }
   function resolveBeamMode() {
     if (isBeamDisabled()) return 'hairline';
-    if (isExecuting()) return 'executing';
+    // If pendingExecuting is true, treat as executing even before stop button appears
+    if (pendingExecuting || isExecuting()) return 'executing';
     if (currentBeamMode === 'pulse') return 'pulse'; // keep pulse until timer
     if (isPlanMode()) return 'planning';
     if (isTyping()) return 'typing';
     return 'hairline';
   }
   function updateBeamState() {
+    // If we are pending and actual executing is now true, clear pending and keep executing
+    if (pendingExecuting && isExecuting()) {
+      // keep pending for now, it will be cleared when executing ends
+    }
     var next = resolveBeamMode();
+    // If we transition to executing, clear pendingTimer's fallback but keep pendingExecuting until real end
+    if (next === 'executing' && pendingExecuting) {
+      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer=null; }
+    }
     // Handle transition: executing -> pulse
     if (currentBeamMode === 'executing' && next !== 'executing' && next !== 'pulse') {
       // Just finished execution, go to pulse
@@ -943,6 +956,28 @@ function apply() {
       beamTypingHandler = function(){ updateBeamState(); };
       input.addEventListener('input', beamTypingHandler);
       input.addEventListener('change', beamTypingHandler);
+      // Send detection: Enter or send button click -> immediate executing
+      var onSend = function(){
+        var val = input.value !== undefined ? input.value : input.textContent;
+        if (val && String(val).trim().length>0) {
+          pendingExecuting = true;
+          if (pendingTimer) clearTimeout(pendingTimer);
+          // fallback clear after 5s if stop button never appears (e.g., blocked)
+          pendingTimer = setTimeout(function(){ pendingExecuting=false; updateBeamState(); }, 5000);
+          updateBeamState();
+        }
+      };
+      input.addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey){ onSend(); }});
+      // Store for cleanup
+      input._dshBeamOnSend = onSend;
+    }
+    // Send button click
+    var sendBtn = card.querySelector('button[aria-label="Send"], button[aria-label="发送"], button[aria-label="Send message"], .uV2eYG_primary');
+    if (sendBtn) {
+      var sendHandler = function(){ pendingExecuting = true; if(pendingTimer) clearTimeout(pendingTimer); pendingTimer=setTimeout(function(){ pendingExecuting=false; updateBeamState(); },5000); updateBeamState(); };
+      sendBtn.addEventListener('click', sendHandler);
+      card._dshBeamSendBtn = sendBtn;
+      card._dshBeamSendHandler = sendHandler;
     }
     // ResizeObserver for borderRadius
     if (window.ResizeObserver) {
@@ -964,7 +999,8 @@ function apply() {
       try{ beamMutObs.observe(rootEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-label','class','data-plan-mode'] }); }catch(e){}
     }
     card._dshBeamCleanup = function(){
-      if (input && beamTypingHandler) { try{ input.removeEventListener('input', beamTypingHandler); input.removeEventListener('change', beamTypingHandler); }catch(e){} }
+      if (input && beamTypingHandler) { try{ input.removeEventListener('input', beamTypingHandler); input.removeEventListener('change', beamTypingHandler); if(input._dshBeamOnSend) input.removeEventListener('keydown', input._dshBeamOnSend); }catch(e){} }
+      if (card._dshBeamSendBtn && card._dshBeamSendHandler) { try{ card._dshBeamSendBtn.removeEventListener('click', card._dshBeamSendHandler); }catch(e){} }
       if (beamPollTimer) { clearInterval(beamPollTimer); beamPollTimer=null; }
       if (beamMutObs) { try{ beamMutObs.disconnect(); beamMutObs=null; }catch(e){} }
       if (beamResizeObs) { try{ beamResizeObs.disconnect(); beamResizeObs=null; }catch(e){} }
