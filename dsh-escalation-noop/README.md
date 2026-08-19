@@ -45,9 +45,9 @@ Error: sandbox escalation to "danger-full-access" is not strictly wider than thi
 | `cordis.patch.yml` | **包内 bundle 补丁层**：挂载 `escalation-noop` 行 |
 | `README.md` | 本文档 |
 
-## 安装（bundle 形式，推荐）
+## 安装
 
-包已发布到 npm：**`dsh-escalation-noop`**（`https://www.npmjs.com/package/dsh-escalation-noop`）。一条命令安装：
+包已发布到 npm：**`dsh-escalation-noop`**（`https://www.npmjs.com/package/dsh-escalation-noop`）。一条命令：
 
 ```bash
 # 每个想启用的 profile 各执行一次（自动装依赖 + 自动写入 dsh.profile.bundles）
@@ -57,29 +57,9 @@ dsh plugin --profile headless add dsh-escalation-noop
 # 然后重启 dsh 一次
 ```
 
-从本地目录安装（未发布时/离线场景）等价：
+### 可选配置
 
-```bash
-dsh plugin --profile web add ./dsh-escalation-noop
-```
-
-### 经典挂载（可选，单机用户场景）
-
-不用 bundle 机制、只靠用户级 patch 层也可以（`~/.dsh/cordis.patch.yml` 对所有 profile 生效）：
-
-```yaml
-- insert:
-    - id: escalation-noop
-      name: dsh-escalation-noop
-```
-
-此方式要求包可解析（web profile 依赖 + 共享 fallback 链接），见 `git show 2bed191` 版本的 README。
-
-> ⚠️ **两种方式二选一，不要同时用**：bundle 行和 home patch 行会生成两个同 id 的 `escalation-noop` 行，loader 启动报 `duplicate loader entry id: escalation-noop`（已实测）。从经典挂载切到 bundle 时，先删掉 `~/.dsh/cordis.patch.yml` 里的 insert 行。
-
-### 可选配置（两种挂载方式通用）
-
-在用户级 patch 层覆盖该行：
+在用户级 patch 层（`~/.dsh/cordis.patch.yml`）覆盖该行：
 
 ```yaml
 - id: escalation-noop
@@ -115,15 +95,9 @@ dsh --profile web --dump-config | grep -A1 escalation-noop
 ## 回滚
 
 ```bash
-# bundle 形式：从每个 profile 移除
-dsh plugin --profile web remove dsh-escalation-noop     # 或手改 package.json 后 pnpm install
+# 从每个 profile 移除（会同时清理依赖与 bundles 条目）
+dsh plugin --profile web remove dsh-escalation-noop
 dsh plugin --profile headless remove dsh-escalation-noop
-
-# 经典挂载：删除 ~/.dsh/cordis.patch.yml 中的 insert 行（或整个文件）
-
-# 删除插件目录
-rm -rf ~/.dsh/profiles/web/plugins/dsh-escalation-noop
-rm -f ~/.dsh/profiles/node_modules/dsh-escalation-noop
 
 # 还原 vendor 补丁文件
 cp ~/.dsh/patches/dsh-sandbox.index.js.orig \
