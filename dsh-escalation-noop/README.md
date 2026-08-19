@@ -47,21 +47,20 @@ Error: sandbox escalation to "danger-full-access" is not strictly wider than thi
 
 ## 安装（bundle 形式，推荐）
 
+包已发布到 npm：**`dsh-escalation-noop`**（`https://www.npmjs.com/package/dsh-escalation-noop`）。一条命令安装：
+
 ```bash
-# 1. 把本目录放进（或链接到）profile 可解析的位置，例如：
-mkdir -p ~/.dsh/profiles/web/plugins
-cp -R dsh-escalation-noop ~/.dsh/profiles/web/plugins/
+# 每个想启用的 profile 各执行一次（自动装依赖 + 自动写入 dsh.profile.bundles）
+dsh plugin --profile web add dsh-escalation-noop
+dsh plugin --profile headless add dsh-escalation-noop
 
-# 2. 加入 web profile（会同时写入 dependencies 与 dsh.profile.bundles）
-dsh plugin --profile web add ./plugins/dsh-escalation-noop
+# 然后重启 dsh 一次
+```
 
-#    —— 等效手写：package.json 加依赖 "dsh-escalation-noop": "file:./plugins/dsh-escalation-noop"
-#    并确认 "dsh": { "profile": { "bundles": [..., "dsh-escalation-noop"] } }，然后 pnpm install
+从本地目录安装（未发布时/离线场景）等价：
 
-# 3. 每个想启用的 profile 都要加（headless 同理）
-dsh plugin --profile headless add ./plugins/dsh-escalation-noop
-
-# 4. 重启 dsh 一次
+```bash
+dsh plugin --profile web add ./dsh-escalation-noop
 ```
 
 ### 经典挂载（可选，单机用户场景）
