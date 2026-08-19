@@ -818,20 +818,22 @@ function apply() {
     } catch(e){}
     return false;
   }
-  function isExecuting() {
+  function isRealExecuting() {
     try {
-      if (pendingExecuting) return true;
-      // Primary: stop button aria-label indicates running (use *= for robustness, correct labels are '发送消息'/'Send message' for send, '停止生成'/'Stop generating' for stop)
       var stopBtn = document.querySelector('button[aria-label*="停止生成"], button[aria-label*="Stop generating"], [data-composer-card] button[aria-label*="停止"], [data-composer-card] button[aria-label*="Stop"]');
       if (stopBtn && !stopBtn.disabled) return true;
-      // Fallback: check for running indicator in conversation
       if (document.querySelector('[data-state="running"], .Md3f7G_turnStatus')) {
-        // need to ensure it's not just static, but check if turn status is visible
         var el = document.querySelector('.Md3f7G_turnStatus');
         if (el && el.offsetParent !== null) return true;
       }
     } catch(e){}
     return false;
+  }
+  function isExecuting() {
+    try {
+      if (pendingExecuting) return true;
+      return isRealExecuting();
+    } catch(e){ return false; }
   }
   var currentBeamMode = 'hairline';
   var pulseTimer = null;
@@ -946,15 +948,13 @@ function apply() {
         }
       }
     }
-    // If we are pending and actual executing is now true, clear pending and keep executing
+    // If pending and real executing is now true, pending is no longer needed
+    if (pendingExecuting && isRealExecuting()) { pendingExecuting = false; if(pendingTimer){ clearTimeout(pendingTimer); pendingTimer=null; } }
     if (pendingExecuting && isExecuting()) {
       // keep pending for now, it will be cleared when executing ends
     }
     var next = resolveBeamMode();
-    // If we transition to executing, clear pendingTimer's fallback but keep pendingExecuting until real end
-    if (next === 'executing' && pendingExecuting) {
-      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer=null; }
-    }
+    // If we transition to executing, keep pending until real executing is confirmed, then it will be cleared above
     // Handle transition: executing -> pulse
     if (currentBeamMode === 'executing' && next !== 'executing' && next !== 'pulse') {
       // Just finished execution, go to pulse

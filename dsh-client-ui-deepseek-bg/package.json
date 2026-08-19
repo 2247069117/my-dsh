@@ -1,7 +1,7 @@
 {
   "name": "dsh-client-ui-deepseek-bg",
   "description": "DeepSeek 官网风格深色皮肤：极光/粒子鲸鱼背景 + 玻璃拟态 + Border Beam 流动边框（执行时彩虹扫光，0.8x）",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
