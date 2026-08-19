@@ -151,11 +151,15 @@ export function patchEscalationNoop({ backupDir } = {}) {
 	return applyPatchToFile(libFile, { backupDir });
 }
 
+/** Module-level mount guard: at most one live instance per process. */
+let active = false;
+
 /**
  * The Cordis plugin row. Runs at boot (patches the file), at clean process
  * exit, and on a periodic interval, as documented at the top of this file.
  * Config arrives as the SECOND argument (cordis passes the resolved row
  * config there); `ctx.config` is guarded and must not be read.
+ * A second mount (e.g. a stale fallback row) is a silent no-op.
  * @param {import("cordis").Context} ctx
  * @param {{ intervalMs?: number }} [config]
  */
@@ -163,6 +167,11 @@ export default function escalationNoop(ctx, config) {
 	const logger = typeof ctx?.logger === "function" ? ctx.logger("escalation-noop") : null;
 	const info = (message) => (logger ? logger.info(message) : console.info(`[escalation-noop] ${message}`));
 	const warn = (message) => (logger ? logger.warn(message) : console.warn(`[escalation-noop] ${message}`));
+	if (active) {
+		warn("already active — duplicate mount skipped (another escalation-noop row is active)");
+		return () => {};
+	}
+	active = true;
 	const home = process.env.DSH_HOME || process.env.HOME;
 	const backupDir = home ? path.join(home, ".dsh", "patches") : undefined;
 
@@ -228,6 +237,7 @@ export default function escalationNoop(ctx, config) {
 
 	// Fiber-owned cleanup on stop/update/unmount.
 	return () => {
+		active = false;
 		process.removeListener("exit", onExit);
 		if (typeof intervalDisposer === "function") intervalDisposer();
 	};
