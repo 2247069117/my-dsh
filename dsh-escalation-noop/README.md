@@ -6,6 +6,29 @@
 Error: sandbox escalation to "danger-full-access" is not strictly wider than this call's current "danger-full-access" mode
 ```
 
+## 安装
+
+包已发布到 npm：**`dsh-escalation-noop`**（`https://www.npmjs.com/package/dsh-escalation-noop`）。一条命令：
+
+```bash
+# WebUI（dsh web）安装：自动装依赖 + 自动写入 dsh.profile.bundles
+dsh plugin --profile web add dsh-escalation-noop
+
+# 然后重启 dsh 一次
+```
+
+> 备注：如也使用 headless profile（终端一次性任务 `dsh --profile headless "..."`），用同样的命令加装：`dsh plugin --profile headless add dsh-escalation-noop`。
+
+### 可选配置
+
+在用户级 patch 层（`~/.dsh/cordis.patch.yml`）覆盖该行：
+
+```yaml
+- id: escalation-noop
+  config:
+    intervalMs: 600000   # 周期巡检间隔（毫秒），0 关闭；默认 300000
+```
+
 ## 背景
 
 - 会话沙箱模式为 `danger-full-access`（`~/.dsh/settings.yaml` → `permission.defaultPreset`）时本来就不受限，但 `bash` / `fs` 等工具的 schema 仍暴露 `sandbox_permissions` 参数，模型（尤其 gpt-5.6-luna）会反复传它。
@@ -44,29 +67,6 @@ Error: sandbox escalation to "danger-full-access" is not strictly wider than thi
 | `package.json` | 包清单（`type: module`，`dsh.bundle` 声明） |
 | `cordis.patch.yml` | **包内 bundle 补丁层**：挂载 `escalation-noop` 行 |
 | `README.md` | 本文档 |
-
-## 安装
-
-包已发布到 npm：**`dsh-escalation-noop`**（`https://www.npmjs.com/package/dsh-escalation-noop`）。一条命令：
-
-```bash
-# WebUI（dsh web）安装：自动装依赖 + 自动写入 dsh.profile.bundles
-dsh plugin --profile web add dsh-escalation-noop
-
-# 然后重启 dsh 一次
-```
-
-> 备注：如也使用 headless profile（终端一次性任务 `dsh --profile headless "..."`），用同样的命令加装：`dsh plugin --profile headless add dsh-escalation-noop`。
-
-### 可选配置
-
-在用户级 patch 层（`~/.dsh/cordis.patch.yml`）覆盖该行：
-
-```yaml
-- id: escalation-noop
-  config:
-    intervalMs: 600000   # 周期巡检间隔（毫秒），0 关闭；默认 300000
-```
 
 ## 验证
 
