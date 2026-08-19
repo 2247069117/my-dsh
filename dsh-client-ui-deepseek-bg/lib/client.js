@@ -301,6 +301,116 @@ function apply() {
   function currentAuroraConfig() { return state.dark ? DARK_AURORA : LIGHT_AURORA; }
   function currentConstellation() { return state.dark ? DARK_CONSTELLATION : LIGHT_CONSTELLATION; }
 
+
+/* ===================================================================== *
+ * Border Beam (beam.jakubantalik.com) — ported for DSH composer
+ * Copyright (c) Jakub Antalik, MIT — https://github.com/Jakubantalik/Libraries
+ * Variant: line / colorful, duration 3.1s, hueRange 13, brightness 1.3
+ * ===================================================================== */
+  // -- palette data (colorful only, line) — taken from packages/border-beam/src/styles.ts
+  var BEAM_ID = "dsh-composer";
+  var BEAM_DURATION = 3.1;
+  var BEAM_HUE_RANGE = 13;
+  var BEAM_BRIGHTNESS = 1.3;
+  var BEAM_SAT_DARK = 1.2;
+  var BEAM_SAT_LIGHT = 1.95;
+  // stroke/inner/bloom opacities tuned per Q9: dark 1.14/0.7/0.55, light 0.16/0.32/0.35
+  var BEAM_CFG_DARK = { stroke: 1.14, inner: 0.7, bloom: 0.55, innerShadow: "rgba(255, 255, 255, 0.1)" };
+  var BEAM_CFG_LIGHT = { stroke: 0.16, inner: 0.32, bloom: 0.35, innerShadow: "rgba(0, 0, 0, 0.14)" };
+
+  var lineColorPalettes = {
+    colorful: {
+      dark: [
+        { color: 'rgb(255, 50, 100)', sizeW: 36, sizeH: 36, offsetX: 0, offsetY: 2 },
+        { color: 'rgb(40, 180, 220)', sizeW: 30, sizeH: 32, offsetX: 39, offsetY: 0 },
+        { color: 'rgb(50, 200, 80)', sizeW: 33, sizeH: 28, offsetX: -36, offsetY: 2 },
+        { color: 'rgb(180, 40, 240)', sizeW: 29, sizeH: 34, offsetX: -54, offsetY: 0 },
+        { color: 'rgb(255, 160, 30)', sizeW: 27, sizeH: 30, offsetX: 51, offsetY: -1 },
+        { color: 'rgb(100, 70, 255)', sizeW: 36, sizeH: 24, offsetX: 21, offsetY: 1 },
+        { color: 'rgb(40, 140, 255)', sizeW: 30, sizeH: 22, offsetX: -21, offsetY: 0 },
+        { color: 'rgb(240, 50, 180)', sizeW: 25, sizeH: 28, offsetX: 66, offsetY: 1 },
+        { color: 'rgb(30, 185, 170)', sizeW: 23, sizeH: 30, offsetX: -66, offsetY: -1 }
+      ],
+      light: [
+        { color: 'rgb(255, 50, 100)', sizeW: 45, sizeH: 36, offsetX: 0, offsetY: 2 },
+        { color: 'rgb(40, 140, 255)', sizeW: 35, sizeH: 32, offsetX: 65, offsetY: 0 },
+        { color: 'rgb(50, 200, 80)', sizeW: 40, sizeH: 28, offsetX: -60, offsetY: 2 },
+        { color: 'rgb(180, 40, 240)', sizeW: 35, sizeH: 34, offsetX: -90, offsetY: 0 },
+        { color: 'rgb(30, 185, 170)', sizeW: 38, sizeH: 30, offsetX: 85, offsetY: -1 },
+        { color: 'rgb(100, 70, 255)', sizeW: 50, sizeH: 24, offsetX: 35, offsetY: 1 },
+        { color: 'rgb(40, 140, 255)', sizeW: 40, sizeH: 22, offsetX: -35, offsetY: 0 },
+        { color: 'rgb(255, 120, 40)', sizeW: 35, sizeH: 28, offsetX: 110, offsetY: 1 },
+        { color: 'rgb(240, 50, 180)', sizeW: 30, sizeH: 30, offsetX: -110, offsetY: -1 }
+      ]
+    }
+  };
+  var lineInnerGradientData = {
+    colorful: [
+      { color: 'rgba(255, 50, 100, 0.48)', sizeW: 33, sizeH: 30, offsetX: 0, offsetY: 0 },
+      { color: 'rgba(40, 180, 220, 0.42)', sizeW: 24, sizeH: 26, offsetX: 39, offsetY: -3 },
+      { color: 'rgba(50, 200, 80, 0.48)', sizeW: 27, sizeH: 24, offsetX: -36, offsetY: 0 },
+      { color: 'rgba(180, 40, 240, 0.42)', sizeW: 23, sizeH: 28, offsetX: -54, offsetY: -2 },
+      { color: 'rgba(255, 160, 30, 0.50)', sizeW: 24, sizeH: 24, offsetX: 51, offsetY: -1 },
+      { color: 'rgba(100, 70, 255, 0.45)', sizeW: 30, sizeH: 20, offsetX: 21, offsetY: 0 },
+      { color: 'rgba(40, 140, 255, 0.40)', sizeW: 25, sizeH: 18, offsetX: -21, offsetY: -2 },
+      { color: 'rgba(240, 50, 180, 0.45)', sizeW: 21, sizeH: 24, offsetX: 66, offsetY: 0 },
+      { color: 'rgba(30, 185, 170, 0.52)', sizeW: 18, sizeH: 26, offsetX: -66, offsetY: -1 }
+    ]
+  };
+
+  function getLineColorGradients(isDark, id) {
+    var pal = lineColorPalettes.colorful[isDark ? 'dark' : 'light'];
+    return pal.map(function(c){
+      var ox = c.offsetX===0?'':(c.offsetX>0?' + '+c.offsetX+'px':' - '+Math.abs(c.offsetX)+'px');
+      var oy = c.offsetY===0?'':(c.offsetY>0?' + '+c.offsetY+'px':' - '+Math.abs(c.offsetY)+'px');
+      return 'radial-gradient(ellipse calc('+c.sizeW+'px * var(--beam-w-'+id+')) calc('+c.sizeH+'px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%'+ox+') calc(100%'+oy+'), '+c.color+', transparent)';
+    }).join(',\n       ');
+  }
+  function getLineInnerGradients(id) {
+    var data = lineInnerGradientData.colorful;
+    return data.map(function(c){
+      var ox = c.offsetX===0?'':(c.offsetX>0?' + '+c.offsetX+'px':' - '+Math.abs(c.offsetX)+'px');
+      var oy = c.offsetY===0?'': ' - '+Math.abs(c.offsetY)+'px';
+      return 'radial-gradient(ellipse calc('+c.sizeW+'px * var(--beam-w-'+id+')) calc('+c.sizeH+'px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%'+ox+') calc(100%'+oy+'), '+c.color+', transparent)';
+    }).join(',\n    ');
+  }
+  function getLineBloomGradients(isDark, id) {
+    // Simplified bloom: reuse color gradients with blur, matches beam's bloom intent
+    // For colorful we reuse the same palette but with bloom opacities handled via outer opacity variable
+    var pal = lineColorPalettes.colorful[isDark ? 'dark' : 'light'];
+    // Use spike-like thin blooms + central glow - simplified to two radial blooms for performance
+    var bloomCore = isDark
+      ? 'radial-gradient(ellipse calc(84px * var(--beam-w-'+id+')) calc(110px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%) 100%, white 0%, rgba(255, 255, 255, 0.5) 35%, transparent 100%)'
+      : 'radial-gradient(ellipse calc(84px * var(--beam-w-'+id+')) calc(110px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%) 100%, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.15) 35%, transparent 100%)';
+    // We also include the multi-spike color blooms as second layer
+    var colorBloom = pal.slice(0,5).map(function(c){
+      var ox = c.offsetX===0?'':(c.offsetX>0?' + '+c.offsetX+'px':' - '+Math.abs(c.offsetX)+'px');
+      var oy = c.offsetY===0?'':(c.offsetY>0?' + '+c.offsetY+'px':' - '+Math.abs(c.offsetY)+'px');
+      return 'radial-gradient(ellipse calc('+Math.round(c.sizeW*0.9)+'px * var(--beam-w-'+id+')) calc('+Math.round(c.sizeH*0.9)+'px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%'+ox+') calc(100%'+oy+'), '+c.color.replace('rgb','rgba').replace(')', ', 0.35)')+', transparent)';
+    }).join(',\n       ');
+    // Return simplified but still colorful
+    return colorBloom;
+  }
+  function pausedBeamRule(id){
+    return "\n[data-beam=\""+id+"\"][data-paused],\n[data-beam=\""+id+"\"][data-paused]::after,\n[data-beam=\""+id+"\"][data-paused]::before,\n[data-beam=\""+id+"\"][data-paused] [data-beam-bloom] {\n  animation-play-state: paused !important;\n}";
+  }
+  function buildBeamCSS(id, borderRadius, isDark){
+    var cfg = isDark ? BEAM_CFG_DARK : BEAM_CFG_LIGHT;
+    var sat = isDark ? BEAM_SAT_DARK : BEAM_SAT_LIGHT;
+    var innerRadius = Math.max(0, borderRadius - 1);
+    var colorGradients = getLineColorGradients(isDark, id);
+    var innerGradients = getLineInnerGradients(id);
+    var bloomGradients = getLineBloomGradients(isDark, id);
+    var hueAnim = "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
+    var hueBloomAnim = "animation: beam-hue-shift-bloom-"+id+" 8s ease-in-out infinite;";
+    var hueKeyframes = "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}\n@keyframes beam-hue-shift-bloom-"+id+" {\n  0% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) + "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
+    var whiteHighlight = isDark
+      ? "radial-gradient(\n        ellipse calc(24px * var(--beam-w-"+id+")) calc(28px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) calc(100% + 2px),\n        rgba(255, 255, 255, 0.38) 0%,\n        rgba(255, 255, 255, 0.12) 30%,\n        transparent 65%\n      )"
+      : "radial-gradient(\n        ellipse calc(35px * var(--beam-w-"+id+")) calc(28px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) calc(100% + 2px),\n        rgba(0, 0, 0, 0.6) 0%,\n        rgba(0, 0, 0, 0.25) 35%,\n        transparent 70%\n      )";
+    return "@property --beam-x-"+id+" {\n  syntax: \"<number>\";\n  initial-value: 0;\n  inherits: true;\n}\n@property --beam-w-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-h-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-spike-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-spike2-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-edge-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-opacity-"+id+" { syntax: \"<number>\"; initial-value: 0; inherits: true;}\n[data-beam=\""+id+"\"] {\n  position: relative;\n  border-radius: "+borderRadius+"px;\n  overflow: hidden;\n}\n[data-beam=\""+id+"\"][data-active] {\n  animation:\n    beam-travel-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-edge-fade-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-breathe-"+id+" "+(BEAM_DURATION*1.3).toFixed(1)+"s ease-in-out infinite,\n    beam-spike-"+id+" "+(BEAM_DURATION*1.33).toFixed(1)+"s ease-in-out infinite,\n    beam-spike2-"+id+" "+(BEAM_DURATION*1.7).toFixed(1)+"s ease-in-out infinite,\n    beam-fade-in-"+id+" 0.6s ease forwards;\n}\n[data-beam=\""+id+"\"][data-fading] {\n  animation:\n    beam-travel-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-edge-fade-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-breathe-"+id+" "+(BEAM_DURATION*1.3).toFixed(1)+"s ease-in-out infinite,\n    beam-spike-"+id+" "+(BEAM_DURATION*1.33).toFixed(1)+"s ease-in-out infinite,\n    beam-spike2-"+id+" "+(BEAM_DURATION*1.7).toFixed(1)+"s ease-in-out infinite,\n    beam-fade-out-"+id+" 0.5s ease forwards;\n}\n[data-beam=\""+id+"\"][data-active]::after,\n[data-beam=\""+id+"\"][data-fading]::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  border-radius: "+innerRadius+"px;\n  padding: 1px;\n  clip-path: inset(0 round "+borderRadius+"px);\n  background: "+whiteHighlight+", "+colorGradients+";\n  -webkit-mask:\n    radial-gradient(\n      ellipse calc(78px * var(--beam-w-"+id+")) calc(60px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n      white 0%, rgba(255, 255, 255, 0.5) 45%, transparent 100%\n    ),\n    linear-gradient(#fff 0 0) content-box,\n    linear-gradient(#fff 0 0);\n  -webkit-mask-composite: source-in, xor;\n  mask:\n    radial-gradient(\n      ellipse calc(78px * var(--beam-w-"+id+")) calc(60px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n      white 0%, rgba(255, 255, 255, 0.5) 45%, transparent 100%\n    ),\n    linear-gradient(#fff 0 0) content-box,\n    linear-gradient(#fff 0 0);\n  mask-composite: intersect, exclude;\n  pointer-events: none;\n  z-index: 2;\n  opacity: calc(var(--beam-opacity-"+id+") * var(--beam-edge-"+id+") * "+cfg.stroke.toFixed(2)+" * var(--beam-stroke-opacity, 1) * var(--beam-strength, 1));\n  "+hueAnim+"\n}\n[data-beam=\""+id+"\"][data-active]::before,\n[data-beam=\""+id+"\"][data-fading]::before {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  border-radius: "+borderRadius+"px;\n  background: "+innerGradients+";\n  box-shadow: inset 0 0 9px 1px "+cfg.innerShadow+";\n  -webkit-mask-image:\n    radial-gradient(\n      ellipse calc(78px * var(--beam-w-"+id+")) calc(60px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n      white 0%, rgba(255, 255, 255, 0.5) 45%, transparent 100%\n    ),\n    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),\n    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);\n  -webkit-mask-composite: source-in, source-over;\n  mask-image:\n    radial-gradient(\n      ellipse calc(78px * var(--beam-w-"+id+")) calc(60px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n      white 0%, rgba(255, 255, 255, 0.5) 45%, transparent 100%\n    ),\n    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),\n    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);\n  mask-composite: intersect, add;\n  pointer-events: none;\n  z-index: 1;\n  opacity: calc(var(--beam-opacity-"+id+") * var(--beam-edge-"+id+") * "+cfg.inner.toFixed(2)+" * var(--beam-inner-opacity, 1) * var(--beam-strength, 1));\n  clip-path: inset(0 round "+borderRadius+"px);\n  "+hueAnim+"\n}\n[data-beam=\""+id+"\"] [data-beam-bloom] {\n  display: none;\n  position: absolute;\n  inset: 0;\n  border-radius: "+innerRadius+"px;\n  clip-path: inset(0 round "+borderRadius+"px);\n  padding: 0;\n  -webkit-mask: radial-gradient(\n    ellipse calc(84px * var(--beam-w-"+id+")) calc(110px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n    white 0%, rgba(255, 255, 255, 0.5) 35%, transparent 100%\n  );\n  -webkit-mask-composite: source-over;\n  mask: radial-gradient(\n    ellipse calc(84px * var(--beam-w-"+id+")) calc(110px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n    white 0%, rgba(255, 255, 255, 0.5) 35%, transparent 100%\n  );\n  mask-composite: add;\n  background: "+bloomGradients+";\n  pointer-events: none;\n  z-index: 3;\n  opacity: 0;\n}\n[data-beam=\""+id+"\"][data-active] [data-beam-bloom],\n[data-beam=\""+id+"\"][data-fading] [data-beam-bloom] {\n  display: block;\n  opacity: calc(var(--beam-opacity-"+id+") * var(--beam-edge-"+id+") * "+cfg.bloom.toFixed(2)+" * var(--beam-bloom-opacity, 1) * var(--beam-strength, 1));\n  "+hueBloomAnim+"\n}\n@keyframes beam-travel-"+id+" {\n  0%   { --beam-x-"+id+": 0.06;  --beam-w-"+id+": 0.5; }\n  10%  { --beam-x-"+id+": 0.15;  --beam-w-"+id+": 0.8; }\n  20%  { --beam-x-"+id+": 0.25;  --beam-w-"+id+": 1.1; }\n  30%  { --beam-x-"+id+": 0.35;  --beam-w-"+id+": 1.3; }\n  40%  { --beam-x-"+id+": 0.44;  --beam-w-"+id+": 1.45; }\n  50%  { --beam-x-"+id+": 0.5;   --beam-w-"+id+": 1.5; }\n  60%  { --beam-x-"+id+": 0.56;  --beam-w-"+id+": 1.45; }\n  70%  { --beam-x-"+id+": 0.65;  --beam-w-"+id+": 1.3; }\n  80%  { --beam-x-"+id+": 0.75;  --beam-w-"+id+": 1.1; }\n  90%  { --beam-x-"+id+": 0.85;  --beam-w-"+id+": 0.8; }\n  100% { --beam-x-"+id+": 0.94;  --beam-w-"+id+": 0.5; }\n}\n@keyframes beam-edge-fade-"+id+" {\n  0%    { --beam-edge-"+id+": 0; }\n  12.5% { --beam-edge-"+id+": 0; }\n  32.5% { --beam-edge-"+id+": 1; }\n  67.5% { --beam-edge-"+id+": 1; }\n  87.5% { --beam-edge-"+id+": 0; }\n  100%  { --beam-edge-"+id+": 0; }\n}\n@keyframes beam-breathe-"+id+" {\n  0%, 100% { --beam-h-"+id+": 0.8; }\n  25%      { --beam-h-"+id+": 1.25; }\n  55%      { --beam-h-"+id+": 0.85; }\n  80%      { --beam-h-"+id+": 1.3; }\n}\n@keyframes beam-spike-"+id+" {\n  0%   { --beam-spike-"+id+": 0.8; }\n  25%  { --beam-spike-"+id+": 1.3; }\n  50%  { --beam-spike-"+id+": 0.9; }\n  75%  { --beam-spike-"+id+": 1.4; }\n  100% { --beam-spike-"+id+": 0.8; }\n}\n@keyframes beam-spike2-"+id+" {\n  0%   { --beam-spike2-"+id+": 1.2; }\n  25%  { --beam-spike2-"+id+": 0.7; }\n  50%  { --beam-spike2-"+id+": 1.4; }\n  75%  { --beam-spike2-"+id+": 0.8; }\n  100% { --beam-spike2-"+id+": 1.2; }\n}\n@keyframes beam-fade-in-"+id+" {\n  to { --beam-opacity-"+id+": 1; }\n}\n@keyframes beam-fade-out-"+id+" {\n  from { --beam-opacity-"+id+": 1; }\n  to { --beam-opacity-"+id+": 0; }\n}\n"+hueKeyframes+"\n"+pausedBeamRule(id)+"\n@media (prefers-reduced-motion: reduce) {\n  [data-beam=\""+id+"\"][data-active],\n  [data-beam=\""+id+"\"][data-fading],\n  [data-beam=\""+id+"\"][data-active]::after,\n  [data-beam=\""+id+"\"][data-fading]::after,\n  [data-beam=\""+id+"\"][data-active]::before,\n  [data-beam=\""+id+"\"][data-fading]::before,\n  [data-beam=\""+id+"\"][data-active] [data-beam-bloom],\n  [data-beam=\""+id+"\"][data-fading] [data-beam-bloom] {\n    animation: none !important;\n  }\n}";
+  }
+
+
   /* ------------------------------------------------------------------ *
    * DOM 骨架
    * ------------------------------------------------------------------ */
@@ -363,6 +473,7 @@ function apply() {
     if (!coarse || reducedMotion) startConstellation();
     observeTheme();
     makeShellTransparent();
+    try{ watchBeamComposer(); }catch(e){}
     if (typeof location !== "undefined" && (location.search.indexOf("dshtest") !== -1)) startDiagPanel();
     // 调试钩子：?opencv=1 时展开侧边栏并打开第一个会话（检查真实消息 DOM 的代码块类名）
     if (typeof location !== "undefined" && location.search.indexOf("opencv") !== -1) {
@@ -559,6 +670,178 @@ function apply() {
       mo.observe(rootEl, { childList: true, subtree: true });
     }
   }
+
+
+  /* ------------------------------------------------------------------ *
+   * Border Beam — composer integration (D S H)
+   * ------------------------------------------------------------------ */
+  var beamStyleTag = null;
+  var beamAttachedCard = null;
+  var beamResizeObs = null;
+  var beamMutObs = null;
+  var beamState = { active: true, fading: false, idleStrength: 0.65, focusStrength: 1.0, disabled: false };
+
+  function isBeamDisabled() {
+    try {
+      if (typeof location !== "undefined" && (location.search.indexOf("beam=0") !== -1 || location.search.indexOf("nobeam") !== -1 || location.search.indexOf("beam=false") !== -1)) return true;
+      if (typeof localStorage !== "undefined" && localStorage.getItem("dsh-beam-disabled") === "1") return true;
+    } catch(e) {}
+    return false;
+  }
+  function getBeamThemeIsDark() {
+    // Q4: dark+light both, so beam theme follows current DSH theme (detectDark), not fixed dark
+    return state.dark;
+  }
+  function getBeamIdleStrength() {
+    return getBeamThemeIsDark() ? 0.65 : 0.5;
+  }
+  function resolveBorderRadius(el) {
+    try {
+      var cs = window.getComputedStyle(el);
+      var v = parseFloat(cs.borderTopLeftRadius);
+      if (!isNaN(v) && v > 0) return Math.round(v);
+      var v2 = parseFloat(el.style.borderRadius);
+      if (!isNaN(v2) && v2 > 0) return Math.round(v2);
+    } catch(e) {}
+    return 16;
+  }
+  function ensureBeamStyles(borderRadius) {
+    var isDark = getBeamThemeIsDark();
+    var r = typeof borderRadius === 'number' ? borderRadius : 16;
+    var css = buildBeamCSS(BEAM_ID, r, isDark);
+    if (!beamStyleTag) {
+      beamStyleTag = document.getElementById("dsh-beam-css");
+      if (!beamStyleTag) {
+        beamStyleTag = document.createElement("style");
+        beamStyleTag.id = "dsh-beam-css";
+        document.head.appendChild(beamStyleTag);
+      }
+    }
+    if (beamStyleTag.textContent !== css) beamStyleTag.textContent = css;
+  }
+  function setBeamStrength(v, opts) {
+    var card = beamAttachedCard;
+    if (!card) return;
+    var strength = Math.max(0, Math.min(1, v));
+    card.style.setProperty("--beam-strength", strength);
+    if (opts && opts.persist) {
+      try { localStorage.setItem("dsh-beam-strength", String(strength)); } catch(e) {}
+    }
+  }
+  function attachComposerBeam() {
+    if (isBeamDisabled()) return;
+    if (beamAttachedCard && document.contains(beamAttachedCard)) return; // already attached
+    var card = document.querySelector('[data-composer-card="true"], .uV2eYG_card');
+    if (!card) return;
+    // Ensure card has beam attributes
+    card.setAttribute("data-beam", BEAM_ID);
+    if (!card.querySelector("[data-beam-bloom]")) {
+      var bloom = document.createElement("div");
+      bloom.setAttribute("data-beam-bloom", "");
+      card.appendChild(bloom);
+    }
+    var radius = resolveBorderRadius(card);
+    ensureBeamStyles(radius);
+    // initial strength: idle (0.65 dark / 0.5 light)
+    var idle = getBeamIdleStrength();
+    card.style.setProperty("--beam-strength", idle);
+    card.style.setProperty("overflow", "hidden");
+    // ensure card is positioned (beam needs relative; DSH card already is)
+    if (window.getComputedStyle(card).position === "static") card.style.position = "relative";
+    card.setAttribute("data-active", "");
+    card.removeAttribute("data-fading");
+    beamAttachedCard = card;
+    beamState.active = true;
+    beamState.fading = false;
+    beamState.idleStrength = idle;
+
+    // Focus / hover interactions -> strength 1.0
+    var focusHandler = function(e){
+      if (!beamAttachedCard) return;
+      var isFocused = card.contains(document.activeElement) || card.matches(":hover");
+      if (isFocused) {
+        beamAttachedCard.removeAttribute("data-fading");
+        beamAttachedCard.setAttribute("data-active", "");
+        setBeamStrength(beamState.focusStrength);
+      } else {
+        setBeamStrength(beamState.idleStrength);
+      }
+    };
+    card.addEventListener("focusin", focusHandler);
+    card.addEventListener("focusout", focusHandler);
+    card.addEventListener("mouseenter", focusHandler);
+    card.addEventListener("mouseleave", focusHandler);
+    card._dshBeamCleanup = function(){
+      card.removeEventListener("focusin", focusHandler);
+      card.removeEventListener("focusout", focusHandler);
+      card.removeEventListener("mouseenter", focusHandler);
+      card.removeEventListener("mouseleave", focusHandler);
+    };
+    // ResizeObserver for borderRadius changes
+    if (window.ResizeObserver) {
+      if (beamResizeObs) try{ beamResizeObs.disconnect(); }catch(e){}
+      beamResizeObs = new ResizeObserver(function(){
+        if (!beamAttachedCard) return;
+        var nr = resolveBorderRadius(beamAttachedCard);
+        ensureBeamStyles(nr);
+      });
+      try{ beamResizeObs.observe(card); }catch(e){}
+    }
+    // handle theme changes for beam rebuild
+  }
+  function detachComposerBeam() {
+    var card = beamAttachedCard;
+    if (!card) return;
+    try{ if (card._dshBeamCleanup) card._dshBeamCleanup(); }catch(e){}
+    card.removeAttribute("data-beam");
+    card.removeAttribute("data-active");
+    card.removeAttribute("data-fading");
+    card.style.removeProperty("--beam-strength");
+    var bloom = card.querySelector("[data-beam-bloom]");
+    if (bloom) try{ bloom.remove(); }catch(e){}
+    if (beamResizeObs) try{ beamResizeObs.disconnect(); beamResizeObs=null; }catch(e){}
+    beamAttachedCard = null;
+  }
+  function refreshBeamTheme() {
+    if (!beamAttachedCard) return;
+    var isDark = getBeamThemeIsDark();
+    var r = resolveBorderRadius(beamAttachedCard);
+    ensureBeamStyles(r);
+    var idle = getBeamIdleStrength();
+    beamState.idleStrength = idle;
+    var isFocused = beamAttachedCard.contains(document.activeElement) || beamAttachedCard.matches(":hover");
+    setBeamStrength(isFocused ? beamState.focusStrength : idle);
+  }
+  function watchBeamComposer() {
+    if (isBeamDisabled()) { detachComposerBeam(); return; }
+    // try immediate
+    attachComposerBeam();
+    // observe DOM for late card insertion (DSH shell mounts async)
+    if (!beamMutObs && window.MutationObserver) {
+      beamMutObs = new MutationObserver(function(){
+        if (!beamAttachedCard) attachComposerBeam();
+      });
+      var rootEl = document.querySelector("#root") || document.documentElement;
+      try{ beamMutObs.observe(rootEl, { childList: true, subtree: true }); }catch(e){}
+    }
+  }
+  // expose for console tuning (Q10)
+  try{
+    window.__dshDeepSeekBg = window.__dshDeepSeekBg || {};
+    window.__dshDeepSeekBg.beam = {
+      attach: attachComposerBeam,
+      detach: detachComposerBeam,
+      setStrength: function(v){ setBeamStrength(v, {persist:false}); },
+      setIdleStrength: function(v){ beamState.idleStrength = Math.max(0,Math.min(1,v)); refreshBeamTheme(); },
+      setFocusStrength: function(v){ beamState.focusStrength = Math.max(0,Math.min(1,v)); refreshBeamTheme(); },
+      disable: function(){ try{ localStorage.setItem("dsh-beam-disabled","1"); }catch(e){} detachComposerBeam(); },
+      enable: function(){ try{ localStorage.removeItem("dsh-beam-disabled"); }catch(e){} watchBeamComposer(); },
+      refresh: refreshBeamTheme,
+      get id(){ return BEAM_ID; },
+      get card(){ return beamAttachedCard; }
+    };
+  }catch(e){}
+
 
   /* ------------------------------------------------------------------ *
    * 着色器（与 DeepSeek 打包产物逐字一致）
@@ -1765,6 +2048,10 @@ function apply() {
       if (d !== state.dark) {
         state.dark = d;
         applyThemeClass();
+        try{ refreshBeamTheme(); }catch(e){}
+      } else {
+        // even if dark didn't change, beam light/dark still follows state.dark, but ensure styles exist for initial light case
+        try{ if (beamAttachedCard) refreshBeamTheme(); }catch(e){}
       }
     };
     if (window.MutationObserver) {
