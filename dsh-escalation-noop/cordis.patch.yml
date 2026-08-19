@@ -1,0 +1,17 @@
+# User-level patch layer — applied after every profile's own cordis.patch.yml,
+# for every profile (web, headless, ...). Top-level YAML array of loader patch
+# entries; entry syntax: an `insert` key (no id) appends new rows, an id
+# without `insert` overrides an existing row of that id, `!!js` expressions
+# are evaluated when a row activates. See
+# ~/.dsh/profiles/node_modules/@deepseek-ai/dsh-base/cordis.patch.yml for the
+# bundle-side example.
+#
+# escalation-noop — self-healing patch for @deepseek-ai/dsh-sandbox:
+# makes a sandbox_permissions request for the mode the call already runs under
+# a no-op grant (real escalations still prompt, downgrades still throw) and
+# re-applies the edit after every dsh upgrade. The package is installed in the
+# web profile (dependencies) and linked into the shared module fallback
+# (~/.dsh/profiles/node_modules), so every profile can resolve it.
+- insert:
+    - id: escalation-noop
+      name: dsh-escalation-noop
