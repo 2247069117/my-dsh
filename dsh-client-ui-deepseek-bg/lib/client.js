@@ -233,8 +233,9 @@ body[data-ds-dark-theme] ._bannerWrap_178r4_21 {
  */
 function apply() {
   "use strict";
-  if (window.__dshDeepSeekBg) return;
-  window.__dshDeepSeekBg = true;
+  if (window.__dshDeepSeekBg && window.__dshDeepSeekBg._inited) return;
+  if (typeof window.__dshDeepSeekBg !== 'object' || window.__dshDeepSeekBg === null) window.__dshDeepSeekBg = {};
+  window.__dshDeepSeekBg._inited = true;
 
   if (typeof document === "undefined") return;
 
@@ -1081,7 +1082,7 @@ function apply() {
     }
   }
   try{
-    window.__dshDeepSeekBg = window.__dshDeepSeekBg || {};
+    if (typeof window.__dshDeepSeekBg !== 'object' || window.__dshDeepSeekBg === null) window.__dshDeepSeekBg = {};
     window.__dshDeepSeekBg.beam = {
       attach: attachComposerBeam,
       detach: detachComposerBeam,
