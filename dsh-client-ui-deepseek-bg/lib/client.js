@@ -820,8 +820,8 @@ function apply() {
   function isExecuting() {
     try {
       if (pendingExecuting) return true;
-      // Primary: stop button aria-label indicates running
-      var stopBtn = document.querySelector('[data-composer-card] button[aria-label="Stop generating"], [data-composer-card] button[aria-label="停止生成"], button[aria-label="Stop generating"], button[aria-label="停止生成"]');
+      // Primary: stop button aria-label indicates running (use *= for robustness, correct labels are '发送消息'/'Send message' for send, '停止生成'/'Stop generating' for stop)
+      var stopBtn = document.querySelector('button[aria-label*="停止生成"], button[aria-label*="Stop generating"], [data-composer-card] button[aria-label*="停止"], [data-composer-card] button[aria-label*="Stop"]');
       if (stopBtn && !stopBtn.disabled) return true;
       // Fallback: check for running indicator in conversation
       if (document.querySelector('[data-state="running"], .Md3f7G_turnStatus')) {
@@ -912,6 +912,39 @@ function apply() {
     return 'hairline';
   }
   function updateBeamState() {
+    // Fix stale card: if attached card is detached (React re-render), re-attach to new card
+    if (!beamAttachedCard || !document.contains(beamAttachedCard) || !beamAttachedCard.isConnected) {
+      var freshCard = document.querySelector('[data-composer-card="true"], .uV2eYG_card');
+      if (freshCard && freshCard !== beamAttachedCard) {
+        try{ if(beamAttachedCard && beamAttachedCard._dshBeamCleanup) beamAttachedCard._dshBeamCleanup(); }catch(e){}
+        beamAttachedCard = null;
+        attachComposerBeam();
+        return;
+      }
+    }
+    // Also re-bind input if it was recreated (React may replace textarea)
+    if (beamAttachedCard) {
+      var freshInput = findComposerInput(beamAttachedCard);
+      var boundInput = beamAttachedCard._dshBeamInput;
+      if (freshInput && freshInput !== boundInput) {
+        // clean old
+        if (boundInput && beamTypingHandler) {
+          try{ boundInput.removeEventListener('input', beamTypingHandler); boundInput.removeEventListener('change', beamTypingHandler); }catch(e){}
+        }
+        // bind new
+        if (beamTypingHandler) {
+          try{
+            freshInput.addEventListener('input', beamTypingHandler);
+            freshInput.addEventListener('change', beamTypingHandler);
+            var onSendKey = function(e){ if(e.key==='Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey){ var v=freshInput.value!==undefined?freshInput.value:freshInput.textContent; if(v && String(v).trim().length>0){ pendingExecuting=true; if(pendingTimer) clearTimeout(pendingTimer); pendingTimer=setTimeout(function(){ pendingExecuting=false; updateBeamState(); },5000); updateBeamState(); } } };
+            freshInput.addEventListener('keydown', onSendKey);
+            freshInput._dshBeamOnSend = onSendKey;
+            freshInput._dshBeamHasListener = true;
+            beamAttachedCard._dshBeamInput = freshInput;
+          }catch(e){}
+        }
+      }
+    }
     // If we are pending and actual executing is now true, clear pending and keep executing
     if (pendingExecuting && isExecuting()) {
       // keep pending for now, it will be cleared when executing ends
@@ -956,6 +989,7 @@ function apply() {
       beamTypingHandler = function(){ updateBeamState(); };
       input.addEventListener('input', beamTypingHandler);
       input.addEventListener('change', beamTypingHandler);
+      input._dshBeamHasListener = true;
       // Send detection: Enter or send button click -> immediate executing
       var onSend = function(){
         var val = input.value !== undefined ? input.value : input.textContent;
@@ -972,7 +1006,7 @@ function apply() {
       input._dshBeamOnSend = onSend;
     }
     // Send button click
-    var sendBtn = card.querySelector('button[aria-label="Send"], button[aria-label="发送"], button[aria-label="Send message"], .uV2eYG_primary');
+    var sendBtn = card.querySelector('button[aria-label="Send message"], button[aria-label="发送消息"], button[aria-label*="Send"], button[aria-label*="发送"], .uV2eYG_primary');
     if (sendBtn) {
       var sendHandler = function(){ pendingExecuting = true; if(pendingTimer) clearTimeout(pendingTimer); pendingTimer=setTimeout(function(){ pendingExecuting=false; updateBeamState(); },5000); updateBeamState(); };
       sendBtn.addEventListener('click', sendHandler);
