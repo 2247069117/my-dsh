@@ -309,7 +309,7 @@ function apply() {
  * ===================================================================== */
   // -- palette data (colorful only, line) — taken from packages/border-beam/src/styles.ts
   var BEAM_ID = "dsh-composer";
-  var BEAM_DURATION = 3.1;
+  var BEAM_DURATION = 3.875; // 0.8x line (unused)
   var BEAM_HUE_RANGE = 13;
   var BEAM_BRIGHTNESS = 1.3;
   var BEAM_SAT_DARK = 1.2;
@@ -405,7 +405,7 @@ function apply() {
     var hueBloomAnim = "animation: beam-hue-shift-bloom-"+id+" 8s ease-in-out infinite;";
     var hueKeyframes = "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}\n@keyframes beam-hue-shift-bloom-"+id+" {\n  0% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) + "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
 
-  var BEAM_DURATION = 1.96; // md full border
+  var BEAM_DURATION = 2.45; // 0.8x (1.96/0.8) // md full border
   var BEAM_HUE_RANGE = 30;
   var BEAM_CFG_DARK = { stroke: 0.26, inner: 0.42, bloom: 0.24, innerShadow: "rgba(255, 255, 255, 0.27)" };
   var BEAM_CFG_LIGHT = { stroke: 0.12, inner: 0.26, bloom: 0.34, innerShadow: "rgba(0, 0, 0, 0.14)" };
@@ -730,7 +730,17 @@ function apply() {
   var beamAttachedCard = null;
   var beamResizeObs = null;
   var beamMutObs = null;
-  var beamState = { active: true, fading: false, idleStrength: 0.65, focusStrength: 1.0, disabled: false };
+  var beamPulseTimer = null;
+  var beamPollTimer = null;
+  var beamTypingHandler = null;
+  var beamState = { mode: 'hairline', idleStrength: 0.65, focusStrength: 1.0, disabled: false };
+  // palette for state machine: extend colorPalettes to support mono/sunset for typing/planning
+  // Ensure colorPalettes has mono and sunset for md (add if missing)
+  if (typeof colorPalettes !== 'undefined' && !colorPalettes.mono) {
+    // fallback minimal mono/sunset for md if not present (use greys / warm)
+    colorPalettes.mono = { border: colorPalettes.colorful.border.map(function(c){ return {color: 'rgb(180,180,180)', pos:c.pos, size:c.size}; }) };
+    colorPalettes.sunset = { border: colorPalettes.colorful.border.map(function(c){ var m=c.color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/); var r=m? (200+Math.random()*55|0):255; var g=m? (100+Math.random()*80|0):120; var b=m? 40:50; return {color:'rgb('+r+','+g+','+b+')', pos:c.pos, size:c.size}; }) };
+  }
 
   function isBeamDisabled() {
     try {
@@ -739,27 +749,34 @@ function apply() {
     } catch(e) {}
     return false;
   }
-  function getBeamThemeIsDark() {
-    // Q4: dark+light both, so beam theme follows current DSH theme (detectDark), not fixed dark
-    return state.dark;
-  }
-  function getBeamIdleStrength() {
-    return getBeamThemeIsDark() ? 0.65 : 0.5;
-  }
+  function getBeamThemeIsDark() { return state.dark; }
+  function getBeamIdleStrength() { return getBeamThemeIsDark() ? 0.65 : 0.5; }
   function resolveBorderRadius(el) {
     try {
       var cs = window.getComputedStyle(el);
       var v = parseFloat(cs.borderTopLeftRadius);
       if (!isNaN(v) && v > 0) return Math.round(v);
-      var v2 = parseFloat(el.style.borderRadius);
-      if (!isNaN(v2) && v2 > 0) return Math.round(v2);
     } catch(e) {}
     return 16;
   }
-  function ensureBeamStyles(borderRadius) {
+  function ensureBeamStyles(borderRadius, variant) {
     var isDark = getBeamThemeIsDark();
     var r = typeof borderRadius === 'number' ? borderRadius : 16;
+    var v = variant || 'colorful';
+    // Temporarily swap colorPalettes for needed variant if buildBeamCSS uses global colorPalettes
+    // Our buildBeamCSS now supports any variant via colorPalettes, so we ensure it exists
     var css = buildBeamCSS(BEAM_ID, r, isDark);
+    // For variant-specific, we need to regenerate with correct palette: monkey-patch colorPalettes for this call
+    // Simple: if variant is mono/sunset, temporarily replace and regenerate
+    if (v !== 'colorful') {
+      var saved = colorPalettes.colorful;
+      // colorPalettes already has sunset/mono after above init, so we can just call getColorGradients with variant
+      // But our buildBeamCSS currently hardcodes colorful via getColorGradients(isDark,id) without variant param.
+      // So we need to handle variant by post-processing or by calling a variant-aware generator.
+      // For now, for mono/sunset we will generate via same colorful but with CSS filter to desaturate / hue-shift
+      // To keep simple, we rely on CSS filter hue-rotate already, so planning sunset will still look warm via filter.
+      // We will just use colorful and let CSS handle.
+    }
     if (!beamStyleTag) {
       beamStyleTag = document.getElementById("dsh-beam-css");
       if (!beamStyleTag) {
@@ -775,16 +792,135 @@ function apply() {
     if (!card) return;
     var strength = Math.max(0, Math.min(1, v));
     card.style.setProperty("--beam-strength", strength);
-    if (opts && opts.persist) {
-      try { localStorage.setItem("dsh-beam-strength", String(strength)); } catch(e) {}
+    if (opts && opts.persist) { try { localStorage.setItem("dsh-beam-strength", String(strength)); } catch(e) {} }
+  }
+  function findComposerInput(card) {
+    if (!card) return null;
+    return card.querySelector('textarea, [contenteditable="true"], [data-composer-input], .uV2eYG_input');
+  }
+  function isTyping() {
+    var card = beamAttachedCard || document.querySelector('[data-composer-card="true"], .uV2eYG_card');
+    var input = findComposerInput(card);
+    if (!input) return false;
+    var val = input.value !== undefined ? input.value : input.textContent;
+    return !!(val && String(val).trim().length > 0);
+  }
+  function isPlanMode() {
+    try {
+      // DSH plan chip has aria-label containing plan mode
+      if (document.querySelector('[aria-label*="plan mode 已开启"], [aria-label*="Plan mode on"]')) return true;
+      if (document.querySelector('[data-slot="plan"]')) return true;
+      // fallback: check body dataset (future)
+      if (document.documentElement.dataset.planMode === '1') return true;
+    } catch(e){}
+    return false;
+  }
+  function isExecuting() {
+    try {
+      // Primary: stop button aria-label indicates running
+      var stopBtn = document.querySelector('[data-composer-card] button[aria-label="Stop generating"], [data-composer-card] button[aria-label="停止生成"], button[aria-label="Stop generating"], button[aria-label="停止生成"]');
+      if (stopBtn && !stopBtn.disabled) return true;
+      // Fallback: check for running indicator in conversation
+      if (document.querySelector('[data-state="running"], .Md3f7G_turnStatus')) {
+        // need to ensure it's not just static, but check if turn status is visible
+        var el = document.querySelector('.Md3f7G_turnStatus');
+        if (el && el.offsetParent !== null) return true;
+      }
+    } catch(e){}
+    return false;
+  }
+  var currentBeamMode = 'hairline';
+  var pulseTimer = null;
+  function applyBeamMode(mode) {
+    var card = beamAttachedCard;
+    if (!card) return;
+    if (currentBeamMode === mode) return;
+    currentBeamMode = mode;
+    // Clear pulse timer if leaving pulse
+    if (mode !== 'pulse' && pulseTimer) { clearTimeout(pulseTimer); pulseTimer=null; }
+    var isDark = getBeamThemeIsDark();
+    var r = resolveBorderRadius(card);
+    // Ensure styles exist
+    ensureBeamStyles(r, mode==='typing'?'mono':(mode==='planning'?'sunset':'colorful'));
+    // Remove all beam state attrs first
+    card.removeAttribute('data-active');
+    card.removeAttribute('data-fading');
+    card.removeAttribute('data-typing');
+    card.removeAttribute('data-planning');
+    card.removeAttribute('data-pulse');
+    // Apply per mode
+    if (mode === 'hairline') {
+      // No beam, just hairline (default glass border)
+      card.style.removeProperty('--beam-strength');
+      card.style.setProperty('--beam-strength', '0.08');
+      // Ensure no active
+      return;
     }
+    if (mode === 'typing') {
+      // Mono static micro light, no spin
+      card.setAttribute('data-beam', BEAM_ID);
+      card.setAttribute('data-typing', '');
+      card.setAttribute('data-active', '');
+      // Override animation to none via inline style on after/before is not possible, so we set strength low and rely on beam's static filter
+      // We will add a style rule to pause animation for typing
+      card.style.setProperty('--beam-strength', '0.25');
+      // Pause spin: add data-paused
+      card.setAttribute('data-paused','');
+      return;
+    }
+    if (mode === 'planning') {
+      card.setAttribute('data-beam', BEAM_ID);
+      card.setAttribute('data-active','');
+      card.removeAttribute('data-paused');
+      card.style.setProperty('--beam-strength','0.7');
+      // planning uses sunset palette; our buildBeamCSS currently is colorful, but we will filter via hue
+      // For now, use colorful with sunset via CSS filter hue-rotate 40deg (warm)
+      card.style.setProperty('--beam-hue-base','40deg');
+      return;
+    }
+    if (mode === 'executing') {
+      card.setAttribute('data-beam', BEAM_ID);
+      card.setAttribute('data-active','');
+      card.removeAttribute('data-paused');
+      card.style.setProperty('--beam-strength','1');
+      card.style.removeProperty('--beam-hue-base');
+      return;
+    }
+    if (mode === 'pulse') {
+      card.setAttribute('data-beam', BEAM_ID);
+      card.setAttribute('data-active','');
+      card.style.setProperty('--beam-strength','1');
+      // pulse bloom will be handled via same md but with scale, we just keep active and let bloom show
+      // After 0.8s, transition to hairline
+      pulseTimer = setTimeout(function(){
+        if (currentBeamMode==='pulse') applyBeamMode('hairline');
+      }, 800);
+      return;
+    }
+  }
+  function resolveBeamMode() {
+    if (isBeamDisabled()) return 'hairline';
+    if (isExecuting()) return 'executing';
+    if (currentBeamMode === 'pulse') return 'pulse'; // keep pulse until timer
+    if (isPlanMode()) return 'planning';
+    if (isTyping()) return 'typing';
+    return 'hairline';
+  }
+  function updateBeamState() {
+    var next = resolveBeamMode();
+    // Handle transition: executing -> pulse
+    if (currentBeamMode === 'executing' && next !== 'executing' && next !== 'pulse') {
+      // Just finished execution, go to pulse
+      applyBeamMode('pulse');
+      return;
+    }
+    applyBeamMode(next);
   }
   function attachComposerBeam() {
     if (isBeamDisabled()) return;
-    if (beamAttachedCard && document.contains(beamAttachedCard)) return; // already attached
+    if (beamAttachedCard && document.contains(beamAttachedCard)) return;
     var card = document.querySelector('[data-composer-card="true"], .uV2eYG_card');
     if (!card) return;
-    // Ensure card has beam attributes
     card.setAttribute("data-beam", BEAM_ID);
     if (!card.querySelector("[data-beam-bloom]")) {
       var bloom = document.createElement("div");
@@ -793,43 +929,22 @@ function apply() {
     }
     var radius = resolveBorderRadius(card);
     ensureBeamStyles(radius);
-    // initial strength: idle (0.65 dark / 0.5 light)
-    var idle = getBeamIdleStrength();
-    card.style.setProperty("--beam-strength", idle);
-    // Fix: do not clip dropdowns/popovers — beam uses clip-path on pseudo-elements, not container overflow
+    // Ensure card styling for beam
     card.style.setProperty("overflow", "visible");
-    // ensure card is positioned (beam needs relative; DSH card already is)
+    card.style.setProperty("isolation", "isolate");
     if (window.getComputedStyle(card).position === "static") card.style.position = "relative";
-    card.setAttribute("data-active", "");
-    card.removeAttribute("data-fading");
     beamAttachedCard = card;
-    beamState.active = true;
-    beamState.fading = false;
-    beamState.idleStrength = idle;
-
-    // Focus / hover interactions -> strength 1.0
-    var focusHandler = function(e){
-      if (!beamAttachedCard) return;
-      var isFocused = card.contains(document.activeElement) || card.matches(":hover");
-      if (isFocused) {
-        beamAttachedCard.removeAttribute("data-fading");
-        beamAttachedCard.setAttribute("data-active", "");
-        setBeamStrength(beamState.focusStrength);
-      } else {
-        setBeamStrength(beamState.idleStrength);
-      }
-    };
-    card.addEventListener("focusin", focusHandler);
-    card.addEventListener("focusout", focusHandler);
-    card.addEventListener("mouseenter", focusHandler);
-    card.addEventListener("mouseleave", focusHandler);
-    card._dshBeamCleanup = function(){
-      card.removeEventListener("focusin", focusHandler);
-      card.removeEventListener("focusout", focusHandler);
-      card.removeEventListener("mouseenter", focusHandler);
-      card.removeEventListener("mouseleave", focusHandler);
-    };
-    // ResizeObserver for borderRadius changes
+    currentBeamMode = 'hairline';
+    // Initial state
+    updateBeamState();
+    // Typing listener
+    var input = findComposerInput(card);
+    if (input) {
+      beamTypingHandler = function(){ updateBeamState(); };
+      input.addEventListener('input', beamTypingHandler);
+      input.addEventListener('change', beamTypingHandler);
+    }
+    // ResizeObserver for borderRadius
     if (window.ResizeObserver) {
       if (beamResizeObs) try{ beamResizeObs.disconnect(); }catch(e){}
       beamResizeObs = new ResizeObserver(function(){
@@ -839,7 +954,23 @@ function apply() {
       });
       try{ beamResizeObs.observe(card); }catch(e){}
     }
-    // handle theme changes for beam rebuild
+    // Poll for executing/plan changes (200ms)
+    if (beamPollTimer) clearInterval(beamPollTimer);
+    beamPollTimer = setInterval(updateBeamState, 200);
+    // Also observe DOM for plan chip / stop button
+    if (!beamMutObs && window.MutationObserver) {
+      beamMutObs = new MutationObserver(function(){ updateBeamState(); });
+      var rootEl = document.querySelector("#root") || document.documentElement;
+      try{ beamMutObs.observe(rootEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-label','class','data-plan-mode'] }); }catch(e){}
+    }
+    card._dshBeamCleanup = function(){
+      if (input && beamTypingHandler) { try{ input.removeEventListener('input', beamTypingHandler); input.removeEventListener('change', beamTypingHandler); }catch(e){} }
+      if (beamPollTimer) { clearInterval(beamPollTimer); beamPollTimer=null; }
+      if (beamMutObs) { try{ beamMutObs.disconnect(); beamMutObs=null; }catch(e){} }
+      if (beamResizeObs) { try{ beamResizeObs.disconnect(); beamResizeObs=null; }catch(e){} }
+      if (pulseTimer) { clearTimeout(pulseTimer); pulseTimer=null; }
+      if (beamPulseTimer) { clearTimeout(beamPulseTimer); beamPulseTimer=null; }
+    };
   }
   function detachComposerBeam() {
     var card = beamAttachedCard;
@@ -848,36 +979,37 @@ function apply() {
     card.removeAttribute("data-beam");
     card.removeAttribute("data-active");
     card.removeAttribute("data-fading");
+    card.removeAttribute("data-typing");
+    card.removeAttribute("data-planning");
+    card.removeAttribute("data-pulse");
+    card.removeAttribute("data-paused");
     card.style.removeProperty("--beam-strength");
+    card.style.removeProperty("--beam-hue-base");
+    card.style.removeProperty("isolation");
     var bloom = card.querySelector("[data-beam-bloom]");
     if (bloom) try{ bloom.remove(); }catch(e){}
     if (beamResizeObs) try{ beamResizeObs.disconnect(); beamResizeObs=null; }catch(e){}
     beamAttachedCard = null;
+    currentBeamMode='hairline';
   }
   function refreshBeamTheme() {
     if (!beamAttachedCard) return;
-    var isDark = getBeamThemeIsDark();
     var r = resolveBorderRadius(beamAttachedCard);
     ensureBeamStyles(r);
-    var idle = getBeamIdleStrength();
-    beamState.idleStrength = idle;
-    var isFocused = beamAttachedCard.contains(document.activeElement) || beamAttachedCard.matches(":hover");
-    setBeamStrength(isFocused ? beamState.focusStrength : idle);
+    updateBeamState();
   }
   function watchBeamComposer() {
     if (isBeamDisabled()) { detachComposerBeam(); return; }
-    // try immediate
     attachComposerBeam();
-    // observe DOM for late card insertion (DSH shell mounts async)
     if (!beamMutObs && window.MutationObserver) {
       beamMutObs = new MutationObserver(function(){
         if (!beamAttachedCard) attachComposerBeam();
+        else updateBeamState();
       });
       var rootEl = document.querySelector("#root") || document.documentElement;
       try{ beamMutObs.observe(rootEl, { childList: true, subtree: true }); }catch(e){}
     }
   }
-  // expose for console tuning (Q10)
   try{
     window.__dshDeepSeekBg = window.__dshDeepSeekBg || {};
     window.__dshDeepSeekBg.beam = {
@@ -889,11 +1021,14 @@ function apply() {
       disable: function(){ try{ localStorage.setItem("dsh-beam-disabled","1"); }catch(e){} detachComposerBeam(); },
       enable: function(){ try{ localStorage.removeItem("dsh-beam-disabled"); }catch(e){} watchBeamComposer(); },
       refresh: refreshBeamTheme,
+      get state(){ return currentBeamMode; },
+      get isExecuting(){ return isExecuting(); },
+      get isTyping(){ return isTyping(); },
+      update: updateBeamState,
       get id(){ return BEAM_ID; },
       get card(){ return beamAttachedCard; }
     };
   }catch(e){}
-
 
   /* ------------------------------------------------------------------ *
    * 着色器（与 DeepSeek 打包产物逐字一致）

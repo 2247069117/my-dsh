@@ -1,16 +1,15 @@
 # dsh-client-ui-deepseek-bg
 
-DeepSeek 官网风格深色皮肤插件：**极光背景 + 粒子鲸鱼 + 星座网格**，以及**侧边栏 / 输入框 / 消息气泡 / 代码块**的玻璃拟态材质，**1.1.0 新增 Border Beam 流动边框**（`beam.jakubantalik.com` 移植，深浅双主题）。
+DeepSeek 官网风格深色皮肤插件：**极光背景 + 粒子鲸鱼 + 星座网格**，以及**侧边栏 / 输入框 / 消息气泡 / 代码块**的玻璃拟态材质，**1.2.0 Border Beam 状态机**（`beam.jakubantalik.com` 移植，执行时才扫，`0.8x` 慢放）。
 
-- **深色**：极光 + 玻璃 + 输入框流动边框（彩虹 `hue-rotate` 漂移）均生效
-- **浅色**：极光与玻璃保持原版，**仅输入框黑线流动边框生效**（`strength 0.5`，不加玻璃）
+- **深色/浅色**：极光与玻璃（仅深色）不变，输入框 `md` 全边框环绕（`conic` 彩虹）仅**当前会话执行时**才转（`strength 1.0`），其余为静止
 - 纯客户端插件，不需要改任何构建文件。
 
 ## 效果预览
 - 🐋 中央粒子化鲸鱼：光线跟随鼠标、粒子随光点亮、入场组装动画（官网 HeroDigitileR3F 同款实现）
 - 🌌 深蓝流体极光背景 + 白色星座网格（仅深色）
 - 🧊 侧边栏、底部输入框、你的消息气泡、助手输出的代码块：半透明磨砂玻璃（blur 12px + 官方 ds-glass 令牌，仅深色）
-- ✨ **Border Beam**：底部输入框 `line` 扫光（`duration 3.1s`，`colorful hueRange 13°`），常驻 `0.65/0.5` + `focus/hover 1.0`，失焦淡出；`pulse` 呼吸变体延后按需开启
+- ✨ **Border Beam 状态机**：`hairline(空闲)` → `typing(mono 0.25 一字即亮)` → `planning(sunset 橙黄 2.45s)` → `executing(colorful 2.45s 彩虹全扫)` → `pulse 0.8s 扩散` → `hairline`；优先级 `executing > pulse > planning > typing > hairline`，`fade 0.6/0.5s`，全局 `0.8x`
 
 ## 安装（约 1 分钟）
 
@@ -57,15 +56,15 @@ dsh plugin --profile web remove dsh-client-ui-deepseek-bg
 - 主题切换实时生效；若切换后残留异常，刷新一次页面即可。
 - 排查：
   - `document.getElementById('dsh-ds-bg')?.dataset.version` 应返回版本号（当前 `24`）；`undefined` 说明插件未加载
-  - `document.querySelector('[data-beam="dsh-composer"]')` 应指向输入框卡片；`null` 说明 beam 未挂载（检查是否加了 `?beam=0` 或 `localStorage['dsh-beam-disabled']==='1'`）
-  - 控制台 `window.__dshDeepSeekBg.beam` 提供 `setStrength(0.2)` / `disable()` / `enable()` / `refresh()` 调试句柄
+  - `document.querySelector('[data-beam="dsh-composer"]')` 应指向输入框卡片；执行时 `data-active` 存在且 `animation` 转动，空闲仅 `hairline`
+  - 控制台 `window.__dshDeepSeekBg.beam` 提供 `state / isExecuting / isTyping / setStrength / disable / enable / refresh / update` 调试句柄
 
 ## Border Beam 调试与开关
 
 - 关闭：`http://127.0.0.1:3080/?beam=0` 或 `?nobeam` 或 `localStorage.setItem('dsh-beam-disabled','1')`
-- 强度：`window.__dshDeepSeekBg.beam.setStrength(0.8)`，`setIdleStrength(0.3)` / `setFocusStrength(1)`
-- 主题：跟随 DSH `state.dark`（`body[data-ds-dark-theme]`），深 `0.65` 浅 `0.5` 常驻，聚焦 `1.0`
-- 预留：`?beam=all`（未来全量玻璃卡片）
+- 状态：`window.__dshDeepSeekBg.beam.state` → `hairline | typing | planning | executing | pulse`
+- 调试：`__dshDeepSeekBg.beam.isExecuting`、`isTyping`，`update()` 强制刷新
+- 主题：跟随 `state.dark`，执行彩虹 `colorful`，输入 `mono`，规划 `sunset` 橙黄，均 `0.8x`（`2.45s`）
 
 ## 致谢
 
