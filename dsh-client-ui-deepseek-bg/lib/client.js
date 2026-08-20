@@ -677,22 +677,28 @@ function apply(ctx) {
 
   /* ---- 设置页「背景特效」面板 ---- */
   var SETTINGS_UI_CSS = [
-    ".dsh-bg-settings{display:flex;flex-direction:column;gap:14px;max-width:560px;padding-bottom:28px;}",
-    ".dsh-bg-settings h3{margin:0;font-size:15px;font-weight:600;line-height:22px;}",
-    ".dsh-bg-card{border:1px solid rgba(128,128,128,.22);border-radius:12px;padding:12px 14px;background:rgba(128,128,128,.06);}",
-    ".dsh-bg-presets{display:flex;gap:8px;}",
-    ".dsh-bg-preset{flex:1;cursor:pointer;border:1px solid rgba(128,128,128,.25);background:transparent;color:inherit;border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;text-align:left;transition:border-color .15s,background .15s;}",
+    ".dsh-bg-settings{display:flex;flex-direction:column;gap:12px;max-width:560px;padding-bottom:28px;}",
+    ".dsh-bg-card{border:1px solid rgba(128,128,128,.22);border-radius:12px;padding:14px 16px;background:rgba(128,128,128,.06);}",
+    ".dsh-bg-sec-title{font-size:13px;font-weight:600;opacity:.9;margin-bottom:8px;}",
+    ".dsh-bg-div{border-top:1px solid rgba(128,128,128,.14);margin:12px 0;}",
+    /* 档位：一行三键分段控件 */
+    ".dsh-bg-presets{display:flex;gap:6px;}",
+    ".dsh-bg-preset{flex:1;cursor:pointer;border:1px solid rgba(128,128,128,.25);background:transparent;color:inherit;border-radius:8px;padding:7px 6px;font-size:13px;font-weight:500;font-family:inherit;text-align:center;transition:border-color .15s,background .15s,color .15s;}",
     ".dsh-bg-preset:hover{background:rgba(128,128,128,.1);}",
     ".dsh-bg-preset[data-active=\"true\"]{border-color:#4d8bf5;color:#6ea8ff;background:rgba(77,139,245,.12);}",
+    ".dsh-bg-preset-caption{font-size:11px;opacity:.6;margin-top:7px;line-height:1.5;}",
+    /* GPU 仪表 */
+    ".dsh-bg-meter-label{display:flex;justify-content:space-between;align-items:center;font-size:12px;opacity:.8;margin-bottom:6px;}",
     ".dsh-bg-meter{height:8px;border-radius:4px;background:rgba(128,128,128,.18);overflow:hidden;}",
     ".dsh-bg-meter>div{height:100%;border-radius:4px;transition:width .25s ease,background .25s ease;}",
-    ".dsh-bg-meter-label{display:flex;justify-content:space-between;font-size:12px;opacity:.75;margin-bottom:6px;}",
-    ".dsh-bg-row{display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid rgba(128,128,128,.12);}",
-    ".dsh-bg-row:last-child{border-bottom:none;}",
+    ".dsh-bg-meta{font-size:11px;opacity:.55;line-height:1.6;margin-top:7px;}",
+    /* 开关行：细分隔线 + 紧凑内边距 */
+    ".dsh-bg-row{display:flex;align-items:center;gap:12px;padding:9px 2px;}",
+    ".dsh-bg-row+.dsh-bg-row{border-top:1px solid rgba(128,128,128,.08);}",
     ".dsh-bg-row-info{flex:1;min-width:0;}",
-    ".dsh-bg-row-title{font-size:13px;font-weight:500;}",
-    ".dsh-bg-row-desc{font-size:12px;opacity:.65;margin-top:2px;}",
-    ".dsh-bg-chip{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid rgba(128,128,128,.3);opacity:.85;margin-left:8px;white-space:nowrap;}",
+    ".dsh-bg-row-title{font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;}",
+    ".dsh-bg-row-desc{font-size:11px;opacity:.6;margin-top:2px;}",
+    ".dsh-bg-chip{font-size:10px;line-height:16px;padding:0 6px;border-radius:999px;border:1px solid rgba(128,128,128,.3);opacity:.85;white-space:nowrap;flex:none;}",
     ".dsh-bg-chip[data-level=\"high\"]{color:#ff9d6b;border-color:rgba(255,140,80,.4);}",
     ".dsh-bg-chip[data-level=\"mid\"]{color:#ffd166;border-color:rgba(255,200,90,.4);}",
     ".dsh-bg-chip[data-level=\"low\"]{color:#7ee2a8;border-color:rgba(110,220,160,.4);}",
@@ -700,11 +706,15 @@ function apply(ctx) {
     ".dsh-bg-switch[aria-checked=\"true\"]{background:#4d8bf5;}",
     ".dsh-bg-switch::after{content:\"\";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s ease;}",
     ".dsh-bg-switch[aria-checked=\"true\"]::after{transform:translateX(16px);}",
-    ".dsh-bg-slider{width:100%;accent-color:#4d8bf5;}",
-    ".dsh-bg-select{background:transparent;color:inherit;border:1px solid rgba(128,128,128,.3);border-radius:8px;padding:4px 8px;font-size:12px;font-family:inherit;}",
-    ".dsh-bg-adv summary{cursor:pointer;font-size:13px;opacity:.8;user-select:none;}",
-    ".dsh-bg-adv-row{display:flex;align-items:center;gap:12px;padding:8px 0;font-size:13px;}",
-    ".dsh-bg-adv-row>span{flex:1;}",
+    /* 高级区 */
+    ".dsh-bg-slider{width:100%;accent-color:#4d8bf5;min-width:80px;}",
+    ".dsh-bg-select{background:transparent;color:inherit;border:1px solid rgba(128,128,128,.3);border-radius:8px;padding:4px 8px;font-size:12px;font-family:inherit;flex:none;}",
+    ".dsh-bg-adv summary{cursor:pointer;font-size:13px;font-weight:500;opacity:.9;user-select:none;padding:2px 0;}",
+    ".dsh-bg-adv-row{display:flex;align-items:center;gap:12px;padding:7px 0;font-size:13px;}",
+    ".dsh-bg-adv-row>span{flex:1;min-width:0;}",
+    ".dsh-bg-adv-value{width:56px;text-align:right;font-size:12px;opacity:.75;flex:none;font-variant-numeric:tabular-nums;}",
+    /* 底部 */
+    ".dsh-bg-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;}",
     ".dsh-bg-reset{cursor:pointer;border:1px solid rgba(128,128,128,.3);background:transparent;color:inherit;border-radius:10px;padding:7px 16px;font-size:13px;font-family:inherit;}",
     ".dsh-bg-reset:hover{background:rgba(128,128,128,.1);}",
     ".dsh-bg-note{font-size:11px;opacity:.55;line-height:1.5;}",
@@ -734,10 +744,12 @@ function apply(ctx) {
     var presetIds = ["full", "half", "eco"];
     var presetNames = { full: "全特效", half: "均衡", eco: "节能" };
     var presetDescs = {
-      full: "全部特效，观感最佳",
-      half: "保留极光/星座/玻璃，关闭鲸鱼与 Orbs",
-      eco: "仅保留玻璃与静态深色背景"
+      full: "所有特效拉满：极光 1.0x、玻璃 12px、30fps",
+      half: "保留极光/星座/玻璃与鼠标跟随，关闭鲸鱼和 Orbs（0.55x / 24fps）",
+      eco: "仅保留玻璃拟态与静态深色背景（20fps / blur 6px）"
     };
+    var modeName = presetNames[snap.mode] || "自定义";
+    var modeCaption = presetDescs[snap.mode] || "手动调整的特效组合，可随时切回预设档位";
     var rows = [
       { key: "aurora", title: "极光背景", desc: "WebGL2 流体渐变，本插件最大 GPU 开销", level: "high" },
       { key: "whale", title: "粒子鲸鱼", desc: "全屏 WebGL2 点阵粒子，光线跟随鼠标", level: "mid" },
@@ -756,9 +768,7 @@ function apply(ctx) {
           className: "dsh-bg-preset",
           "data-active": snap.mode === id,
           onClick: function () { applyPreset(id); }
-        },
-          h("div", { style: { fontWeight: 600, fontSize: 13 } }, presetNames[id]),
-          h("div", { style: { fontSize: 11, opacity: 0.65, marginTop: 3 } }, presetDescs[id]));
+        }, presetNames[id]);
       });
     }
     function switchBtn(key) {
@@ -780,18 +790,20 @@ function apply(ctx) {
         switchBtn(row.key));
     }
     return h("div", { className: "dsh-bg-settings" },
-      h("h3", null, "DeepSeek 背景特效"),
       h("div", { className: "dsh-bg-card" },
-        h("div", { style: { fontSize: 13, fontWeight: 500, marginBottom: 8 } }, "性能档位"),
+        h("div", { className: "dsh-bg-sec-title" }, "性能档位"),
         h("div", { className: "dsh-bg-presets" }, presetButtons()),
-        h("div", { className: "dsh-bg-meter-label", style: { marginTop: 12 } },
+        h("div", { className: "dsh-bg-preset-caption" }, modeName + " · " + modeCaption),
+        h("div", { className: "dsh-bg-div" }),
+        h("div", { className: "dsh-bg-meter-label" },
           h("span", null, "估算 GPU 负载"),
-          h("span", null, gpu + "%")),
+          h("span", { style: { color: meterColor, fontWeight: 600 } }, gpu + "%")),
         h("div", { className: "dsh-bg-meter" }, h("div", { style: { width: gpu + "%", background: meterColor } })),
-        h("div", { className: "dsh-bg-note", style: { marginTop: 6 } },
-          "按分辨率 × 帧率 × 模糊半径估算，仅供参考；切换即时生效并自动保存。")),
-      h("div", { className: "dsh-bg-card" },
-        h("div", { style: { fontSize: 13, fontWeight: 500, marginBottom: 4 } }, "特效开关（手动调整后自动转为「自定义」档位）"),
+        h("div", { className: "dsh-bg-meta" },
+          "按 分辨率 × 帧率 × 模糊半径 估算，仅供参考；切换即时生效并自动保存。" +
+          (snap.canvasW ? " 当前极光画布 " + snap.canvasW + "×" + snap.canvasH + "（×" + snap.auroraScale.toFixed(2) + "）" : "")),
+        h("div", { className: "dsh-bg-div" }),
+        h("div", { className: "dsh-bg-sec-title" }, "特效开关"),
         rows.map(rowEl)),
       h("details", { className: "dsh-bg-adv dsh-bg-card" },
         h("summary", null, "渲染质量（高级）"),
@@ -799,7 +811,7 @@ function apply(ctx) {
           h("span", null, "极光分辨率"),
           h("input", { type: "range", className: "dsh-bg-slider", min: 0.4, max: 1, step: 0.05, value: snap.auroraScale,
             onChange: function (e) { updateSetting("auroraScale", parseFloat(e.target.value)); } }),
-          h("span", { style: { width: 52, textAlign: "right", fontSize: 12, opacity: 0.75 } }, "×" + snap.auroraScale.toFixed(2))),
+          h("span", { className: "dsh-bg-adv-value" }, "×" + snap.auroraScale.toFixed(2))),
         h("div", { className: "dsh-bg-adv-row" },
           h("span", null, "动画帧率上限"),
           h("select", { className: "dsh-bg-select", value: snap.fps,
@@ -817,26 +829,22 @@ function apply(ctx) {
             h("option", { value: 12 }, "12 px（最通透）"))),
         h("div", { className: "dsh-bg-adv-row" },
           h("span", null, "跟手灵敏度",
-            h("div", { style: { fontSize: 11, opacity: 0.6 } }, "平滑时间常数：越小越贴手，越大越绵柔（建议 5–40ms）")),
+            h("div", { style: { fontSize: 11, opacity: 0.6 } }, "越小越贴手，越大越绵柔（建议 5–40ms）")),
           h("input", { type: "range", className: "dsh-bg-slider", min: 5, max: 120, step: 5, value: snap.followMs,
             onChange: function (e) { updateSetting("followMs", parseInt(e.target.value, 10)); } }),
-          h("span", { style: { width: 52, textAlign: "right", fontSize: 12, opacity: 0.75 } }, snap.followMs + "ms")),
+          h("span", { className: "dsh-bg-adv-value" }, snap.followMs + "ms")),
         h("div", { className: "dsh-bg-adv-row" },
           h("span", null, "光线跟随强度",
             h("div", { style: { fontSize: 11, opacity: 0.6 } }, "0% 固定不动，100% 完全贴住光标")),
           h("input", { type: "range", className: "dsh-bg-slider", min: 0, max: 100, step: 5, value: Math.round(snap.lightFollow * 100),
             onChange: function (e) { updateSetting("lightFollow", parseInt(e.target.value, 10) / 100); } }),
-          h("span", { style: { width: 52, textAlign: "right", fontSize: 12, opacity: 0.75 } }, Math.round(snap.lightFollow * 100) + "%")),
+          h("span", { className: "dsh-bg-adv-value" }, Math.round(snap.lightFollow * 100) + "%")),
         h("div", { className: "dsh-bg-adv-row" },
           h("div", { style: { flex: 1 } },
             h("div", { style: { fontSize: 13 } }, "低电量自动节能"),
             h("div", { style: { fontSize: 11, opacity: 0.6 } }, "电量 ≤20% 且未充电时切到节能档，恢复后还原")),
-          switchBtn("autoBattery")),
-        h("div", { className: "dsh-bg-adv-row" },
-          h("span", null, "当前极光画布"),
-          h("span", { style: { width: 140, textAlign: "right", fontSize: 12, opacity: 0.75 } },
-            snap.canvasW + "×" + snap.canvasH + " (" + snap.auroraScale.toFixed(2) + "x)"))),
-      h("div", { className: "dsh-bg-adv-row", style: { justifyContent: "space-between" } },
+          switchBtn("autoBattery"))),
+      h("div", { className: "dsh-bg-foot" },
         h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
         h("span", { className: "dsh-bg-note" }, "v1.7.0 · 即时生效")));
   }
