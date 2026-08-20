@@ -147,8 +147,9 @@ body[data-ds-dark-theme] .pI_x6G_sidebarCol::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* GPU 优化：全高侧边栏 blur 12→8，其后是平滑极光渐变，观感无差 */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 /* 侧边栏内容根：不再叠不透明底色。
@@ -166,8 +167,9 @@ body[data-ds-dark-theme] [data-slot="sidebar"] > div {
 body[data-ds-dark-theme] .uV2eYG_card,
 body[data-ds-dark-theme] [data-composer-card="true"] {
   background: rgba(13, 15, 19, 0.55) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  /* GPU 优化：输入卡片背后有滚动文字，模糊最可见，保留 10px（原 12px） */
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
   border-color: hsla(0, 0%, 100%, 0.08) !important;
   box-shadow: 0 0 1px 0 rgba(0, 0, 0, 0.2), 0 0 4px 0 rgba(0, 0, 0, 0.02), 0 12px 32px 0 rgba(0, 0, 0, 0.08) !important;
 }
@@ -190,8 +192,9 @@ body[data-ds-dark-theme] .qDHVXG_fade {
 /* 用户消息气泡 */
 body[data-ds-dark-theme] .gdEzaW_bubble {
   background: rgba(13, 15, 19, 0.55) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  /* GPU 优化：气泡数量多且背后是平滑极光，8px 与 12px 观感无差 */
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
   box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
 }
 
@@ -206,9 +209,201 @@ body[data-ds-dark-theme] ._body_1ye18_20,
 body[data-ds-dark-theme] ._copyButton_10eou_142,
 body[data-ds-dark-theme] ._bannerWrap_178r4_21 {
   background: rgba(13, 15, 19, 0.55) !important;
+  /* GPU 优化：代码块数量多，8px 与 12px 观感无差 */
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
+}
+
+/* ============ 工具调用行统一透明与悬浮交互（彻底消除 Bash 等黑框框） ============ */
+body[data-ds-dark-theme] .CY-8Ka_card,
+body[data-ds-dark-theme] .o3BgMG_root,
+body[data-ds-dark-theme] .ztWv_q_callRow,
+body[data-ds-dark-theme] .Md3f7G_callRow {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body[data-ds-dark-theme] .CY-8Ka_root,
+body[data-ds-dark-theme] .o3BgMG_row {
+  background: transparent !important;
+  border-radius: 6px !important;
+  transition: background 0.15s ease !important;
+}
+body[data-ds-dark-theme] .CY-8Ka_root:hover,
+body[data-ds-dark-theme] .o3BgMG_row:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 展开后的终端与输出卡片（保持深邃毛玻璃） */
+body[data-ds-dark-theme] .CY-8Ka_terminal,
+body[data-ds-dark-theme] .CY-8Ka_ioCard,
+body[data-ds-dark-theme] .o3BgMG_ioCard {
+  background: rgba(13, 15, 19, 0.65) !important;
+  /* GPU 优化：终端/输出卡片 8px */
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid hsla(0, 0%, 100%, 0.08) !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.06), 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* ============ Thinking Orbs (orbs.jakubantalik.com 移植) & Deep diving... 状态栏深色适配 ============ */
+.dsh-thinking-orb-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  flex: none;
+  vertical-align: middle;
+  -webkit-text-fill-color: initial !important;
+  transition: filter 0.25s ease;
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.7));
+}
+.dsh-thinking-orb-wrap[data-state="searching"] { filter: drop-shadow(0 0 7px rgba(59, 130, 246, 0.85)); }
+.dsh-thinking-orb-wrap[data-state="solving"] { filter: drop-shadow(0 0 7px rgba(52, 211, 153, 0.85)); }
+.dsh-thinking-orb-wrap[data-state="listening"] { filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.85)); }
+.dsh-thinking-orb-wrap[data-state="connecting"] { filter: drop-shadow(0 0 7px rgba(168, 85, 247, 0.9)); }
+.dsh-thinking-orb-wrap[data-state="weaving"] { filter: drop-shadow(0 0 7px rgba(236, 72, 153, 0.9)); }
+.dsh-thinking-orb-wrap[data-state="composing"] { filter: drop-shadow(0 0 7px rgba(251, 146, 60, 0.9)); }
+.dsh-thinking-orb-wrap[data-state="breathing"] { filter: drop-shadow(0 0 7px rgba(255, 122, 41, 0.9)); }
+.dsh-thinking-orb-wrap[data-state="shaping"] { filter: drop-shadow(0 0 7px rgba(96, 165, 250, 0.85)); }
+.dsh-thinking-orb-wrap[data-state="working"] { filter: drop-shadow(0 0 7px rgba(59, 130, 246, 0.8)); }
+
+.dsh-thinking-orb-canvas {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+body[data-ds-dark-theme] .Md3f7G_turnStatus {
+  display: inline-flex !important;
+  align-items: center !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  line-height: 24px !important;
+  background: linear-gradient(90deg, #4d8bf5 0%, #60a5fa 35%, #ffffff 50%, #60a5fa 65%, #4d8bf5 100%) !important;
+  background-size: 250% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  animation: 1.8s linear infinite Md3f7G_dsh-turn-status-shimmer !important;
+  filter: drop-shadow(0 0 10px rgba(77, 139, 245, 0.45)) !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 4px 0 !important;
+}
+
+body[data-ds-dark-theme] .dsh-turn-status-text {
+  display: inline !important;
+  background: inherit !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+body[data-ds-dark-theme] .Md3f7G_turnStatusClock {
+  font-size: 12px !important;
+  font-variant-numeric: tabular-nums !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.6) !important;
+  margin-left: 8px !important;
+  font-weight: 400 !important;
+  filter: none !important;
+}
+
+body[data-ds-dark-theme] [data-plan-mode="1"] .Md3f7G_turnStatus,
+body[data-ds-dark-theme] .Md3f7G_turnStatus[data-planning] {
+  background: linear-gradient(90deg, #ff7a29 0%, #ff9d42 35%, #fff1d6 50%, #ff9d42 65%, #ff7a29 100%) !important;
+  background-size: 250% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: drop-shadow(0 0 10px rgba(255, 122, 41, 0.5)) !important;
+}
+
+/* ============ 计划待审框 (Plan Review Card) ============ */
+body[data-ds-dark-theme] .LVzXQa_card,
+body[data-ds-dark-theme] [data-slot="plan-review"] > div {
+  background: rgba(13, 15, 19, 0.68) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 150, 40, 0.25) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 150, 40, 0.15) !important;
+}
+body[data-ds-dark-theme] .LVzXQa_strip {
+  background: rgba(255, 140, 40, 0.12) !important;
+  color: #ff9d42 !important;
+}
+body[data-ds-dark-theme] .LVzXQa_dot {
+  background: #ff7a29 !important;
+  box-shadow: 0 0 8px rgba(255, 122, 41, 0.8) !important;
+}
+
+/* ============ 任务清单框 (Todo List Dock & Panel) ============ */
+body[data-ds-dark-theme] ._7yHdaG_panel,
+body[data-ds-dark-theme] [data-slot="conversation.input.dock"] ._7yHdaG_panel {
+  background: rgba(13, 15, 19, 0.65) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid hsla(0, 0%, 100%, 0.08) !important;
+  border-bottom: none !important;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25) !important;
+}
+body[data-ds-dark-theme] ._7yHdaG_header:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+body[data-ds-dark-theme] ._7yHdaG_row:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* ============ 提问框 (Ask User Question Card) ============ */
+body[data-ds-dark-theme] .Mbwy4a_card,
+body[data-ds-dark-theme] [data-slot="user-questions"] > div {
+  background: rgba(13, 15, 19, 0.68) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid hsla(0, 0%, 100%, 0.1) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
+}
+
+/* ============ 授权/审批卡片与设置弹窗 ============ */
+body[data-ds-dark-theme] .VOzbGW_panel,
+body[data-ds-dark-theme] [data-slot="approval"] > div {
+  background: rgba(13, 15, 19, 0.75) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
-  box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
+  border: 1px solid hsla(0, 0%, 100%, 0.1) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
+  border-radius: 16px !important;
+}
+
+/* ============ 发送按钮与交互微动效 ============ */
+body[data-ds-dark-theme] .uV2eYG_primary {
+  background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35) !important;
+  border-radius: 999px !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease, box-shadow 0.2s ease !important;
+}
+body[data-ds-dark-theme] .uV2eYG_primary:hover:not(:disabled) {
+  transform: scale(1.05) !important;
+  filter: brightness(1.15) !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.5) !important;
+}
+body[data-ds-dark-theme] .uV2eYG_primary:active:not(:disabled) {
+  transform: scale(0.95) !important;
+}
+body[data-ds-dark-theme] [data-composer-card="true"][data-planning] .uV2eYG_primary,
+body[data-ds-dark-theme] .uV2eYG_card[data-planning] .uV2eYG_primary {
+  background: linear-gradient(135deg, #ff5a36, #ff9500) !important;
+  box-shadow: 0 2px 12px rgba(255, 90, 54, 0.45) !important;
 }
 
 
@@ -306,177 +501,408 @@ function apply() {
 /* ===================================================================== *
  * Border Beam (beam.jakubantalik.com) — ported for DSH composer
  * Copyright (c) Jakub Antalik, MIT — https://github.com/Jakubantalik/Libraries
- * Variant: line / colorful, duration 3.1s, hueRange 13, brightness 1.3
+ * Variant: md conic-gradient / colorful, mono, sunset, duration 2.45s, 0.8x
  * ===================================================================== */
-  // -- palette data (colorful only, line) — taken from packages/border-beam/src/styles.ts
   var BEAM_ID = "dsh-composer";
-  var BEAM_DURATION = 3.875; // 0.8x line (unused)
-  var BEAM_HUE_RANGE = 13;
-  var BEAM_BRIGHTNESS = 1.3;
-  var BEAM_SAT_DARK = 1.2;
-  var BEAM_SAT_LIGHT = 1.95;
-  // stroke/inner/bloom opacities tuned per Q9: dark 1.14/0.7/0.55, light 0.16/0.32/0.35
-  var BEAM_CFG_DARK = { stroke: 1.14, inner: 0.7, bloom: 0.55, innerShadow: "rgba(255, 255, 255, 0.1)" };
-  var BEAM_CFG_LIGHT = { stroke: 0.16, inner: 0.32, bloom: 0.35, innerShadow: "rgba(0, 0, 0, 0.14)" };
-
-  var lineColorPalettes = {
-    colorful: {
-      dark: [
-        { color: 'rgb(255, 50, 100)', sizeW: 36, sizeH: 36, offsetX: 0, offsetY: 2 },
-        { color: 'rgb(40, 180, 220)', sizeW: 30, sizeH: 32, offsetX: 39, offsetY: 0 },
-        { color: 'rgb(50, 200, 80)', sizeW: 33, sizeH: 28, offsetX: -36, offsetY: 2 },
-        { color: 'rgb(180, 40, 240)', sizeW: 29, sizeH: 34, offsetX: -54, offsetY: 0 },
-        { color: 'rgb(255, 160, 30)', sizeW: 27, sizeH: 30, offsetX: 51, offsetY: -1 },
-        { color: 'rgb(100, 70, 255)', sizeW: 36, sizeH: 24, offsetX: 21, offsetY: 1 },
-        { color: 'rgb(40, 140, 255)', sizeW: 30, sizeH: 22, offsetX: -21, offsetY: 0 },
-        { color: 'rgb(240, 50, 180)', sizeW: 25, sizeH: 28, offsetX: 66, offsetY: 1 },
-        { color: 'rgb(30, 185, 170)', sizeW: 23, sizeH: 30, offsetX: -66, offsetY: -1 }
-      ],
-      light: [
-        { color: 'rgb(255, 50, 100)', sizeW: 45, sizeH: 36, offsetX: 0, offsetY: 2 },
-        { color: 'rgb(40, 140, 255)', sizeW: 35, sizeH: 32, offsetX: 65, offsetY: 0 },
-        { color: 'rgb(50, 200, 80)', sizeW: 40, sizeH: 28, offsetX: -60, offsetY: 2 },
-        { color: 'rgb(180, 40, 240)', sizeW: 35, sizeH: 34, offsetX: -90, offsetY: 0 },
-        { color: 'rgb(30, 185, 170)', sizeW: 38, sizeH: 30, offsetX: 85, offsetY: -1 },
-        { color: 'rgb(100, 70, 255)', sizeW: 50, sizeH: 24, offsetX: 35, offsetY: 1 },
-        { color: 'rgb(40, 140, 255)', sizeW: 40, sizeH: 22, offsetX: -35, offsetY: 0 },
-        { color: 'rgb(255, 120, 40)', sizeW: 35, sizeH: 28, offsetX: 110, offsetY: 1 },
-        { color: 'rgb(240, 50, 180)', sizeW: 30, sizeH: 30, offsetX: -110, offsetY: -1 }
-      ]
-    }
-  };
-  var lineInnerGradientData = {
-    colorful: [
-      { color: 'rgba(255, 50, 100, 0.48)', sizeW: 33, sizeH: 30, offsetX: 0, offsetY: 0 },
-      { color: 'rgba(40, 180, 220, 0.42)', sizeW: 24, sizeH: 26, offsetX: 39, offsetY: -3 },
-      { color: 'rgba(50, 200, 80, 0.48)', sizeW: 27, sizeH: 24, offsetX: -36, offsetY: 0 },
-      { color: 'rgba(180, 40, 240, 0.42)', sizeW: 23, sizeH: 28, offsetX: -54, offsetY: -2 },
-      { color: 'rgba(255, 160, 30, 0.50)', sizeW: 24, sizeH: 24, offsetX: 51, offsetY: -1 },
-      { color: 'rgba(100, 70, 255, 0.45)', sizeW: 30, sizeH: 20, offsetX: 21, offsetY: 0 },
-      { color: 'rgba(40, 140, 255, 0.40)', sizeW: 25, sizeH: 18, offsetX: -21, offsetY: -2 },
-      { color: 'rgba(240, 50, 180, 0.45)', sizeW: 21, sizeH: 24, offsetX: 66, offsetY: 0 },
-      { color: 'rgba(30, 185, 170, 0.52)', sizeW: 18, sizeH: 26, offsetX: -66, offsetY: -1 }
-    ]
-  };
-
-  function getLineColorGradients(isDark, id) {
-    var pal = lineColorPalettes.colorful[isDark ? 'dark' : 'light'];
-    return pal.map(function(c){
-      var ox = c.offsetX===0?'':(c.offsetX>0?' + '+c.offsetX+'px':' - '+Math.abs(c.offsetX)+'px');
-      var oy = c.offsetY===0?'':(c.offsetY>0?' + '+c.offsetY+'px':' - '+Math.abs(c.offsetY)+'px');
-      return 'radial-gradient(ellipse calc('+c.sizeW+'px * var(--beam-w-'+id+')) calc('+c.sizeH+'px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%'+ox+') calc(100%'+oy+'), '+c.color+', transparent)';
-    }).join(',\n       ');
-  }
-  function getLineInnerGradients(id) {
-    var data = lineInnerGradientData.colorful;
-    return data.map(function(c){
-      var ox = c.offsetX===0?'':(c.offsetX>0?' + '+c.offsetX+'px':' - '+Math.abs(c.offsetX)+'px');
-      var oy = c.offsetY===0?'': ' - '+Math.abs(c.offsetY)+'px';
-      return 'radial-gradient(ellipse calc('+c.sizeW+'px * var(--beam-w-'+id+')) calc('+c.sizeH+'px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%'+ox+') calc(100%'+oy+'), '+c.color+', transparent)';
-    }).join(',\n    ');
-  }
-  function getLineBloomGradients(isDark, id) {
-    // Simplified bloom: reuse color gradients with blur, matches beam's bloom intent
-    // For colorful we reuse the same palette but with bloom opacities handled via outer opacity variable
-    var pal = lineColorPalettes.colorful[isDark ? 'dark' : 'light'];
-    // Use spike-like thin blooms + central glow - simplified to two radial blooms for performance
-    var bloomCore = isDark
-      ? 'radial-gradient(ellipse calc(84px * var(--beam-w-'+id+')) calc(110px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%) 100%, white 0%, rgba(255, 255, 255, 0.5) 35%, transparent 100%)'
-      : 'radial-gradient(ellipse calc(84px * var(--beam-w-'+id+')) calc(110px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%) 100%, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.15) 35%, transparent 100%)';
-    // We also include the multi-spike color blooms as second layer
-    var colorBloom = pal.slice(0,5).map(function(c){
-      var ox = c.offsetX===0?'':(c.offsetX>0?' + '+c.offsetX+'px':' - '+Math.abs(c.offsetX)+'px');
-      var oy = c.offsetY===0?'':(c.offsetY>0?' + '+c.offsetY+'px':' - '+Math.abs(c.offsetY)+'px');
-      return 'radial-gradient(ellipse calc('+Math.round(c.sizeW*0.9)+'px * var(--beam-w-'+id+')) calc('+Math.round(c.sizeH*0.9)+'px * var(--beam-h-'+id+')) at calc(var(--beam-x-'+id+') * 100%'+ox+') calc(100%'+oy+'), '+c.color.replace('rgb','rgba').replace(')', ', 0.35)')+', transparent)';
-    }).join(',\n       ');
-    // Return simplified but still colorful
-    return colorBloom;
-  }
-  function pausedBeamRule(id){
-    return "\n[data-beam=\""+id+"\"][data-paused],\n[data-beam=\""+id+"\"][data-paused]::after,\n[data-beam=\""+id+"\"][data-paused]::before,\n[data-beam=\""+id+"\"][data-paused] [data-beam-bloom] {\n  animation-play-state: paused !important;\n}";
-  }
-  function buildBeamCSS(id, borderRadius, isDark){
-    var cfg = isDark ? BEAM_CFG_DARK : BEAM_CFG_LIGHT;
-    var sat = isDark ? BEAM_SAT_DARK : BEAM_SAT_LIGHT;
-    var innerRadius = Math.max(0, borderRadius - 1);
-    var colorGradients = getLineColorGradients(isDark, id);
-    var innerGradients = getLineInnerGradients(id);
-    var bloomGradients = getLineBloomGradients(isDark, id);
-    var hueAnim = "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
-    var hueBloomAnim = "animation: beam-hue-shift-bloom-"+id+" 8s ease-in-out infinite;";
-    var _hueRange = BEAM_HUE_RANGE;
-    var __hr = _hueRange;
-    var hueKeyframes = "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+__hr+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+__hr+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+__hr+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}\n@keyframes beam-hue-shift-bloom-"+id+" {\n  0% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) + "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
-
-  var BEAM_DURATION = 2.45; // 0.8x (1.96/0.8) // md full border
+  var BEAM_DURATION = 2.45; // 0.8x md full border
   var BEAM_HUE_RANGE = 30;
+  var BEAM_BRIGHTNESS = 1.3;
   var BEAM_CFG_DARK = { stroke: 0.26, inner: 0.42, bloom: 0.24, innerShadow: "rgba(255, 255, 255, 0.27)" };
   var BEAM_CFG_LIGHT = { stroke: 0.12, inner: 0.26, bloom: 0.34, innerShadow: "rgba(0, 0, 0, 0.14)" };
-  // md palettes
+
   var colorPalettes = {
     colorful: {
       border: [
-        { color: 'rgb(255, 50, 100)', pos: '33% -7.4%', size: '70px 40px' },
-        { color: 'rgb(40, 140, 255)', pos: '12% -5%', size: '60px 35px' },
-        { color: 'rgb(50, 200, 80)', pos: '2.1% 68.3%', size: '40px 70px' },
-        { color: 'rgb(30, 185, 170)', pos: '2.1% 68.3%', size: '20px 35px' },
-        { color: 'rgb(100, 70, 255)', pos: '74.4% 100%', size: '180px 32px' },
-        { color: 'rgb(40, 140, 255)', pos: '55% 100%', size: '85px 26px' },
-        { color: 'rgb(255, 120, 40)', pos: '93.9% 0%', size: '74px 32px' },
-        { color: 'rgb(240, 50, 180)', pos: '100% 27.1%', size: '26px 42px' },
-        { color: 'rgb(180, 40, 240)', pos: '100% 27.1%', size: '52px 48px' }
+        { color: "rgb(255, 50, 100)", pos: "33% -7.4%", size: "70px 40px" },
+        { color: "rgb(40, 140, 255)", pos: "12% -5%", size: "60px 35px" },
+        { color: "rgb(50, 200, 80)", pos: "2.1% 68.3%", size: "40px 70px" },
+        { color: "rgb(30, 185, 170)", pos: "2.1% 68.3%", size: "20px 35px" },
+        { color: "rgb(100, 70, 255)", pos: "74.4% 100%", size: "180px 32px" },
+        { color: "rgb(40, 140, 255)", pos: "55% 100%", size: "85px 26px" },
+        { color: "rgb(255, 120, 40)", pos: "93.9% 0%", size: "74px 32px" },
+        { color: "rgb(240, 50, 180)", pos: "100% 27.1%", size: "26px 42px" },
+        { color: "rgb(180, 40, 240)", pos: "100% 27.1%", size: "52px 48px" }
+      ]
+    },
+    mono: {
+      border: [
+        { color: "rgb(180, 180, 180)", pos: "33% -7.4%", size: "70px 40px" },
+        { color: "rgb(140, 140, 140)", pos: "12% -5%", size: "60px 35px" },
+        { color: "rgb(160, 160, 160)", pos: "2.1% 68.3%", size: "40px 70px" },
+        { color: "rgb(130, 130, 130)", pos: "2.1% 68.3%", size: "20px 35px" },
+        { color: "rgb(170, 170, 170)", pos: "74.4% 100%", size: "180px 32px" },
+        { color: "rgb(150, 150, 150)", pos: "55% 100%", size: "85px 26px" },
+        { color: "rgb(190, 190, 190)", pos: "93.9% 0%", size: "74px 32px" },
+        { color: "rgb(145, 145, 145)", pos: "100% 27.1%", size: "26px 42px" },
+        { color: "rgb(165, 165, 165)", pos: "100% 27.1%", size: "52px 48px" }
+      ]
+    },
+    sunset: {
+      border: [
+        { color: "rgb(255, 80, 50)", pos: "33% -7.4%", size: "70px 40px" },
+        { color: "rgb(255, 160, 40)", pos: "12% -5%", size: "60px 35px" },
+        { color: "rgb(255, 120, 60)", pos: "2.1% 68.3%", size: "40px 70px" },
+        { color: "rgb(255, 200, 50)", pos: "2.1% 68.3%", size: "20px 35px" },
+        { color: "rgb(255, 100, 80)", pos: "74.4% 100%", size: "180px 32px" },
+        { color: "rgb(255, 180, 60)", pos: "55% 100%", size: "85px 26px" },
+        { color: "rgb(255, 60, 60)", pos: "93.9% 0%", size: "74px 32px" },
+        { color: "rgb(255, 140, 50)", pos: "100% 27.1%", size: "26px 42px" },
+        { color: "rgb(255, 90, 70)", pos: "100% 27.1%", size: "52px 48px" }
       ]
     }
   };
-  function getColorGradients(variant, isDark, id){ var _v=variant||'colorful'; var pal=(colorPalettes[_v]||colorPalettes.colorful).border; return pal.map(function(c){ return 'radial-gradient(ellipse '+c.size+' at '+c.pos+', '+c.color+', transparent)'; }).join(',\n    '); }
-  function getInnerGradients(variant, isDark, id){ var _v=variant||'colorful';
-    var pal=(colorPalettes[_v]||colorPalettes.colorful).border; var baseOpacity = _v==='mono'?0.225:0.45;
-    return pal.map(function(c){
-      var rgba=c.color.replace('rgb(','rgba(').replace(')',', '+baseOpacity+')');
-      var sz=c.size.split(' ').map(function(s){ return Math.round(parseInt(s)*0.9)+'px'; }).join(' ');
-      return 'radial-gradient(ellipse '+sz+' at '+c.pos+', '+rgba+', transparent)';
-    }).join(',\n    ');
+
+  function getColorGradients(variant, isDark, id) {
+    var _v = variant || "colorful";
+    var pal = (colorPalettes[_v] || colorPalettes.colorful).border;
+    return pal.map(function(c) {
+      return "radial-gradient(ellipse " + c.size + " at " + c.pos + ", " + c.color + ", transparent)";
+    }).join(",\n    ");
   }
-  function getBloomGradients(isDark, id){ return getColorGradients(isDark,id); }
-  var _origBuildBeamCSS = buildBeamCSS;
-  buildBeamCSS = function(id, borderRadius, isDark, variant){ variant = variant || 'colorful'; var _hueRange = 30; var _static = variant==='mono';
+
+  function getInnerGradients(variant, isDark, id) {
+    var _v = variant || "colorful";
+    var pal = (colorPalettes[_v] || colorPalettes.colorful).border;
+    var baseOpacity = _v === "mono" ? 0.225 : 0.45;
+    return pal.map(function(c) {
+      var rgba = c.color.replace("rgb(", "rgba(").replace(")", ", " + baseOpacity + ")");
+      var sz = c.size.split(" ").map(function(s) { return Math.round(parseInt(s) * 0.9) + "px"; }).join(" ");
+      return "radial-gradient(ellipse " + sz + " at " + c.pos + ", " + rgba + ", transparent)";
+    }).join(",\n    ");
+  }
+
+  function buildBeamCSS(id, borderRadius, isDark, variant) {
+    variant = variant || "colorful";
     var cfg = isDark ? BEAM_CFG_DARK : BEAM_CFG_LIGHT;
     var sat = isDark ? 1.2 : 1.5;
     var innerRadius = Math.max(0, borderRadius - 1);
-    var hueAnim = "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
-    var hueKeyframes = "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
-    var isDarkStr = isDark;
+    var hueAnim = "animation: beam-hue-shift-" + id + " 12s ease-in-out infinite;";
+    var hueKeyframes = "@keyframes beam-hue-shift-" + id + " {\n" +
+      "  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - " + BEAM_HUE_RANGE + "deg)) brightness(" + BEAM_BRIGHTNESS.toFixed(2) + ") saturate(" + sat.toFixed(2) + "); }\n" +
+      "  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + " + BEAM_HUE_RANGE + "deg)) brightness(" + BEAM_BRIGHTNESS.toFixed(2) + ") saturate(" + sat.toFixed(2) + "); }\n" +
+      "  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - " + BEAM_HUE_RANGE + "deg)) brightness(" + BEAM_BRIGHTNESS.toFixed(2) + ") saturate(" + sat.toFixed(2) + "); }\n" +
+      "}";
+
     var whiteGrad = isDark
-      ? "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 54%,\n        rgba(255, 255, 255, 0.1) 57%,\n        rgba(255, 255, 255, 0.3) 60%,\n        rgba(255, 255, 255, 0.6) 63%,\n        rgba(255, 255, 255, 0.75) 66%,\n        rgba(255, 255, 255, 0.6) 69%,\n        rgba(255, 255, 255, 0.3) 72%,\n        rgba(255, 255, 255, 0.1) 75%,\n        transparent 78%, transparent 100%\n      )"
-      : "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 54%,\n        rgba(0, 0, 0, 0.08) 57%,\n        rgba(0, 0, 0, 0.2) 60%,\n        rgba(0, 0, 0, 0.4) 63%,\n        rgba(0, 0, 0, 0.55) 66%,\n        rgba(0, 0, 0, 0.4) 69%,\n        rgba(0, 0, 0, 0.2) 72%,\n        rgba(0, 0, 0, 0.08) 75%,\n        transparent 78%, transparent 100%\n      )";
+      ? "conic-gradient(\n" +
+        "  from var(--beam-angle-" + id + "),\n" +
+        "  transparent 0%, transparent 54%,\n" +
+        "  rgba(255, 255, 255, 0.1) 57%,\n" +
+        "  rgba(255, 255, 255, 0.3) 60%,\n" +
+        "  rgba(255, 255, 255, 0.6) 63%,\n" +
+        "  rgba(255, 255, 255, 0.75) 66%,\n" +
+        "  rgba(255, 255, 255, 0.6) 69%,\n" +
+        "  rgba(255, 255, 255, 0.3) 72%,\n" +
+        "  rgba(255, 255, 255, 0.1) 75%,\n" +
+        "  transparent 78%, transparent 100%\n" +
+        ")"
+      : "conic-gradient(\n" +
+        "  from var(--beam-angle-" + id + "),\n" +
+        "  transparent 0%, transparent 54%,\n" +
+        "  rgba(0, 0, 0, 0.08) 57%,\n" +
+        "  rgba(0, 0, 0, 0.2) 60%,\n" +
+        "  rgba(0, 0, 0, 0.4) 63%,\n" +
+        "  rgba(0, 0, 0, 0.55) 66%,\n" +
+        "  rgba(0, 0, 0, 0.4) 69%,\n" +
+        "  rgba(0, 0, 0, 0.2) 72%,\n" +
+        "  rgba(0, 0, 0, 0.08) 75%,\n" +
+        "  transparent 78%, transparent 100%\n" +
+        ")";
+
     var colorGrads, innerGrads;
-    if (variant==='sunset') {
-      // Aggressive single orange-yellow conic for Plan
-      colorGrads = "conic-gradient(from var(--beam-angle-"+id+"), transparent 0%, transparent 45%, rgb(255, 60, 20) 50%, rgb(255, 90, 0) 55%, rgb(220, 40, 0) 60%, transparent 65%, transparent 100%)";
-      innerGrads = "conic-gradient(from var(--beam-angle-"+id+"), transparent 0%, transparent 45%, rgba(255, 60, 20, 0.6) 50%, rgba(255, 90, 0, 0.5) 55%, transparent 65%)";
+    if (variant === "sunset") {
+      colorGrads = "conic-gradient(from var(--beam-angle-" + id + "), transparent 0%, transparent 45%, rgb(255, 60, 20) 50%, rgb(255, 90, 0) 55%, rgb(220, 40, 0) 60%, transparent 65%, transparent 100%)";
+      innerGrads = "conic-gradient(from var(--beam-angle-" + id + "), transparent 0%, transparent 45%, rgba(255, 60, 20, 0.6) 50%, rgba(255, 90, 0, 0.5) 55%, transparent 65%)";
     } else {
       colorGrads = getColorGradients(variant, isDark, id);
       innerGrads = getInnerGradients(variant, isDark, id);
     }
+
     var bloomGrad = isDark
-      ? "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 58%,\n        rgba(255, 255, 255, 0.03) 62%,\n        rgba(255, 255, 255, 0.08) 65%,\n        rgba(255, 255, 255, 0.2) 67%,\n        rgba(255, 255, 255, 0.45) 69%,\n        rgba(255, 255, 255, 0.85) 70%,\n        rgba(255, 255, 255, 0.85) 70.5%,\n        rgba(255, 255, 255, 0.45) 71.5%,\n        rgba(255, 255, 255, 0.2) 73%,\n        rgba(255, 255, 255, 0.08) 75%,\n        rgba(255, 255, 255, 0.03) 78%,\n        transparent 82%\n      )"
-      : "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 58%,\n        rgba(0, 0, 0, 0.02) 62%,\n        rgba(0, 0, 0, 0.08) 65%,\n        rgba(0, 0, 0, 0.2) 67%,\n        rgba(0, 0, 0, 0.4) 69%,\n        rgba(0, 0, 0, 0.6) 70%,\n        rgba(0, 0, 0, 0.6) 70.5%,\n        rgba(0, 0, 0, 0.4) 71.5%,\n        rgba(0, 0, 0, 0.2) 73%,\n        rgba(0, 0, 0, 0.08) 75%,\n        rgba(0, 0, 0, 0.02) 78%,\n        transparent 82%\n      )";
-    // For md, BEAM_DURATION is 1.96, and uses --beam-angle
-    return "@property --beam-angle-"+id+" {\n  syntax: \"<angle>\";\n  initial-value: 0deg;\n  inherits: true;\n}\n@property --beam-opacity-"+id+" {\n  syntax: \"<number>\";\n  initial-value: 0;\n  inherits: true;\n}\n[data-beam=\""+id+"\"] {\n  position: relative;\n  border-radius: "+borderRadius+"px;\n  overflow: visible;\n  isolation: isolate;\n}\n[data-beam=\""+id+"\"][data-active] {\n  animation:\n    beam-spin-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-fade-in-"+id+" 0.6s ease forwards;\n}\n[data-beam=\""+id+"\"][data-fading] {\n  animation:\n    beam-spin-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-fade-out-"+id+" 0.5s ease forwards;\n}\n[data-beam=\""+id+"\"][data-active]::after,\n[data-beam=\""+id+"\"][data-fading]::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  border-radius: "+innerRadius+"px;\n  padding: 1px;\n  clip-path: inset(0 round "+borderRadius+"px);\n  background: "+whiteGrad+",\n    "+colorGrads+";\n  -webkit-mask:\n    conic-gradient(\n      from var(--beam-angle-"+id+"),\n      transparent 0%, transparent 30%,\n      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,\n      white 52%, white 80%,\n      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,\n      transparent 95%, transparent 100%\n    ),\n    linear-gradient(#fff 0 0) content-box,\n    linear-gradient(#fff 0 0);\n  -webkit-mask-composite: source-in, xor;\n  mask:\n    conic-gradient(\n      from var(--beam-angle-"+id+"),\n      transparent 0%, transparent 30%,\n      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,\n      white 52%, white 80%,\n      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,\n      transparent 95%, transparent 100%\n    ),\n    linear-gradient(#fff 0 0) content-box,\n    linear-gradient(#fff 0 0);\n  mask-composite: intersect, exclude;\n  pointer-events: none;\n  z-index: 2;\n  opacity: calc(var(--beam-opacity-"+id+") * "+cfg.stroke.toFixed(2)+" * var(--beam-stroke-opacity, 1) * var(--beam-strength, 1));\n  "+hueAnim+"\n}\n[data-beam=\""+id+"\"][data-active]::before,\n[data-beam=\""+id+"\"][data-fading]::before {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  border-radius: "+borderRadius+"px;\n  background: "+innerGrads+";\n  box-shadow: inset 0 0 9px 1px "+cfg.innerShadow+";\n  -webkit-mask-image:\n    conic-gradient(\n      from var(--beam-angle-"+id+"),\n      transparent 0%, transparent 30%,\n      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,\n      white 52%, white 80%,\n      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,\n      transparent 95%, transparent 100%\n    ),\n    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),\n    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);\n  -webkit-mask-composite: source-in, source-over;\n  mask-image:\n    conic-gradient(\n      from var(--beam-angle-"+id+"),\n      transparent 0%, transparent 30%,\n      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,\n      white 52%, white 80%,\n      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,\n      transparent 95%, transparent 100%\n    ),\n    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),\n    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);\n  mask-composite: intersect, add;\n  pointer-events: none;\n  z-index: 1;\n  opacity: calc(var(--beam-opacity-"+id+") * "+cfg.inner.toFixed(2)+" * var(--beam-inner-opacity, 1) * var(--beam-strength, 1));\n  clip-path: inset(0 round "+borderRadius+"px);\n  "+hueAnim+"\n}\n[data-beam=\""+id+"\"] [data-beam-bloom] {\n  display: none;\n  position: absolute;\n  inset: 0;\n  border-radius: "+innerRadius+"px;\n  clip-path: inset(0 round "+borderRadius+"px);\n  background: "+bloomGrad+";\n  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n  -webkit-mask-composite: xor;\n  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n  mask-composite: exclude;\n  padding: 1px;\n  filter: blur(8px) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+");\n  pointer-events: none;\n  z-index: 3;\n  opacity: 0;\n}\n[data-beam=\""+id+"\"][data-active] [data-beam-bloom],\n[data-beam=\""+id+"\"][data-fading] [data-beam-bloom] {\n  display: block;\n  opacity: calc(var(--beam-opacity-"+id+") * "+cfg.bloom.toFixed(2)+" * var(--beam-bloom-opacity, 1) * var(--beam-strength, 1));\n}\n@keyframes beam-spin-"+id+" {\n  to { --beam-angle-"+id+": 360deg; }\n}\n@keyframes beam-fade-in-"+id+" {\n  to { --beam-opacity-"+id+": 1; }\n}\n@keyframes beam-fade-out-"+id+" {\n  from { --beam-opacity-"+id+": 1; }\n  to { --beam-opacity-"+id+": 0; }\n}\n"+hueKeyframes+"\n@media (prefers-reduced-motion: reduce) {\n  [data-beam=\""+id+"\"][data-active],\n  [data-beam=\""+id+"\"][data-fading],\n  [data-beam=\""+id+"\"][data-active]::after,\n  [data-beam=\""+id+"\"][data-fading]::after,\n  [data-beam=\""+id+"\"][data-active]::before,\n  [data-beam=\""+id+"\"][data-fading]::before,\n  [data-beam=\""+id+"\"][data-active] [data-beam-bloom],\n  [data-beam=\""+id+"\"][data-fading] [data-beam-bloom] {\n    animation: none !important;\n  }\n}";
-  };
-    var whiteHighlight = isDark
-      ? "radial-gradient(\n        ellipse calc(24px * var(--beam-w-"+id+")) calc(28px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) calc(100% + 2px),\n        rgba(255, 255, 255, 0.38) 0%,\n        rgba(255, 255, 255, 0.12) 30%,\n        transparent 65%\n      )"
-      : "radial-gradient(\n        ellipse calc(35px * var(--beam-w-"+id+")) calc(28px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) calc(100% + 2px),\n        rgba(0, 0, 0, 0.6) 0%,\n        rgba(0, 0, 0, 0.25) 35%,\n        transparent 70%\n      )";
-    return "@property --beam-x-"+id+" {\n  syntax: \"<number>\";\n  initial-value: 0;\n  inherits: true;\n}\n@property --beam-w-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-h-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-spike-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-spike2-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-edge-"+id+" { syntax: \"<number>\"; initial-value: 1; inherits: true;}\n@property --beam-opacity-"+id+" { syntax: \"<number>\"; initial-value: 0; inherits: true;}\n[data-beam=\""+id+"\"] {\n  position: relative;\n  border-radius: "+borderRadius+"px;\n  overflow: visible;\n  isolation: isolate;\n}\n[data-beam=\""+id+"\"][data-active] {\n  animation:\n    beam-travel-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-edge-fade-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-breathe-"+id+" "+(BEAM_DURATION*1.3).toFixed(1)+"s ease-in-out infinite,\n    beam-spike-"+id+" "+(BEAM_DURATION*1.33).toFixed(1)+"s ease-in-out infinite,\n    beam-spike2-"+id+" "+(BEAM_DURATION*1.7).toFixed(1)+"s ease-in-out infinite,\n    beam-fade-in-"+id+" 0.6s ease forwards;\n}\n[data-beam=\""+id+"\"][data-fading] {\n  animation:\n    beam-travel-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-edge-fade-"+id+" "+BEAM_DURATION+"s linear infinite,\n    beam-breathe-"+id+" "+(BEAM_DURATION*1.3).toFixed(1)+"s ease-in-out infinite,\n    beam-spike-"+id+" "+(BEAM_DURATION*1.33).toFixed(1)+"s ease-in-out infinite,\n    beam-spike2-"+id+" "+(BEAM_DURATION*1.7).toFixed(1)+"s ease-in-out infinite,\n    beam-fade-out-"+id+" 0.5s ease forwards;\n}\n[data-beam=\""+id+"\"][data-active]::after,\n[data-beam=\""+id+"\"][data-fading]::after {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  border-radius: "+innerRadius+"px;\n  padding: 1px;\n  clip-path: inset(0 round "+borderRadius+"px);\n  background: "+whiteHighlight+", "+colorGradients+";\n  -webkit-mask:\n    radial-gradient(\n      ellipse calc(78px * var(--beam-w-"+id+")) calc(60px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n      white 0%, rgba(255, 255, 255, 0.5) 45%, transparent 100%\n    ),\n    linear-gradient(#fff 0 0) content-box,\n    linear-gradient(#fff 0 0);\n  -webkit-mask-composite: source-in, xor;\n  mask:\n    radial-gradient(\n      ellipse calc(78px * var(--beam-w-"+id+")) calc(60px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n      white 0%, rgba(255, 255, 255, 0.5) 45%, transparent 100%\n    ),\n    linear-gradient(#fff 0 0) content-box,\n    linear-gradient(#fff 0 0);\n  mask-composite: intersect, exclude;\n  pointer-events: none;\n  z-index: 2;\n  opacity: calc(var(--beam-opacity-"+id+") * var(--beam-edge-"+id+") * "+cfg.stroke.toFixed(2)+" * var(--beam-stroke-opacity, 1) * var(--beam-strength, 1));\n  "+hueAnim+"\n}\n[data-beam=\""+id+"\"][data-active]::before,\n[data-beam=\""+id+"\"][data-fading]::before {\n  content: \"\";\n  position: absolute;\n  inset: 0;\n  border-radius: "+borderRadius+"px;\n  background: "+innerGradients+";\n  box-shadow: inset 0 0 9px 1px "+cfg.innerShadow+";\n  -webkit-mask-image:\n    radial-gradient(\n      ellipse calc(78px * var(--beam-w-"+id+")) calc(60px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n      white 0%, rgba(255, 255, 255, 0.5) 45%, transparent 100%\n    ),\n    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),\n    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);\n  -webkit-mask-composite: source-in, source-over;\n  mask-image:\n    radial-gradient(\n      ellipse calc(78px * var(--beam-w-"+id+")) calc(60px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n      white 0%, rgba(255, 255, 255, 0.5) 45%, transparent 100%\n    ),\n    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),\n    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);\n  mask-composite: intersect, add;\n  pointer-events: none;\n  z-index: 1;\n  opacity: calc(var(--beam-opacity-"+id+") * var(--beam-edge-"+id+") * "+cfg.inner.toFixed(2)+" * var(--beam-inner-opacity, 1) * var(--beam-strength, 1));\n  clip-path: inset(0 round "+borderRadius+"px);\n  "+hueAnim+"\n}\n[data-beam=\""+id+"\"] [data-beam-bloom] {\n  display: none;\n  position: absolute;\n  inset: 0;\n  border-radius: "+innerRadius+"px;\n  clip-path: inset(0 round "+borderRadius+"px);\n  padding: 0;\n  -webkit-mask: radial-gradient(\n    ellipse calc(84px * var(--beam-w-"+id+")) calc(110px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n    white 0%, rgba(255, 255, 255, 0.5) 35%, transparent 100%\n  );\n  -webkit-mask-composite: source-over;\n  mask: radial-gradient(\n    ellipse calc(84px * var(--beam-w-"+id+")) calc(110px * var(--beam-h-"+id+")) at calc(var(--beam-x-"+id+") * 100%) 100%,\n    white 0%, rgba(255, 255, 255, 0.5) 35%, transparent 100%\n  );\n  mask-composite: add;\n  background: "+bloomGradients+";\n  pointer-events: none;\n  z-index: 3;\n  opacity: 0;\n}\n[data-beam=\""+id+"\"][data-active] [data-beam-bloom],\n[data-beam=\""+id+"\"][data-fading] [data-beam-bloom] {\n  display: block;\n  opacity: calc(var(--beam-opacity-"+id+") * var(--beam-edge-"+id+") * "+cfg.bloom.toFixed(2)+" * var(--beam-bloom-opacity, 1) * var(--beam-strength, 1));\n  "+hueBloomAnim+"\n}\n@keyframes beam-travel-"+id+" {\n  0%   { --beam-x-"+id+": 0.06;  --beam-w-"+id+": 0.5; }\n  10%  { --beam-x-"+id+": 0.15;  --beam-w-"+id+": 0.8; }\n  20%  { --beam-x-"+id+": 0.25;  --beam-w-"+id+": 1.1; }\n  30%  { --beam-x-"+id+": 0.35;  --beam-w-"+id+": 1.3; }\n  40%  { --beam-x-"+id+": 0.44;  --beam-w-"+id+": 1.45; }\n  50%  { --beam-x-"+id+": 0.5;   --beam-w-"+id+": 1.5; }\n  60%  { --beam-x-"+id+": 0.56;  --beam-w-"+id+": 1.45; }\n  70%  { --beam-x-"+id+": 0.65;  --beam-w-"+id+": 1.3; }\n  80%  { --beam-x-"+id+": 0.75;  --beam-w-"+id+": 1.1; }\n  90%  { --beam-x-"+id+": 0.85;  --beam-w-"+id+": 0.8; }\n  100% { --beam-x-"+id+": 0.94;  --beam-w-"+id+": 0.5; }\n}\n@keyframes beam-edge-fade-"+id+" {\n  0%    { --beam-edge-"+id+": 0; }\n  12.5% { --beam-edge-"+id+": 0; }\n  32.5% { --beam-edge-"+id+": 1; }\n  67.5% { --beam-edge-"+id+": 1; }\n  87.5% { --beam-edge-"+id+": 0; }\n  100%  { --beam-edge-"+id+": 0; }\n}\n@keyframes beam-breathe-"+id+" {\n  0%, 100% { --beam-h-"+id+": 0.8; }\n  25%      { --beam-h-"+id+": 1.25; }\n  55%      { --beam-h-"+id+": 0.85; }\n  80%      { --beam-h-"+id+": 1.3; }\n}\n@keyframes beam-spike-"+id+" {\n  0%   { --beam-spike-"+id+": 0.8; }\n  25%  { --beam-spike-"+id+": 1.3; }\n  50%  { --beam-spike-"+id+": 0.9; }\n  75%  { --beam-spike-"+id+": 1.4; }\n  100% { --beam-spike-"+id+": 0.8; }\n}\n@keyframes beam-spike2-"+id+" {\n  0%   { --beam-spike2-"+id+": 1.2; }\n  25%  { --beam-spike2-"+id+": 0.7; }\n  50%  { --beam-spike2-"+id+": 1.4; }\n  75%  { --beam-spike2-"+id+": 0.8; }\n  100% { --beam-spike2-"+id+": 1.2; }\n}\n@keyframes beam-fade-in-"+id+" {\n  to { --beam-opacity-"+id+": 1; }\n}\n@keyframes beam-fade-out-"+id+" {\n  from { --beam-opacity-"+id+": 1; }\n  to { --beam-opacity-"+id+": 0; }\n}\n"+hueKeyframes+"\n"+pausedBeamRule(id)+"\n@media (prefers-reduced-motion: reduce) {\n  [data-beam=\""+id+"\"][data-active],\n  [data-beam=\""+id+"\"][data-fading],\n  [data-beam=\""+id+"\"][data-active]::after,\n  [data-beam=\""+id+"\"][data-fading]::after,\n  [data-beam=\""+id+"\"][data-active]::before,\n  [data-beam=\""+id+"\"][data-fading]::before,\n  [data-beam=\""+id+"\"][data-active] [data-beam-bloom],\n  [data-beam=\""+id+"\"][data-fading] [data-beam-bloom] {\n    animation: none !important;\n  }\n}";
+      ? "conic-gradient(\n" +
+        "  from var(--beam-angle-" + id + "),\n" +
+        "  transparent 0%, transparent 58%,\n" +
+        "  rgba(255, 255, 255, 0.03) 62%,\n" +
+        "  rgba(255, 255, 255, 0.08) 65%,\n" +
+        "  rgba(255, 255, 255, 0.2) 67%,\n" +
+        "  rgba(255, 255, 255, 0.45) 69%,\n" +
+        "  rgba(255, 255, 255, 0.85) 70%,\n" +
+        "  rgba(255, 255, 255, 0.85) 70.5%,\n" +
+        "  rgba(255, 255, 255, 0.45) 71.5%,\n" +
+        "  rgba(255, 255, 255, 0.2) 73%,\n" +
+        "  rgba(255, 255, 255, 0.08) 75%,\n" +
+        "  rgba(255, 255, 255, 0.03) 78%,\n" +
+        "  transparent 82%\n" +
+        ")"
+      : "conic-gradient(\n" +
+        "  from var(--beam-angle-" + id + "),\n" +
+        "  transparent 0%, transparent 58%,\n" +
+        "  rgba(0, 0, 0, 0.02) 62%,\n" +
+        "  rgba(0, 0, 0, 0.08) 65%,\n" +
+        "  rgba(0, 0, 0, 0.2) 67%,\n" +
+        "  rgba(0, 0, 0, 0.4) 69%,\n" +
+        "  rgba(0, 0, 0, 0.6) 70%,\n" +
+        "  rgba(0, 0, 0, 0.6) 70.5%,\n" +
+        "  rgba(0, 0, 0, 0.4) 71.5%,\n" +
+        "  rgba(0, 0, 0, 0.2) 73%,\n" +
+        "  rgba(0, 0, 0, 0.08) 75%,\n" +
+        "  rgba(0, 0, 0, 0.02) 78%,\n" +
+        "  transparent 82%\n" +
+        ")";
+
+    return "@property --beam-angle-" + id + " {\n" +
+      "  syntax: \"<angle>\";\n" +
+      "  initial-value: 0deg;\n" +
+      "  inherits: true;\n" +
+      "}\n" +
+      "@property --beam-opacity-" + id + " {\n" +
+      "  syntax: \"<number>\";\n" +
+      "  initial-value: 0;\n" +
+      "  inherits: true;\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"] {\n" +
+      "  position: relative;\n" +
+      "  border-radius: " + borderRadius + "px;\n" +
+      "  overflow: visible;\n" +
+      "  isolation: isolate;\n" +
+      "  transition: --beam-strength 0.35s cubic-bezier(0.16, 1, 0.3, 1);\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"]:not([data-active]):not([data-pulse]):hover {\n" +
+      "  --beam-strength: 0.22;\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"][data-active] {\n" +
+      "  animation:\n" +
+      "    beam-spin-" + id + " " + BEAM_DURATION + "s linear infinite,\n" +
+      "    beam-fade-in-" + id + " 0.6s ease forwards;\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"][data-fading] {\n" +
+      "  animation:\n" +
+      "    beam-spin-" + id + " " + BEAM_DURATION + "s linear infinite,\n" +
+      "    beam-fade-out-" + id + " 0.5s ease forwards;\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"][data-active]::after,\n" +
+      "[data-beam=\"" + id + "\"][data-fading]::after,\n" +
+      "[data-beam=\"" + id + "\"][data-typing]::after,\n" +
+      "[data-beam=\"" + id + "\"][data-pulse]::after {\n" +
+      "  content: \"\";\n" +
+      "  position: absolute;\n" +
+      "  inset: 0;\n" +
+      "  border-radius: " + innerRadius + "px;\n" +
+      "  padding: 1px;\n" +
+      "  clip-path: inset(0 round " + borderRadius + "px);\n" +
+      "  background: " + whiteGrad + ",\n" +
+      "    " + colorGrads + ";\n" +
+      "  -webkit-mask:\n" +
+      "    conic-gradient(\n" +
+      "      from var(--beam-angle-" + id + "),\n" +
+      "      transparent 0%, transparent 30%,\n" +
+      "      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,\n" +
+      "      white 52%, white 80%,\n" +
+      "      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,\n" +
+      "      transparent 95%, transparent 100%\n" +
+      "    ),\n" +
+      "    linear-gradient(#fff 0 0) content-box,\n" +
+      "    linear-gradient(#fff 0 0);\n" +
+      "  -webkit-mask-composite: source-in, xor;\n" +
+      "  mask:\n" +
+      "    conic-gradient(\n" +
+      "      from var(--beam-angle-" + id + "),\n" +
+      "      transparent 0%, transparent 30%,\n" +
+      "      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,\n" +
+      "      white 52%, white 80%,\n" +
+      "      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,\n" +
+      "      transparent 95%, transparent 100%\n" +
+      "    ),\n" +
+      "    linear-gradient(#fff 0 0) content-box,\n" +
+      "    linear-gradient(#fff 0 0);\n" +
+      "  mask-composite: intersect, exclude;\n" +
+      "  pointer-events: none;\n" +
+      "  z-index: 2;\n" +
+      "  opacity: calc(var(--beam-opacity-" + id + ") * " + cfg.stroke.toFixed(2) + " * var(--beam-stroke-opacity, 1) * var(--beam-strength, 1));\n" +
+      "  " + hueAnim + "\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"][data-active]::before,\n" +
+      "[data-beam=\"" + id + "\"][data-fading]::before,\n" +
+      "[data-beam=\"" + id + "\"][data-typing]::before,\n" +
+      "[data-beam=\"" + id + "\"][data-pulse]::before {\n" +
+      "  content: \"\";\n" +
+      "  position: absolute;\n" +
+      "  inset: 0;\n" +
+      "  border-radius: " + borderRadius + "px;\n" +
+      "  background: " + innerGrads + ";\n" +
+      "  box-shadow: inset 0 0 9px 1px " + cfg.innerShadow + ";\n" +
+      "  -webkit-mask-image:\n" +
+      "    conic-gradient(\n" +
+      "      from var(--beam-angle-" + id + "),\n" +
+      "      transparent 0%, transparent 30%,\n" +
+      "      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,\n" +
+      "      white 52%, white 80%,\n" +
+      "      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,\n" +
+      "      transparent 95%, transparent 100%\n" +
+      "    ),\n" +
+      "    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),\n" +
+      "    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);\n" +
+      "  -webkit-mask-composite: source-in, source-over;\n" +
+      "  mask-image:\n" +
+      "    conic-gradient(\n" +
+      "      from var(--beam-angle-" + id + "),\n" +
+      "      transparent 0%, transparent 30%,\n" +
+      "      rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.35) 44%,\n" +
+      "      white 52%, white 80%,\n" +
+      "      rgba(255, 255, 255, 0.35) 86%, rgba(255, 255, 255, 0.1) 92%,\n" +
+      "      transparent 95%, transparent 100%\n" +
+      "    ),\n" +
+      "    linear-gradient(white, transparent 28px, transparent calc(100% - 28px), white),\n" +
+      "    linear-gradient(to right, white, transparent 28px, transparent calc(100% - 28px), white);\n" +
+      "  mask-composite: intersect, add;\n" +
+      "  pointer-events: none;\n" +
+      "  z-index: 1;\n" +
+      "  opacity: calc(var(--beam-opacity-" + id + ") * " + cfg.inner.toFixed(2) + " * var(--beam-inner-opacity, 1) * var(--beam-strength, 1));\n" +
+      "  clip-path: inset(0 round " + borderRadius + "px);\n" +
+      "  " + hueAnim + "\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"] [data-beam-bloom] {\n" +
+      "  display: none;\n" +
+      "  position: absolute;\n" +
+      "  inset: 0;\n" +
+      "  border-radius: " + innerRadius + "px;\n" +
+      "  clip-path: inset(0 round " + borderRadius + "px);\n" +
+      "  background: " + bloomGrad + ";\n" +
+      "  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n" +
+      "  -webkit-mask-composite: xor;\n" +
+      "  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);\n" +
+      "  mask-composite: exclude;\n" +
+      "  padding: 1px;\n" +
+      "  filter: blur(8px) brightness(" + BEAM_BRIGHTNESS.toFixed(2) + ") saturate(" + sat.toFixed(2) + ");\n" +
+      "  pointer-events: none;\n" +
+      "  z-index: 3;\n" +
+      "  opacity: 0;\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"][data-active] [data-beam-bloom],\n" +
+      "[data-beam=\"" + id + "\"][data-fading] [data-beam-bloom],\n" +
+      "[data-beam=\"" + id + "\"][data-typing] [data-beam-bloom],\n" +
+      "[data-beam=\"" + id + "\"][data-pulse] [data-beam-bloom] {\n" +
+      "  display: block;\n" +
+      "  opacity: calc(var(--beam-opacity-" + id + ") * " + cfg.bloom.toFixed(2) + " * var(--beam-bloom-opacity, 1) * var(--beam-strength, 1));\n" +
+      "}\n" +
+      "@keyframes beam-spin-" + id + " {\n" +
+      "  to { --beam-angle-" + id + ": 360deg; }\n" +
+      "}\n" +
+      "@keyframes beam-fade-in-" + id + " {\n" +
+      "  to { --beam-opacity-" + id + ": 1; }\n" +
+      "}\n" +
+      "@keyframes beam-fade-out-" + id + " {\n" +
+      "  from { --beam-opacity-" + id + ": 1; }\n" +
+      "  to { --beam-opacity-" + id + ": 0; }\n" +
+      "}\n" +
+      hueKeyframes + "\n" +
+      "/* Typing edge breathing override (stationary mono beam, no spin/rainbow) */\n" +
+      "[data-beam=\"" + id + "\"][data-typing] {\n" +
+      "  --beam-opacity-" + id + ": 1;\n" +
+      "  animation: none !important;\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"][data-typing]::after {\n" +
+      "  animation: beam-typing-stroke-breathe 0.45s cubic-bezier(0.16, 1, 0.3, 1) !important;\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"][data-typing]::before {\n" +
+      "  animation: beam-typing-inner-breathe 0.45s cubic-bezier(0.16, 1, 0.3, 1) !important;\n" +
+      "}\n" +
+      "[data-beam=\"" + id + "\"][data-typing] [data-beam-bloom] {\n" +
+      "  animation: beam-typing-bloom-breathe 0.45s cubic-bezier(0.16, 1, 0.3, 1) !important;\n" +
+      "}\n" +
+      "@keyframes beam-typing-stroke-breathe {\n" +
+      "  0% {\n" +
+      "    opacity: 0.35;\n" +
+      "    filter: brightness(1);\n" +
+      "  }\n" +
+      "  30% {\n" +
+      "    opacity: 1;\n" +
+      "    filter: brightness(1.55);\n" +
+      "  }\n" +
+      "  100% {\n" +
+      "    opacity: 0.55;\n" +
+      "    filter: brightness(1.1);\n" +
+      "  }\n" +
+      "}\n" +
+      "@keyframes beam-typing-inner-breathe {\n" +
+      "  0% {\n" +
+      "    opacity: 0.25;\n" +
+      "    filter: brightness(1);\n" +
+      "  }\n" +
+      "  30% {\n" +
+      "    opacity: 0.85;\n" +
+      "    filter: brightness(1.4);\n" +
+      "  }\n" +
+      "  100% {\n" +
+      "    opacity: 0.4;\n" +
+      "    filter: brightness(1.05);\n" +
+      "  }\n" +
+      "}\n" +
+      "@keyframes beam-typing-bloom-breathe {\n" +
+      "  0% {\n" +
+      "    opacity: 0.2;\n" +
+      "    filter: blur(6px) brightness(1);\n" +
+      "  }\n" +
+      "  30% {\n" +
+      "    opacity: 0.95;\n" +
+      "    filter: blur(10px) brightness(1.6);\n" +
+      "  }\n" +
+      "  100% {\n" +
+      "    opacity: 0.35;\n" +
+      "    filter: blur(7px) brightness(1.15);\n" +
+      "  }\n" +
+      "}\n" +
+      "/* Completion pulse flash */\n" +
+      "[data-beam=\"" + id + "\"][data-pulse]::after,\n" +
+      "[data-beam=\"" + id + "\"][data-pulse]::before,\n" +
+      "[data-beam=\"" + id + "\"][data-pulse] [data-beam-bloom] {\n" +
+      "  animation: beam-pulse-flash 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;\n" +
+      "}\n" +
+      "@keyframes beam-pulse-flash {\n" +
+      "  0% {\n" +
+      "    opacity: 1;\n" +
+      "    filter: brightness(1.6) saturate(1.4);\n" +
+      "    transform: scale(1);\n" +
+      "  }\n" +
+      "  30% {\n" +
+      "    opacity: 1;\n" +
+      "    filter: brightness(1.8) saturate(1.6);\n" +
+      "    transform: scale(1.015);\n" +
+      "  }\n" +
+      "  100% {\n" +
+      "    opacity: 0;\n" +
+      "    filter: brightness(1) saturate(1);\n" +
+      "    transform: scale(1);\n" +
+      "  }\n" +
+      "}\n" +
+      "/* Paused rule */\n" +
+      "[data-beam=\"" + id + "\"][data-paused],\n" +
+      "[data-beam=\"" + id + "\"][data-paused]::after,\n" +
+      "[data-beam=\"" + id + "\"][data-paused]::before,\n" +
+      "[data-beam=\"" + id + "\"][data-paused] [data-beam-bloom] {\n" +
+      "  animation-play-state: paused !important;\n" +
+      "}\n" +
+      "@media (prefers-reduced-motion: reduce) {\n" +
+      "  [data-beam=\"" + id + "\"][data-active],\n" +
+      "  [data-beam=\"" + id + "\"][data-fading],\n" +
+      "  [data-beam=\"" + id + "\"][data-active]::after,\n" +
+      "  [data-beam=\"" + id + "\"][data-fading]::after,\n" +
+      "  [data-beam=\"" + id + "\"][data-active]::before,\n" +
+      "  [data-beam=\"" + id + "\"][data-fading]::before,\n" +
+      "  [data-beam=\"" + id + "\"][data-active] [data-beam-bloom],\n" +
+      "  [data-beam=\"" + id + "\"][data-fading] [data-beam-bloom] {\n" +
+      "    animation: none !important;\n" +
+      "  }\n" +
+      "}";
   }
 
-
-  /* ------------------------------------------------------------------ *
+  
+/* ------------------------------------------------------------------ *
    * DOM 骨架
    * ------------------------------------------------------------------ */
   var container = document.createElement("div");
   container.id = "dsh-ds-bg";
-  container.dataset.version = "24"; // 部署版本标记：页面控制台可查 document.getElementById('dsh-ds-bg')?.dataset.version
+  container.dataset.version = "25"; // 部署版本标记：页面控制台可查 document.getElementById('dsh-ds-bg')?.dataset.version
   // 关键样式内联兜底：即使外部 CSS 未加载，背景层也保持 fixed + 底层
   container.style.cssText = "position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;" +
     "background:linear-gradient(180deg,#9cc1e7 0%,rgba(250,250,250,0) 100%),#f9f8f8;" +
@@ -653,7 +1079,7 @@ function apply() {
         clearInline(document.querySelector(".uV2eYG_card, [data-composer-card=\"true\"]"));
         clearInline(document.querySelector(".wSkVaW_composerSeat, [data-composer-seat]"));
         clearInline(document.querySelector(".qDHVXG_fade"));
-        var glassEls0 = document.querySelectorAll(".gdEzaW_bubble, ._block_10eou_7, ._block_biesw_7, ._block_srovd_7, ._block_s66q0_7, ._block_178r4_4, ._block_d4nqi_7, ._body_1ye18_20, ._copyButton_10eou_142, ._bannerWrap_178r4_21, [class$=\"_bubble\"], [class*=\"_block_\"], [class$=\"_bannerWrap\"], [class$=\"_copyButton\"]");
+        var glassEls0 = document.querySelectorAll(".gdEzaW_bubble, ._block_10eou_7, ._block_biesw_7, ._block_srovd_7, ._block_s66q0_7, ._block_178r4_4, ._block_d4nqi_7, ._body_1ye18_20, ._copyButton_10eou_142, ._bannerWrap_178r4_21, .LVzXQa_card, .Mbwy4a_card, ._7yHdaG_panel, .VOzbGW_panel, .CY-8Ka_ioCard, .o3BgMG_ioCard, [class$=\"_bubble\"], [class*=\"_block_\"], [class$=\"_bannerWrap\"], [class$=\"_copyButton\"]");
         for (var g0 = 0; g0 < glassEls0.length; g0++) clearInline(glassEls0[g0]);
         return;
       }
@@ -695,8 +1121,8 @@ function apply() {
       var card = document.querySelector(".uV2eYG_card, [data-composer-card=\"true\"]");
       if (card && card.style) {
         card.style.setProperty("background", glassBg, "important");
-        card.style.setProperty("backdrop-filter", "blur(12px)", "important");
-        card.style.setProperty("-webkit-backdrop-filter", "blur(12px)", "important");
+        card.style.setProperty("backdrop-filter", "blur(10px)", "important");
+        card.style.setProperty("-webkit-backdrop-filter", "blur(10px)", "important");
         card.style.setProperty("border-color", glassBorder, "important");
         card.style.setProperty("box-shadow", glassShadow, "important");
       }
@@ -707,13 +1133,13 @@ function apply() {
       if (fade && fade.style) fade.style.setProperty("background", "transparent", "important");
       // 消息气泡与代码块玻璃化（与侧边栏/输入框同款材质）
       var glassRing = "inset 0 0 0 1px hsla(0,0%,100%,.08)";
-      var glassEls = document.querySelectorAll(".gdEzaW_bubble, ._block_10eou_7, ._block_biesw_7, ._block_srovd_7, ._block_s66q0_7, ._block_178r4_4, ._block_d4nqi_7, ._body_1ye18_20, ._copyButton_10eou_142, ._bannerWrap_178r4_21, [class$=\"_bubble\"], [class*=\"_block_\"], [class$=\"_bannerWrap\"], [class$=\"_copyButton\"]");
+      var glassEls = document.querySelectorAll(".gdEzaW_bubble, ._block_10eou_7, ._block_biesw_7, ._block_srovd_7, ._block_s66q0_7, ._block_178r4_4, ._block_d4nqi_7, ._body_1ye18_20, ._copyButton_10eou_142, ._bannerWrap_178r4_21, .LVzXQa_card, .Mbwy4a_card, ._7yHdaG_panel, .VOzbGW_panel, .CY-8Ka_ioCard, .o3BgMG_ioCard, [class$=\"_bubble\"], [class*=\"_block_\"], [class$=\"_bannerWrap\"], [class$=\"_copyButton\"]");
       for (var gi = 0; gi < glassEls.length; gi++) {
         var ge = glassEls[gi];
         if (ge && ge.style) {
           ge.style.setProperty("background", glassBg, "important");
-          ge.style.setProperty("backdrop-filter", "blur(12px)", "important");
-          ge.style.setProperty("-webkit-backdrop-filter", "blur(12px)", "important");
+          ge.style.setProperty("backdrop-filter", "blur(8px)", "important");
+          ge.style.setProperty("-webkit-backdrop-filter", "blur(8px)", "important");
           ge.style.setProperty("box-shadow", glassRing, "important");
         }
       }
@@ -739,47 +1165,16 @@ function apply() {
   var beamAttachedCard = null;
   var beamResizeObs = null;
   var beamMutObs = null;
-  var beamPulseTimer = null;
   var pendingExecuting = false;
   var pendingTimer = null;
   var beamPollTimer = null;
   var beamTypingHandler = null;
+  var beamKeydownHandler = null;
   var typingActive = false;
   var typingTimer = null;
-  var typingBreatheTimer = null;
-  var typingTimer = null;
-  var beamState = { mode: 'hairline', idleStrength: 0.65, focusStrength: 1.0, disabled: false };
-  // Ensure proper palettes for mono/sunset (use original warm/grey palettes, not random)
-  if (typeof colorPalettes !== 'undefined' && !colorPalettes.mono) {
-    // Proper palettes from border-beam styles.ts
-    colorPalettes.mono = { border: [
-      { color: 'rgb(180, 180, 180)', pos: '33% -7.4%', size: '70px 40px' },
-      { color: 'rgb(140, 140, 140)', pos: '12% -5%', size: '60px 35px' },
-      { color: 'rgb(160, 160, 160)', pos: '2.1% 68.3%', size: '40px 70px' },
-      { color: 'rgb(130, 130, 130)', pos: '2.1% 68.3%', size: '20px 35px' },
-      { color: 'rgb(170, 170, 170)', pos: '74.4% 100%', size: '180px 32px' },
-      { color: 'rgb(150, 150, 150)', pos: '55% 100%', size: '85px 26px' },
-      { color: 'rgb(190, 190, 190)', pos: '93.9% 0%', size: '74px 32px' },
-      { color: 'rgb(145, 145, 145)', pos: '100% 27.1%', size: '26px 42px' },
-      { color: 'rgb(165, 165, 165)', pos: '100% 27.1%', size: '52px 48px' }
-    ] };
-    colorPalettes.sunset = { border: [
-      { color: 'rgb(255, 80, 50)', pos: '33% -7.4%', size: '70px 40px' },
-      { color: 'rgb(255, 160, 40)', pos: '12% -5%', size: '60px 35px' },
-      { color: 'rgb(255, 120, 60)', pos: '2.1% 68.3%', size: '40px 70px' },
-      { color: 'rgb(255, 200, 50)', pos: '2.1% 68.3%', size: '20px 35px' },
-      { color: 'rgb(255, 100, 80)', pos: '74.4% 100%', size: '180px 32px' },
-      { color: 'rgb(255, 180, 60)', pos: '55% 100%', size: '85px 26px' },
-      { color: 'rgb(255, 60, 60)', pos: '93.9% 0%', size: '74px 32px' },
-      { color: 'rgb(255, 140, 50)', pos: '100% 27.1%', size: '26px 42px' },
-      { color: 'rgb(255, 90, 70)', pos: '100% 27.1%', size: '52px 48px' }
-    ] };
-    // Keep old fallback for ocean if needed
-  }
-  if (false) {
-    // fallback minimal mono/sunset for md if not present (use greys / warm)
-
-  }
+  var currentBeamMode = "hairline";
+  var pulseTimer = null;
+  var beamState = { mode: "hairline", idleStrength: 0.65, focusStrength: 1.0, disabled: false };
 
   function isBeamDisabled() {
     try {
@@ -798,12 +1193,12 @@ function apply() {
     } catch(e) {}
     return 16;
   }
-  var typingExtraCSS = `\n  /* Typing one-shot inward breathe (per key, focus+keydown) */\n  [data-beam="dsh-composer"][data-typing][data-active]::after,\n  [data-beam="dsh-composer"][data-typing][data-active]::before,\n  [data-beam="dsh-composer"][data-typing][data-active] [data-beam-bloom] {\n    animation: beam-typing-breathe 0.4s ease-out !important;\n  }\n  @keyframes beam-typing-breathe {\n    0% { transform: scale(1); opacity: 1; }\n    50% { transform: scale(0.97); opacity: 0.9; }\n    100% { transform: scale(1); opacity: 1; }\n  }\n  [data-beam="dsh-composer"][data-typing][data-active] {\n    animation: beam-typing-breathe 0.4s ease-out !important;\n  }\n`;
+
   function ensureBeamStyles(borderRadius, variant) {
     var isDark = getBeamThemeIsDark();
-    var r = typeof borderRadius === 'number' ? borderRadius : 16;
-    var v = variant || 'colorful';
-    var css = buildBeamCSS(BEAM_ID, r, isDark, v) + typingExtraCSS;
+    var r = typeof borderRadius === "number" ? borderRadius : 16;
+    var v = variant || "colorful";
+    var css = buildBeamCSS(BEAM_ID, r, isDark, v);
     if (!beamStyleTag) {
       beamStyleTag = document.getElementById("dsh-beam-css");
       if (!beamStyleTag) {
@@ -814,6 +1209,7 @@ function apply() {
     }
     if (beamStyleTag.textContent !== css) beamStyleTag.textContent = css;
   }
+
   function setBeamStrength(v, opts) {
     var card = beamAttachedCard;
     if (!card) return;
@@ -821,190 +1217,1124 @@ function apply() {
     card.style.setProperty("--beam-strength", strength);
     if (opts && opts.persist) { try { localStorage.setItem("dsh-beam-strength", String(strength)); } catch(e) {} }
   }
+
   function findComposerInput(card) {
     if (!card) return null;
     return card.querySelector('textarea, [contenteditable="true"], [data-composer-input], .uV2eYG_input');
   }
-  function isTyping() { return false; } // not used as persistent state, typing is now one-shot
-  function setTypingActive(v) {}
+
+  function isTyping() {
+    return typingActive;
+  }
+
   function triggerTypingBreathe() {
     var card = beamAttachedCard || document.querySelector('[data-composer-card="true"], .uV2eYG_card');
-    if (!card || isExecuting() || isPlanMode()) return;
-    // One-shot inward breathe: 0.4s scale 1 -> 0.97 -> 1
-    card.setAttribute('data-beam', BEAM_ID);
-    card.setAttribute('data-typing', '');
-    card.setAttribute('data-active','');
-    card.style.setProperty('--beam-strength','0.9');
-    // Remove after 400ms
-    if (typingBreatheTimer) clearTimeout(typingBreatheTimer);
-    typingBreatheTimer = setTimeout(function(){
-      if (!isExecuting() && !isPlanMode()) {
-        card.removeAttribute('data-typing');
-        // If still not typing/executing, go to hairline
-        if (!isTyping() && !isExecuting()) {
-          card.removeAttribute('data-active');
-          card.style.setProperty('--beam-strength','0.08');
-        }
+    if (!card || isExecuting()) return;
+    typingActive = true;
+    if (currentBeamMode !== "typing" && !isExecuting()) {
+      applyBeamMode("typing");
+    }
+    // Refresh breathing animation by toggling data-typing
+    card.removeAttribute("data-typing");
+    void card.offsetWidth;
+    card.setAttribute("data-typing", "");
+
+    if (typingTimer) clearTimeout(typingTimer);
+    typingTimer = setTimeout(function() {
+      typingActive = false;
+      if (!isExecuting()) {
+        updateBeamState();
       }
-    }, 400);
+    }, 700);
   }
+
   function isPlanMode() {
     try {
-      // DSH plan chip has aria-label containing plan mode
-      if (document.querySelector('[aria-label*="plan mode 已开启"], [aria-label*="Plan mode on"]')) return true;
+      if (document.querySelector('[aria-label*="plan mode 已开启"], [aria-label*="Plan mode on"], [aria-label*="plan mode is on"], [aria-label*="Plan Mode on"]')) return true;
       if (document.querySelector('[data-slot="plan"]')) return true;
-      // fallback: check body dataset (future)
-      if (document.documentElement.dataset.planMode === '1') return true;
-    } catch(e){}
+      if (document.documentElement.dataset && document.documentElement.dataset.planMode === "1") return true;
+    } catch(e) {}
     return false;
   }
+
   function isRealExecuting() {
     try {
-      var stopBtn = document.querySelector('button[aria-label*="停止生成"], button[aria-label*="Stop generating"], [data-composer-card] button[aria-label*="停止"], [data-composer-card] button[aria-label*="Stop"]');
+      var stopBtn = document.querySelector('button[aria-label*="停止生成"], button[aria-label*="Stop generating"], button[aria-label*="Stop generating message"], [data-composer-card] button[aria-label*="停止"], [data-composer-card] button[aria-label*="Stop"]');
       if (stopBtn && !stopBtn.disabled) return true;
-      if (document.querySelector('[data-state="running"], .Md3f7G_turnStatus')) {
-        var el = document.querySelector('.Md3f7G_turnStatus');
-        if (el && el.offsetParent !== null) return true;
-      }
-    } catch(e){}
+      var statusEl = document.querySelector('[data-state="running"], .Md3f7G_turnStatus');
+      if (statusEl && statusEl.offsetParent !== null) return true;
+    } catch(e) {}
     return false;
   }
+
   function isExecuting() {
     try {
       if (pendingExecuting) return true;
       return isRealExecuting();
-    } catch(e){ return false; }
+    } catch(e) { return false; }
   }
-  var currentBeamMode = 'hairline';
-  var pulseTimer = null;
+
   function applyBeamMode(mode) {
     var card = beamAttachedCard;
     if (!card) return;
-    // Force re-apply even if mode same, to handle card recreation (React)
-    // if (currentBeamMode === mode && card.hasAttribute('data-'+mode)) return;
+
     currentBeamMode = mode;
-    // Clear pulse timer if leaving pulse
-    if (mode !== 'pulse' && pulseTimer) { clearTimeout(pulseTimer); pulseTimer=null; }
-    if (mode === 'pulse') { pendingExecuting = false; if(pendingTimer){ clearTimeout(pendingTimer); pendingTimer=null; } }
+
+    if (pulseTimer) {
+      clearTimeout(pulseTimer);
+      pulseTimer = null;
+    }
+    if (mode === "pulse") {
+      pendingExecuting = false;
+      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+    }
+
     var isDark = getBeamThemeIsDark();
     var r = resolveBorderRadius(card);
-    // Ensure styles exist
-    ensureBeamStyles(r, mode==='typing'?'mono':(mode==='planning'?'sunset':'colorful'));
-    // Remove all beam state attrs first
-    card.removeAttribute('data-active');
-    card.removeAttribute('data-fading');
-    card.removeAttribute('data-typing');
-    card.removeAttribute('data-planning');
-    card.removeAttribute('data-pulse');
-    // Apply per mode
-    if (mode === 'hairline') {
-      // No beam, just hairline (default glass border)
-      card.style.removeProperty('--beam-strength');
-      card.style.setProperty('--beam-strength', '0.08');
-      // Ensure no active
+    var variant = mode === "typing" ? "mono" : (mode === "planning" ? "sunset" : "colorful");
+    ensureBeamStyles(r, variant);
+
+    // Clean state attributes and inline style overrides
+    card.removeAttribute("data-active");
+    card.removeAttribute("data-fading");
+    card.removeAttribute("data-typing");
+    card.removeAttribute("data-planning");
+    card.removeAttribute("data-pulse");
+    card.removeAttribute("data-paused");
+    card.style.removeProperty("filter");
+    card.style.removeProperty("--beam-hue-base");
+
+    if (mode === "hairline") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.style.removeProperty("--beam-strength");
+      card.style.setProperty("--beam-strength", "0.08");
       return;
     }
-    if (mode === 'typing') {
-      // Inward shrinking vibration - more prominent mono, higher strength
-      card.setAttribute('data-beam', BEAM_ID);
-      card.setAttribute('data-typing', '');
-      card.setAttribute('data-active', '');
-      card.removeAttribute('data-paused');
-      card.style.setProperty('--beam-strength', '0.85');
-      // Use mono with shrinking animation (handled via extra CSS below)
-      card.style.setProperty('--beam-hue-base', '0deg');
+
+    if (mode === "typing") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.setAttribute("data-typing", "");
+      card.removeAttribute("data-active");
+      card.style.setProperty("--beam-strength", "0.85");
+      card.style.setProperty("--beam-hue-base", "0deg");
       return;
     }
-    if (mode === 'planning') {
-      // Orange-yellow prominent, not colorful - use sunset static warm
-      card.setAttribute('data-beam', BEAM_ID);
-      card.setAttribute('data-planning', '');
-      card.setAttribute('data-active','');
-      card.removeAttribute('data-paused');
-      card.style.setProperty('--beam-strength','1');
-      card.style.setProperty('--beam-hue-base','15deg');
-      card.style.setProperty('filter','saturate(1.4) brightness(1.2)'); // warm orange
+
+    if (mode === "planning") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.setAttribute("data-planning", "");
+      card.setAttribute("data-active", "");
+      card.style.setProperty("--beam-strength", "1");
+      card.style.setProperty("--beam-hue-base", "15deg");
       return;
     }
-    if (mode === 'executing') {
-      card.setAttribute('data-beam', BEAM_ID);
-      card.setAttribute('data-active','');
-      card.removeAttribute('data-paused');
-      card.style.setProperty('--beam-strength','1');
-      card.style.removeProperty('--beam-hue-base');
+
+    if (mode === "executing") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.setAttribute("data-active", "");
+      card.style.setProperty("--beam-strength", "1");
       return;
     }
-    if (mode === 'pulse') {
-      card.setAttribute('data-beam', BEAM_ID);
-      card.setAttribute('data-active','');
-      card.style.setProperty('--beam-strength','1');
-      // pulse bloom will be handled via same md but with scale, we just keep active and let bloom show
-      // After 0.8s, transition to hairline
-      pulseTimer = setTimeout(function(){
-        if (currentBeamMode==='pulse') applyBeamMode('hairline');
+
+    if (mode === "pulse") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.setAttribute("data-pulse", "");
+      card.style.setProperty("--beam-strength", "1");
+      pulseTimer = setTimeout(function() {
+        if (currentBeamMode === "pulse") {
+          applyBeamMode("hairline");
+        }
       }, 800);
       return;
     }
   }
+
   function resolveBeamMode() {
-    if (isBeamDisabled()) return 'hairline';
+    if (isBeamDisabled()) return "hairline";
     if (pendingExecuting || isExecuting()) {
-      if (isPlanMode()) return 'planning';
-      return 'executing';
+      if (isPlanMode()) return "planning";
+      return "executing";
     }
-    if (currentBeamMode === 'pulse') return 'pulse';
-    return 'hairline';
+    if (currentBeamMode === "pulse") return "pulse";
+    if (typingActive) return "typing";
+    return "hairline";
   }
+
   function updateBeamState() {
-    // Fix stale card: if attached card is detached (React re-render), re-attach to new card
     if (!beamAttachedCard || !document.contains(beamAttachedCard) || !beamAttachedCard.isConnected) {
       var freshCard = document.querySelector('[data-composer-card="true"], .uV2eYG_card');
       if (freshCard && freshCard !== beamAttachedCard) {
-        try{ if(beamAttachedCard && beamAttachedCard._dshBeamCleanup) beamAttachedCard._dshBeamCleanup(); }catch(e){}
+        try { if (beamAttachedCard && beamAttachedCard._dshBeamCleanup) beamAttachedCard._dshBeamCleanup(); } catch(e) {}
         beamAttachedCard = null;
         attachComposerBeam();
         return;
       }
     }
-    // Also re-bind input if it was recreated (React may replace textarea)
+
     if (beamAttachedCard) {
       var freshInput = findComposerInput(beamAttachedCard);
       var boundInput = beamAttachedCard._dshBeamInput;
       if (freshInput && freshInput !== boundInput) {
-        // clean old
-        if (boundInput && beamTypingHandler) {
-          try{ boundInput.removeEventListener('input', beamTypingHandler); boundInput.removeEventListener('change', beamTypingHandler); }catch(e){}
+        if (boundInput) {
+          try {
+            if (beamTypingHandler) {
+              boundInput.removeEventListener("input", beamTypingHandler);
+              boundInput.removeEventListener("change", beamTypingHandler);
+            }
+            if (beamKeydownHandler) {
+              boundInput.removeEventListener("keydown", beamKeydownHandler);
+            }
+          } catch(e) {}
         }
-        // bind new
-        if (beamTypingHandler) {
-          try{
-            // Re-bind with keyboard detection
-            freshInput.addEventListener('keydown', beamTypingHandler);
-            freshInput.addEventListener('input', beamTypingHandler);
-            var onSendKey = function(e){ if(e.key==='Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey){ var v=freshInput.value!==undefined?freshInput.value:freshInput.textContent; if(v && String(v).trim().length>0){ pendingExecuting=true; if(pendingTimer) clearTimeout(pendingTimer); pendingTimer=setTimeout(function(){ pendingExecuting=false; updateBeamState(); },5000); updateBeamState(); } } };
-            freshInput.addEventListener('keydown', onSendKey);
-            freshInput._dshBeamOnSend = onSendKey;
-            freshInput._dshBeamHasListener = true;
+        if (beamTypingHandler && beamKeydownHandler) {
+          try {
+            freshInput.addEventListener("input", beamTypingHandler);
+            freshInput.addEventListener("change", beamTypingHandler);
+            freshInput.addEventListener("keydown", beamKeydownHandler);
+            freshInput.addEventListener("compositionstart", function() { triggerTypingBreathe(); });
+            freshInput.addEventListener("compositionupdate", function() { triggerTypingBreathe(); });
+            freshInput.addEventListener("compositionend", function() { triggerTypingBreathe(); });
             beamAttachedCard._dshBeamInput = freshInput;
-          }catch(e){}
+          } catch(e) {}
         }
       }
     }
-    // If pending and real executing is now true, pending is no longer needed
-    if (pendingExecuting && isRealExecuting()) { pendingExecuting = false; if(pendingTimer){ clearTimeout(pendingTimer); pendingTimer=null; } }
-    if (pendingExecuting && isExecuting()) {
-      // keep pending for now, it will be cleared when executing ends
+
+    if (pendingExecuting && isRealExecuting()) {
+      pendingExecuting = false;
+      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
     }
+
     var next = resolveBeamMode();
-    // If we transition to executing, keep pending until real executing is confirmed, then it will be cleared above
-    // Handle transition: executing -> pulse
-    if (currentBeamMode === 'executing' && next !== 'executing' && next !== 'pulse') {
-      // Just finished execution, go to pulse
-      applyBeamMode('pulse');
+
+    if ((currentBeamMode === "executing" || currentBeamMode === "planning") &&
+        next !== "executing" && next !== "planning" && next !== "pulse") {
+      applyBeamMode("pulse");
+      try { syncThinkingOrb(); } catch(e) {}
       return;
     }
-    applyBeamMode(next);
+
+    if (currentBeamMode === "pulse" && next === "pulse") {
+      try { syncThinkingOrb(); } catch(e) {}
+      return;
+    }
+
+    if (currentBeamMode !== next) {
+      applyBeamMode(next);
+    }
+    try { syncThinkingOrb(); } catch(e) {}
   }
+
+  /* ------------------------------------------------------------------ *
+   * Thinking Orbs (orbs.jakubantalik.com) — agent activity indicator
+   * Copyright (c) Jakub Antalik, MIT
+   * Dotted thought-orb loading indicators for AI & agent UIs
+   * 9 hand-tuned mathematical state models:
+   *   working (orbits), searching (globe), solving (rubik), listening (wave),
+   *   connecting (web), weaving (braid), composing (ribbon), breathing (ring),
+   *   shaping (morph).
+   * ------------------------------------------------------------------ */
+  function Jl(e, t, n) { return e + (t - e) * n; }
+  function pc(e) { return e - Math.floor(e); }
+  function ze(e, t) {
+    var n = Math.sin(e * 12.9898 + t * 78.233) * 43758.5453;
+    return n - Math.floor(n);
+  }
+  function ql(e, t) {
+    var n = Math.floor(e), r = Math.floor(t);
+    var l = e - n, o = t - r;
+    l = l * l * (3 - 2 * l);
+    o = o * o * (3 - 2 * o);
+    var u = ze(n, r), i = ze(n + 1, r), s = ze(n, r + 1), f = ze(n + 1, r + 1);
+    return u + (i - u) * l + (s - u) * o + (u - i - s + f) * l * o;
+  }
+  function Wu(e, t) {
+    var n = Math.PI * (3 - Math.sqrt(5));
+    var r = 1 - 2 * (e + 0.5) / t;
+    var l = Math.sqrt(Math.max(0, 1 - r * r));
+    var o = e * n;
+    return [l * Math.cos(o), r, l * Math.sin(o)];
+  }
+  function Qd(e, t) {
+    return Math.atan2(Math.sin(e - t), Math.cos(e - t));
+  }
+  function $t(e, t, n, r, l) {
+    var o = Math.sin(t), u = Math.cos(t);
+    var i = Math.sin(e), s = Math.cos(e);
+    return function(f, v, h) {
+      var p = f * s + h * i;
+      var y = -f * i + h * s;
+      var g = v * u - y * o;
+      var w = v * o + y * u;
+      return [n + p * l, r - g * l, w];
+    };
+  }
+  function Ct(e, t, n) {
+    if (n === undefined) n = 0.3;
+    var r = [];
+    for (var i = 0; i < e.length; i++) {
+      var l = e[i];
+      if ((l.a !== undefined ? l.a : 1) >= 0.02) {
+        l.r = Math.max(n, l.r);
+        r.push(l);
+      }
+    }
+    r.sort(function(a, b) { return a.z - b.z; });
+    var lines = [];
+    for (var j = 0; j < t.length; j++) {
+      if ((t[j].a !== undefined ? t[j].a : 1) >= 0.02) lines.push(t[j]);
+    }
+    return { dots: r, lines: lines };
+  }
+  function Vt(e, t) {
+    return Math.pow(e / 300, t);
+  }
+  function Kd(ctx, dots, isDark) {
+    for (var i = 0; i < dots.length; i++) {
+      var l = dots[i];
+      var o = l.a !== undefined ? l.a : 1;
+      var u = Math.min(1, Math.max(0, l.white !== undefined ? l.white : 0.5));
+      var val = Math.round((isDark ? 1 - u : u) * 255);
+      ctx.fillStyle = "rgba(" + val + "," + val + "," + val + "," + o.toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  function Yd(ctx, lines, isDark) {
+    for (var i = 0; i < lines.length; i++) {
+      var r = lines[i];
+      var l = r.a !== undefined ? r.a : 1;
+      var o = Math.min(1, Math.max(0, r.white !== undefined ? r.white : 0.5));
+      var u = Math.round((isDark ? 1 - o : o) * 255);
+      ctx.strokeStyle = "rgba(" + u + "," + u + "," + u + "," + l.toFixed(3) + ")";
+      ctx.lineWidth = r.w || 1;
+      ctx.beginPath();
+      ctx.moveTo(r.x1, r.y1);
+      ctx.lineTo(r.x2, r.y2);
+      ctx.stroke();
+    }
+  }
+  function Xd(ctx, data, isDark) {
+    if (data.lines && data.lines.length > 0) Yd(ctx, data.lines, isDark);
+    if (data.dots && data.dots.length > 0) Kd(ctx, data.dots, isDark);
+  }
+
+  var Gd = function(e, t, n) {
+    var r = e / 2, l = e / 2, o = e / 2 * 0.76;
+    var u = $t(t * 0.4, 0.3, r, l, 1);
+    var i = Vt(e, n.rsPow !== undefined ? n.rsPow : 0.6);
+    var s = [];
+    var f = n.ghostN !== undefined ? n.ghostN : 150;
+    for (var p = 0; p < f; p++) {
+      var y = Wu(p, f);
+      var pt = u(y[0] * o, y[1] * o, y[2] * o);
+      var c = (pt[2] / o + 1) / 2;
+      s.push({ x: pt[0], y: pt[1], z: pt[2], r: 0.8 * i, white: 0.78, a: 0.1 + 0.22 * c });
+    }
+    var v = n.strandN !== undefined ? n.strandN : 52, h = n.turns !== undefined ? n.turns : 3;
+    for (var p2 = 0; p2 < 3; p2++) {
+      var y2 = p2 / 3 * 2 * Math.PI;
+      for (var g = 0; g < v; g++) {
+        var w = (pc(g / v + t * 0.045) * 2 - 1) * 0.96;
+        var C = Math.sqrt(Math.max(0, 1 - w * w));
+        var c2 = Math.min(1, (1 - Math.abs(w)) / 0.1);
+        var a = w * Math.PI * h + y2;
+        var d = 1 + 0.075 * Math.sin(w * Math.PI * h * 2 + y2 * 2 + t * 0.8);
+        var m = C * o * d;
+        var pt2 = u(Math.cos(a) * m, w * o * d, Math.sin(a) * m);
+        var E = (pt2[2] / o + 1) / 2;
+        s.push({
+          x: pt2[0],
+          y: pt2[1],
+          z: pt2[2],
+          r: ((n.rBase !== undefined ? n.rBase : 1.2) + (n.rDepth !== undefined ? n.rDepth : 1.8) * E) * i,
+          white: 0.55 - 0.45 * E,
+          a: c2 * (0.45 + 0.55 * E)
+        });
+      }
+    }
+    return Ct(s, [], n.rMin);
+  };
+
+  function Zd(e, t, n, r) {
+    var l = 2 * t * n + r;
+    var o = e % l;
+    var u = new Array(t).fill(0);
+    var i = -1;
+    if (o < 2 * t * n) {
+      var s = Math.floor(o / n);
+      var f = (o - s * n) / n;
+      var h = 1 - Math.pow(1 - Math.min(1, f / 0.7), 3);
+      if (s < t) {
+        for (var p = 0; p < s; p++) u[p] = 1;
+        u[s] = h;
+        i = s;
+      } else {
+        var p2 = 2 * t - 1 - s;
+        for (var y = 0; y < p2; y++) u[y] = 1;
+        u[p2] = 1 - h;
+        i = p2;
+      }
+    }
+    return { amount: u, active: i };
+  }
+
+  function Jd(e, t, n) {
+    var r = e[0], l = e[1], o = e[2];
+    var u = false;
+    for (var i = 0; i < t.length; i++) {
+      if (n.amount[i] <= 0) continue;
+      var s = t[i];
+      var f = s.axis === 0 ? r : s.axis === 1 ? l : o;
+      if (f < s.lo || f >= s.hi) continue;
+      if (i === n.active) u = true;
+      var v = s.ang * n.amount[i];
+      var h = Math.cos(v), p = Math.sin(v);
+      if (s.axis === 0) {
+        var y = l * h - o * p;
+        o = l * p + o * h;
+        l = y;
+      } else if (s.axis === 1) {
+        var y2 = r * h + o * p;
+        o = -r * p + o * h;
+        r = y2;
+      } else {
+        var y3 = r * h - l * p;
+        l = r * p + l * h;
+        r = y3;
+      }
+    }
+    return [r, l, o, u];
+  }
+
+  function qd(e) {
+    var t = [];
+    for (var n = 0; n < e; n++) {
+      var r = Math.min(2, Math.floor(ze(n, 2.3) * 3));
+      var l = -1 + 0.5 * Math.min(3, Math.floor(ze(n, 5.9) * 4));
+      var o = ze(n, 7.7) < 0.5 ? 1 : -1;
+      t.push({ axis: r, lo: l, hi: l + 0.5, ang: o * Math.PI / 2 });
+    }
+    return t;
+  }
+
+  var bd = function(e, t, n) {
+    var l = e / 2, o = e / 2, u = e / 2 * 0.82;
+    var i = 0.4 + 0.06 * Math.sin(t * 0.35);
+    var s = $t(t * 0.5, i, l, o, u);
+    var f = t * (0.5 + (1.7 - 0.5) * (n.scanMul !== undefined ? n.scanMul : 1));
+    var v = Vt(e, n.rsPow !== undefined ? n.rsPow : 0.6);
+    var h = n.dimBase !== undefined ? n.dimBase : 1;
+    var p = [];
+    var y = n.latRings !== undefined ? n.latRings : 17, g = n.lonDensity !== undefined ? n.lonDensity : 44;
+    for (var w = 0; w <= y; w++) {
+      var C = -Math.PI / 2 + w / y * Math.PI;
+      var c = Math.cos(C), a = Math.sin(C);
+      var d = Math.max(1, Math.round(Math.abs(c) * g));
+      for (var m = 0; m < d; m++) {
+        var k = m / d * 2 * Math.PI;
+        var pt = s(c * Math.cos(k), a, c * Math.sin(k));
+        var L = (pt[2] + 1) / 2;
+        var N = Qd(k + t * 0.5, f);
+        var D = Math.exp(-(N * N) / 0.18) * Math.max(0, pt[2]);
+        p.push({
+          x: pt[0],
+          y: pt[1],
+          z: pt[2],
+          r: ((n.rBase !== undefined ? n.rBase : 0.6) + (n.rDepth !== undefined ? n.rDepth : 1.7) * L + (n.rBoost !== undefined ? n.rBoost : 1) * D) * v,
+          white: (n.inkFar !== undefined ? n.inkFar : 0.62) - (n.inkSpan !== undefined ? n.inkSpan : 0.54) * L,
+          a: h + (1 - h) * Math.min(1, D)
+        });
+      }
+    }
+    return Ct(p, [], n.rMin);
+  };
+
+  var ep = function(e, t, n) {
+    var r = e / 2, l = e / 2, o = e / 2 * 0.82;
+    var u = $t(t * 0.55, 0.35 + 0.1 * Math.sin(t * 0.9), r, l, o);
+    var i = Vt(e, n.rsPow !== undefined ? n.rsPow : 0.6);
+    var s = n.moveCount !== undefined ? n.moveCount : 14;
+    var f = qd(s);
+    var v = Zd(t, s, 0.42, 1.2);
+    var h = [];
+    var p = n.latRings !== undefined ? n.latRings : 15, y = n.lonDensity !== undefined ? n.lonDensity : 40;
+    for (var g = 0; g <= p; g++) {
+      var w = -Math.PI / 2 + g / p * Math.PI;
+      var C = Math.cos(w), c = Math.sin(w);
+      var a = Math.max(1, Math.round(Math.abs(C) * y));
+      for (var d = 0; d < a; d++) {
+        var m = d / a * 2 * Math.PI;
+        var rot = Jd([C * Math.cos(m), c, C * Math.sin(m)], f, v);
+        var pt = u(rot[0], rot[1], rot[2]);
+        var I = (pt[2] + 1) / 2;
+        h.push({
+          x: pt[0],
+          y: pt[1],
+          z: pt[2],
+          r: ((n.rBase !== undefined ? n.rBase : 0.6) + (n.rDepth !== undefined ? n.rDepth : 1.7) * I + (rot[3] ? (n.rActive !== undefined ? n.rActive : 0.3) : 0)) * i,
+          white: (n.inkFar !== undefined ? n.inkFar : 0.62) - (n.inkSpan !== undefined ? n.inkSpan : 0.54) * I - (rot[3] ? 0.14 : 0)
+        });
+      }
+    }
+    return Ct(h, [], n.rMin);
+  };
+
+  var tp = function(e, t, n) {
+    var r = e / 2, l = e / 2, o = e / 2 * 0.874;
+    var u = $t(t * 0.18, 0.38, r, l, 1);
+    var i = Vt(e, n.rsPow !== undefined ? n.rsPow : 0.6);
+    var s = [];
+    var f = n.rings !== undefined ? n.rings : 15, v = n.lonDensity !== undefined ? n.lonDensity : 40;
+    for (var h = 0; h <= f; h++) {
+      var p = -Math.PI / 2 + h / f * Math.PI;
+      var y = Math.cos(p), g = Math.sin(p);
+      var w = 0.62 * Math.sin(t * 2.1 - h * 0.52) + 0.38 * Math.sin(t * 1.27 + h * 0.83);
+      var C = o * (0.88 + 0.105 * w);
+      var c = Math.max(1, Math.round(Math.abs(y) * v));
+      for (var a = 0; a < c; a++) {
+        var d = a / c * 2 * Math.PI;
+        var pt = u(y * Math.cos(d) * C, g * C, y * Math.sin(d) * C);
+        var x = (pt[2] / o + 1) / 2;
+        var E = Math.max(0, w);
+        s.push({
+          x: pt[0],
+          y: pt[1],
+          z: pt[2],
+          r: ((n.rBase !== undefined ? n.rBase : 0.6) + (n.rDepth !== undefined ? n.rDepth : 1.7) * x) * (1 + 0.4 * E) * i,
+          white: 0.66 - 0.56 * x - 0.1 * E
+        });
+      }
+    }
+    return Ct(s, [], n.rMin);
+  };
+
+  function np(e) { return e * e * (3 - 2 * e); }
+  function hc(e) {
+    var t = e.length, n = [];
+    var r = 0;
+    for (var l = 0; l < t; l++) {
+      var o = e[l], u = e[(l + 1) % t], i = Math.hypot(u[0] - o[0], u[1] - o[1]);
+      n.push(i);
+      r += i;
+    }
+    return function(l2) {
+      var o2 = l2 * r, u2 = 0;
+      for (; o2 > n[u2] && u2 < t - 1;) {
+        o2 -= n[u2];
+        u2++;
+      }
+      var i2 = e[u2], s = e[(u2 + 1) % t], f = n[u2] ? Math.min(1, o2 / n[u2]) : 0;
+      return [i2[0] + (s[0] - i2[0]) * f, i2[1] + (s[1] - i2[1]) * f];
+    };
+  }
+  var rp = function(e) {
+    var t = -Math.PI / 2 + e * 2 * Math.PI;
+    return [Math.cos(t) * 0.24, Math.sin(t) * 0.24];
+  };
+  var lp = hc([[0, -0.26], [0.24, 0.16], [-0.24, 0.16]]);
+  var op = hc([[0, -0.2], [0.2, -0.2], [0.2, 0.2], [-0.2, 0.2], [-0.2, -0.2]]);
+  var bl = [rp, lp, op];
+  function up(e) { return Math.max(6, Math.round(34 * e)); }
+  var Xo = 1.4, mc = 0.9, eo = Xo + mc;
+  var ip = function(e, t, n) {
+    var r = bl.length, l = t % (eo * r), o = Math.floor(l / eo), u = l - o * eo;
+    var i = u > Xo ? np((u - Xo) / mc) : 0;
+    var s = n.spread !== undefined ? n.spread : 1;
+    var f = bl[o], v = bl[(o + 1) % r];
+    var h = 160, p = [];
+    for (var S = 0; S < h; S++) {
+      var x = S / h, E = f(x), L = v(x);
+      p.push([(E[0] + (L[0] - E[0]) * i) * s, (E[1] + (L[1] - E[1]) * i) * s]);
+    }
+    var y = [];
+    var g = 0;
+    for (var S2 = 0; S2 < h; S2++) {
+      var x2 = p[S2], E2 = p[(S2 + 1) % h], L2 = Math.hypot(E2[0] - x2[0], E2[1] - x2[1]);
+      y.push(L2);
+      g += L2;
+    }
+    var w = up(n.iconD !== undefined ? n.iconD : 1);
+    var C = (n.rDot !== undefined ? n.rDot : 0.021) * 1.35 * s;
+    var c = 1 + 0.02 * Math.sin(u * 3.1);
+    var a = [], d = e / 2;
+    var m = 0, k = 0;
+    for (var S3 = 0; S3 < w; S3++) {
+      var x3 = S3 / w * g;
+      for (; k + y[m] < x3 && m < h - 1;) {
+        k += y[m];
+        m++;
+      }
+      var E3 = p[m], L3 = p[(m + 1) % h], N = y[m] ? Math.min(1, (x3 - k) / y[m]) : 0;
+      var D = (E3[0] + (L3[0] - E3[0]) * N) * c, I = (E3[1] + (L3[1] - E3[1]) * N) * c;
+      a.push({ x: d + D * e, y: d + I * e, z: 0, r: Math.max(0.35, C * e), white: 0.1 });
+    }
+    return Ct(a, [], n.rMin);
+  };
+
+  var sp = function(e, t, n) {
+    var r = e / 2, l = e / 2, o = e / 2 * 0.82;
+    var u = $t(t * 0.12, 0.3, r, l, 1);
+    var i = Vt(e, n.rsPow !== undefined ? n.rsPow : 0.6);
+    var s = [];
+    var f = n.orbitN !== undefined ? n.orbitN : 12, v = n.ghostN !== undefined ? n.ghostN : 40, h = n.particles !== undefined ? n.particles : 3;
+    for (var p = 0; p < f; p++) {
+      var y = ze(p, 1.7), g = ze(p, 5.2), w = ze(p, 8.9);
+      var C = o * (0.45 + 0.52 * y);
+      var c = y * 2 * Math.PI;
+      var a = Math.acos(2 * g - 1);
+      var d = Math.sin(a) * Math.cos(c), m = Math.cos(a), k = Math.sin(a) * Math.sin(c);
+      var S = -m, x = d;
+      var E = 0, L = Math.max(1e-6, Math.sqrt(S * S + x * x));
+      S /= L; x /= L;
+      var N = m * E - k * x, D = k * S - d * E, I = d * x - m * S;
+      var pe = (0.25 + 0.55 * w) * (w > 0.5 ? 1 : -1);
+      for (var se = 0; se < v; se++) {
+        var Y = se / v * 2 * Math.PI;
+        var pt = u((S * Math.cos(Y) + N * Math.sin(Y)) * C, (x * Math.cos(Y) + D * Math.sin(Y)) * C, (E * Math.cos(Y) + I * Math.sin(Y)) * C);
+        var z = (pt[2] / C + 1) / 2;
+        s.push({
+          x: pt[0],
+          y: pt[1],
+          z: pt[2],
+          r: (n.ghostR !== undefined ? n.ghostR : 0.9) * i,
+          white: 0.72,
+          a: (n.ghostA !== undefined ? n.ghostA : 0.5) * (0.4 + 0.6 * z)
+        });
+      }
+      for (var se2 = 0; se2 < h; se2++) {
+        var Y2 = t * pe + se2 / h * 2 * Math.PI + g * 6;
+        var pt2 = u((S * Math.cos(Y2) + N * Math.sin(Y2)) * C, (x * Math.cos(Y2) + D * Math.sin(Y2)) * C, (E * Math.cos(Y2) + I * Math.sin(Y2)) * C);
+        var z2 = (pt2[2] / C + 1) / 2;
+        s.push({
+          x: pt2[0],
+          y: pt2[1],
+          z: pt2[2],
+          r: ((n.partR !== undefined ? n.partR : 1.2) + (n.partRDepth !== undefined ? n.partRDepth : 1.6) * z2) * i,
+          white: 0.3 - 0.22 * z2
+        });
+      }
+    }
+    return Ct(s, [], n.rMin);
+  };
+
+  var bi = function(e, t, n) {
+    var r = e / 2, l = e / 2, o = e / 2 * 0.78;
+    var u = n.spin !== undefined ? n.spin : 1;
+    var i = 0.3;
+    var s = $t(t * 0.1 * u, i, r, l, 1);
+    var f = Vt(e, n.rsPow !== undefined ? n.rsPow : 0.6);
+    var v = [];
+    var h = n.ghostN !== undefined ? n.ghostN : 150;
+    for (var I = 0; I < h; I++) {
+      var pe = Wu(I, h);
+      var pt = s(pe[0] * o, pe[1] * o, pe[2] * o);
+      var Ce = (pt[2] / o + 1) / 2;
+      v.push({ x: pt[0], y: pt[1], z: pt[2], r: 0.8 * f, white: 0.78, a: 0.1 + 0.22 * Ce });
+    }
+    var p = t * 0.24 * u;
+    var y = n.faceOn ? -i : 0.55 + 0.3 * Math.sin(t * 0.18) * u;
+    var g = Math.cos(p), w = 0, C = Math.sin(p);
+    var c = -C * Math.sin(y), a = Math.cos(y), d = g * Math.sin(y);
+    var m = w * d - C * a, k = C * c - g * d, S = g * a - w * c;
+    var x = 0.23 * (n.wobMul !== undefined ? n.wobMul : 1);
+    var E = n.faceOn ? o / (1 + 0.85 * x) : o;
+    var L = n.lanes !== undefined ? n.lanes : 5, N = n.segs !== undefined ? n.segs : 88;
+    var D = Math.max(1, Math.round(L * (n.bandMul !== undefined ? n.bandMul : 1)));
+    for (var I2 = 0; I2 < D; I2++) {
+      var pe2 = (I2 - (D - 1) / 2) * 0.075;
+      var se = Math.abs(I2 - (D - 1) / 2) / Math.max(1, (D - 1) / 2);
+      for (var Y = 0; Y < N; Y++) {
+        var Z = Y / N * 2 * Math.PI;
+        var Ce2 = (0.16 * Math.sin(Z * 3 - t * 1.7 + I2 * 0.22) + 0.07 * Math.sin(Z * 5 + t * 1.1)) * (n.wobMul !== undefined ? n.wobMul : 1);
+        var _ = n.faceOn ? 1 + Ce2 : 1;
+        var z = n.faceOn ? pe2 : pe2 + Ce2;
+        var T = g * Math.cos(Z) + c * Math.sin(Z) + m * z;
+        var U = w * Math.cos(Z) + a * Math.sin(Z) + k * z;
+        var Q = C * Math.cos(Z) + d * Math.sin(Z) + S * z;
+        var rt = Math.sqrt(T * T + U * U + Q * Q);
+        var De = E * _;
+        var pt2 = s(T / rt * De, U / rt * De, Q / rt * De);
+        var Ml = (pt2[2] / o + 1) / 2;
+        v.push({
+          x: pt2[0],
+          y: pt2[1],
+          z: pt2[2],
+          r: ((n.rBase !== undefined ? n.rBase : 1.1) + (n.rDepth !== undefined ? n.rDepth : 1.7) * Ml) * (1 - 0.25 * se) * f,
+          white: 0.52 - 0.44 * Ml + 0.18 * se,
+          a: 0.4 + 0.6 * Ml
+        });
+      }
+    }
+    return Ct(v, [], n.rMin);
+  };
+
+  var ap = function(e, t, n) {
+    var r = e / 2, l = e / 2, o = e / 2 * 0.8 * (n.spread !== undefined ? n.spread : 1);
+    var u = $t(t * 0.12, 0.32, r, l, o);
+    var i = Vt(e, n.rsPow !== undefined ? n.rsPow : 0.6);
+    var s = n.nodeN !== undefined ? n.nodeN : 30, f = n.thr !== undefined ? n.thr : 0.72;
+    var v = n.nodeR !== undefined ? n.nodeR : 1.4, h = n.nodeRDepth !== undefined ? n.nodeRDepth : 1.8;
+    var p = [];
+    for (var C = 0; C < s; C++) {
+      var c = Wu(C, s);
+      var a = c[0] + 0.3 * (ql(C * 0.31 + 9, t * 0.24) - 0.5) * 2;
+      var d = c[1] + 0.3 * (ql(C * 0.53 + 27, t * 0.21) - 0.5) * 2;
+      var m = c[2] + 0.3 * (ql(C * 0.77 + 55, t * 0.27) - 0.5) * 2;
+      var k = Math.sqrt(a * a + d * d + m * m);
+      p.push([a / k, d / k, m / k]);
+    }
+    var y = [], g = [];
+    for (var C2 = 0; C2 < s; C2++) {
+      for (var c2 = C2 + 1; c2 < s; c2++) {
+        var a2 = p[C2][0] - p[c2][0];
+        var d2 = p[C2][1] - p[c2][1];
+        var m2 = p[C2][2] - p[c2][2];
+        var k2 = Math.sqrt(a2 * a2 + d2 * d2 + m2 * m2);
+        if (k2 >= f) continue;
+        var ptA = u(p[C2][0], p[C2][1], p[C2][2]);
+        var ptB = u(p[c2][0], p[c2][1], p[c2][2]);
+        var I = ((ptA[2] + ptB[2]) / 2 + 1) / 2;
+        y.push({
+          x1: ptA[0],
+          y1: ptA[1],
+          x2: ptB[0],
+          y2: ptB[1],
+          white: 0.42,
+          a: (1 - k2 / f) * (0.3 + 0.55 * I),
+          w: Math.max(0.6, (n.lineW !== undefined ? n.lineW : 0.8) * i)
+        });
+      }
+    }
+    for (var C3 = 0; C3 < s; C3++) {
+      var pt3 = u(p[C3][0], p[C3][1], p[C3][2]);
+      var m3 = (pt3[2] + 1) / 2;
+      var k3 = 1 + 0.25 * Math.sin(t * 1.4 + C3 * 2.7);
+      g.push({
+        x: pt3[0],
+        y: pt3[1],
+        z: pt3[2],
+        r: (v + h * m3) * k3 * i,
+        white: 0.55 - 0.45 * m3
+      });
+    }
+    var w = n.signals !== undefined ? n.signals : 5;
+    for (var C4 = 0; C4 < w; C4++) {
+      var c4 = Math.floor(t * 0.55 + C4 * 7.31);
+      var a4 = Math.floor(ze(c4, C4 * 3.1 + 1.7) * s);
+      var d4 = Math.floor(ze(c4, C4 * 5.7 + 4.2) * s);
+      if (a4 === d4) continue;
+      var m4 = pc(t * 0.55 + C4 * 7.31);
+      var k4 = Jl(p[a4][0], p[d4][0], m4);
+      var S4 = Jl(p[a4][1], p[d4][1], m4);
+      var x4 = Jl(p[a4][2], p[d4][2], m4);
+      var E4 = Math.max(1e-6, Math.sqrt(k4 * k4 + S4 * S4 + x4 * x4));
+      var pt4 = u(k4 / E4, S4 / E4, x4 / E4);
+      var I4 = (pt4[2] + 1) / 2;
+      g.push({
+        x: pt4[0],
+        y: pt4[1],
+        z: pt4[2],
+        r: (v * 1.5 + h * I4) * i,
+        white: 0.05,
+        a: 0.5 + 0.5 * I4
+      });
+    }
+    return Ct(g, y, n.rMin);
+  };
+
+  var cp = {
+    orbits: sp,
+    globe: bd,
+    rubik: ep,
+    wave: tp,
+    web: ap,
+    braid: Gd,
+    ribbon: bi,
+    ring: bi,
+    morph: ip
+  };
+
+  var dp = [["latRings", "lonDensity"], ["rings", "lonDensity"], ["lanes", "segs"]];
+  var pp = ["orbitN", "ghostN", "nodeN", "strandN", "signals"];
+  var hp = ["iconD"];
+  var mp = ["rBase", "rDepth", "rActive", "rDot", "ghostR", "partR", "partRDepth", "nodeR", "nodeRDepth"];
+
+  function vp(e, t) {
+    var n = Object.assign({}, e), r = new Set(), l = Math.sqrt(t);
+    for (var i = 0; i < dp.length; i++) {
+      var pair = dp[i];
+      var o = pair[0], u = pair[1];
+      if (n[o] != null && n[u] != null && !r.has(o) && !r.has(u)) {
+        n[o] = Math.max(2, Math.round(n[o] * l));
+        n[u] = Math.max(2, Math.round(n[u] * l));
+        r.add(o); r.add(u);
+      }
+    }
+    for (var j = 0; j < pp.length; j++) {
+      var o2 = pp[j];
+      if (n[o2] != null && n[o2] !== 0 && !r.has(o2)) {
+        n[o2] = Math.max(1, Math.round(n[o2] * t));
+      }
+    }
+    for (var k = 0; k < hp.length; k++) {
+      var o3 = hp[k];
+      if (n[o3] != null) {
+        n[o3] = Math.max(0.02, n[o3] * t);
+      }
+    }
+    return n;
+  }
+
+  function yp(e, t) {
+    var n = Object.assign({}, e);
+    for (var i = 0; i < mp.length; i++) {
+      var r = mp[i];
+      if (n[r] != null) {
+        n[r] = n[r] * t;
+      }
+    }
+    n.rSizeMul = (n.rSizeMul != null ? n.rSizeMul : 1) * t;
+    return n;
+  }
+
+  var gp = {
+    globe: { latRings: 17, lonDensity: 44, rBase: 0.6, rDepth: 1.7, rBoost: 1, inkFar: 0.62, inkSpan: 0.54, rsPow: 0.6, rMin: 0.3 },
+    orbits: { orbitN: 12, ghostN: 40, ghostR: 0.9, ghostA: 0.5, particles: 3, partR: 1.2, partRDepth: 1.6, rsPow: 0.6, rMin: 0.3 },
+    rubik: { latRings: 15, lonDensity: 40, moveCount: 14, rBase: 0.6, rDepth: 1.7, rActive: 0.3, inkFar: 0.62, inkSpan: 0.54, rsPow: 0.6, rMin: 0.3 },
+    wave: { rings: 15, lonDensity: 40, rBase: 0.6, rDepth: 1.7, rsPow: 0.6, rMin: 0.3 },
+    web: { nodeN: 30, thr: 0.72, signals: 5, nodeR: 1.4, nodeRDepth: 1.8, lineW: 0.8, rsPow: 0.6, rMin: 0.3 },
+    braid: { strandN: 52, turns: 3, ghostN: 150, rBase: 1.2, rDepth: 1.8, rsPow: 0.6, rMin: 0.3 },
+    ribbon: { lanes: 5, segs: 88, ghostN: 150, rBase: 1.1, rDepth: 1.7, rsPow: 0.6, rMin: 0.3 },
+    ring: { lanes: 5, segs: 88, ghostN: 0, faceOn: 1, rBase: 1.1, rDepth: 1.7, rsPow: 0.6, rMin: 0.3 },
+    morph: { rDot: 0.021, iconD: 1, rMin: 0.25 }
+  };
+
+  var wp = {
+    working: "orbits",
+    searching: "globe",
+    solving: "rubik",
+    listening: "wave",
+    connecting: "web",
+    weaving: "braid",
+    composing: "ribbon",
+    breathing: "ring",
+    shaping: "morph"
+  };
+
+  var kp = {
+    orbits: { 64: { speed: 1.885, count: 1, size: 1 }, 20: { speed: 3.9, count: 0.238, size: 2.4 } },
+    globe: { 64: { speed: 2.015, count: 0.42, size: 1.15, extra: { scanMul: 4.08, dimBase: 0.45 } }, 20: { speed: 2.665, count: 0.105, size: 1.75, extra: { scanMul: 4.335, dimBase: 0.45 } } },
+    rubik: { 64: { speed: 1.82, count: 0.35, size: 1.05 }, 20: { speed: 1.95, count: 0.088, size: 1.9 } },
+    wave: { 64: { speed: 4.388, count: 0.341, size: 1 }, 20: { speed: 3.998, count: 0.105, size: 1.6 } },
+    web: { 64: { speed: 3.315, count: 1.35, size: 0.95 }, 20: { speed: 6.63, count: 0.25, size: 1.52 } },
+    braid: { 64: { speed: 1.625, count: 0.5, size: 1 }, 20: { speed: 2.75, count: 0.1125, size: 1.36 } },
+    ribbon: { 64: { speed: 2.34, count: 0.25, size: 0.85, extra: { spin: 0, bandMul: 3.9, wobMul: 1 } }, 20: { speed: 3.12, count: 0.051, size: 1.073, extra: { spin: 0, bandMul: 4.94, wobMul: 1 } } },
+    ring: { 64: { speed: 3.24, count: 0.25, size: 0.956, extra: { spin: 0, bandMul: 3.627, wobMul: 0.368 } }, 20: { speed: 3.78, count: 0.028, size: 1.622, extra: { spin: 0, bandMul: 3.968, wobMul: 0.565 } } },
+    morph: { 64: { speed: 2.405, count: 0.702, size: 0.395, extra: { spread: 1.45 } }, 20: { speed: 2.08, count: 0.53, size: 1.011, extra: { spread: 1.45 } } }
+  };
+
+  var orbPresetsCache = new Map();
+  function getOrbPreset(stateKey, size) {
+    var key = stateKey + "-" + size;
+    var cached = orbPresetsCache.get(key);
+    if (cached) return cached;
+    var mode = wp[stateKey] || "orbits";
+    var preset = (kp[mode] && kp[mode][size]) ? kp[mode][size] : kp.orbits[20];
+    var opts = Object.assign({}, gp[mode]);
+    if (preset.count !== 1) opts = vp(opts, preset.count);
+    if (preset.size !== 1) opts = yp(opts, preset.size);
+    if (preset.extra) opts = Object.assign(opts, preset.extra);
+    var res = { mode: mode, speed: preset.speed, opts: opts };
+    orbPresetsCache.set(key, res);
+    return res;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 工具调用状态映射 (Tool Call → Thinking Orb Style & Status Text)
+   * 兜底: Working… (orbits)
+   * ------------------------------------------------------------------ */
+  var TOOL_STATE_MAP = {
+    // 1. Searching (globe)
+    "grep": { state: "searching", text: "Searching files…" },
+    "glob": { state: "searching", text: "Finding files…" },
+    "web_search": { state: "searching", text: "Searching web…" },
+    "find_dsh_plugin": { state: "searching", text: "Searching plugins…" },
+
+    // 2. Listening / Reading (wave)
+    "read": { state: "listening", text: "Reading file…" },
+    "read_image": { state: "listening", text: "Inspecting image…" },
+    "skill": { state: "listening", text: "Loading skill…" },
+    "get_goal": { state: "listening", text: "Reading goal…" },
+
+    // 3. Composing / Writing (ribbon)
+    "write": { state: "composing", text: "Writing file…" },
+    "edit": { state: "composing", text: "Editing file…" },
+
+    // 4. Solving / Commands (rubik)
+    "bash": { state: "solving", text: "Running command…" },
+
+    // 5. Connecting / Subagents (web)
+    "subagent": { state: "connecting", text: "Connecting subagent…" },
+    "subagent_fork": { state: "connecting", text: "Delegating task…" },
+    "workflow": { state: "connecting", text: "Running workflow…" },
+    "ralph": { state: "connecting", text: "Running Ralph…" },
+    "send_message": { state: "connecting", text: "Sending message…" },
+    "interrupt_agent": { state: "connecting", text: "Interrupting agent…" },
+    "list_agents": { state: "connecting", text: "Listing agents…" },
+    "job_output": { state: "connecting", text: "Checking job output…" },
+    "job_list": { state: "connecting", text: "Listing jobs…" },
+    "job_kill": { state: "connecting", text: "Stopping job…" },
+
+    // 6. Shaping / Tasks & Goals (morph)
+    "todo_write": { state: "shaping", text: "Updating tasks…" },
+    "create_goal": { state: "shaping", text: "Creating goal…" },
+    "update_goal": { state: "shaping", text: "Updating goal…" },
+    "exit_plan_mode": { state: "shaping", text: "Finalizing plan…" },
+
+    // 7. Weaving / Cordis plugins (braid)
+    "cordis_define": { state: "weaving", text: "Weaving plugin…" },
+    "cordis_run": { state: "weaving", text: "Activating plugin…" },
+    "cordis_stop": { state: "weaving", text: "Stopping plugin…" },
+    "cordis_undefine": { state: "weaving", text: "Removing plugin…" },
+    "cordis_inspect_list": { state: "weaving", text: "Inspecting runtime…" },
+    "cordis_inspect_query": { state: "weaving", text: "Querying runtime…" },
+    "cordis_inspect_self": { state: "weaving", text: "Inspecting plugin…" },
+
+    // 8. Breathing / Interactive questions (ring)
+    "ask_user_question": { state: "breathing", text: "Asking question…" }
+  };
+
+  function extractSummaryDetail(el, toolName) {
+    try {
+      if (!el) return null;
+      var fileBtn = el.querySelector(".o3BgMG_fileLink");
+      if (fileBtn && fileBtn.textContent) {
+        var fn = fileBtn.textContent.trim().split("/").pop();
+        if (fn && fn.length <= 25) {
+          if (toolName === "read") return "Reading " + fn + "…";
+          if (toolName === "write") return "Writing " + fn + "…";
+          if (toolName === "edit") return "Editing " + fn + "…";
+        }
+      }
+      var sumEl = el.querySelector(".o3BgMG_summary, .CY-8Ka_summary");
+      if (sumEl && sumEl.textContent) {
+        var txt = sumEl.textContent.trim();
+        if (txt && txt.length > 0 && txt.length <= 25) {
+          if (toolName === "grep") return "Searching: " + txt + "…";
+          if (toolName === "bash") return "Running: " + txt + "…";
+          if (toolName === "skill") return "Skill: " + txt + "…";
+        }
+      }
+    } catch(e) {}
+    return null;
+  }
+
+  function resolveActiveToolState() {
+    try {
+      // 1. 优先检测当前处于 running 状态的工具调用行（从后向前取最新活跃调用）
+      var runningRows = document.querySelectorAll('[data-state="running"], [data-tool][data-state="running"], .CY-8Ka_root[data-state="running"], .o3BgMG_root[data-state="running"]');
+      if (runningRows && runningRows.length > 0) {
+        for (var i = runningRows.length - 1; i >= 0; i--) {
+          var row = runningRows[i];
+          var tool = row.getAttribute("data-tool");
+          if (!tool && (row.classList.contains("CY-8Ka_root") || row.closest(".CY-8Ka_card"))) {
+            tool = "bash";
+          }
+          if (!tool) {
+            var parent = row.closest("[data-tool]");
+            if (parent) tool = parent.getAttribute("data-tool");
+          }
+          if (tool) {
+            var mapped = TOOL_STATE_MAP[tool];
+            if (mapped) {
+              var customDetail = extractSummaryDetail(row, tool);
+              return {
+                state: mapped.state,
+                text: customDetail || mapped.text,
+                tool: tool
+              };
+            }
+            if (tool.indexOf("cordis_") === 0) {
+              return { state: "weaving", text: "Weaving plugin…", tool: tool };
+            }
+            if (tool.indexOf("subagent") === 0) {
+              return { state: "connecting", text: "Connecting subagent…", tool: tool };
+            }
+            if (tool.indexOf("read") === 0) {
+              return { state: "listening", text: "Reading…", tool: tool };
+            }
+            return { state: "working", text: "Working…", tool: tool };
+          }
+        }
+      }
+
+      // 2. 检测用户提问卡片
+      var questionEl = document.querySelector('[data-slot="user-questions"], .Mbwy4a_card');
+      if (questionEl && questionEl.offsetParent !== null) {
+        return { state: "breathing", text: "Asking question…", tool: "ask_user_question" };
+      }
+
+      // 3. 检测计划待审卡片
+      var planReviewEl = document.querySelector('[data-slot="plan-review"], .LVzXQa_card');
+      if (planReviewEl && planReviewEl.offsetParent !== null) {
+        return { state: "shaping", text: "Reviewing plan…", tool: "exit_plan_mode" };
+      }
+
+      // 4. Plan mode 模式（无特定工具活跃）
+      if (isPlanMode()) {
+        return { state: "breathing", text: "Planning…", tool: "plan" };
+      }
+
+      // 5. 兜底默认状态: Working…
+      return { state: "working", text: "Working…", tool: "fallback" };
+    } catch(e) {
+      return { state: "working", text: "Working…", tool: "fallback" };
+    }
+  }
+
+  var orbCanvas = null;
+  var orbCtx = null;
+  var orbRaf = 0;
+  var orbMountedStatusEl = null;
+  var orbActive = false;
+  var orbCurrentState = "working";
+  var orbStartTime = 0;
+  var orbTextSpan = null;
+
+  function syncTurnStatusText(statusEl, text) {
+    if (!statusEl || !document.contains(statusEl)) return;
+    try {
+      if (!orbTextSpan || !statusEl.contains(orbTextSpan)) {
+        var existing = statusEl.querySelector(".dsh-turn-status-text");
+        if (existing) {
+          orbTextSpan = existing;
+        } else {
+          orbTextSpan = document.createElement("span");
+          orbTextSpan.className = "dsh-turn-status-text";
+          var clockEl = statusEl.querySelector(".Md3f7G_turnStatusClock");
+          if (clockEl) {
+            statusEl.insertBefore(orbTextSpan, clockEl);
+          } else {
+            statusEl.appendChild(orbTextSpan);
+          }
+        }
+      }
+      if (orbTextSpan && orbTextSpan.textContent !== text) {
+        orbTextSpan.textContent = text;
+      }
+      // 保持 React reconciler 正常运行的同时清理裸露文本节点（如原版的 "Deep diving..."）
+      var childNodes = statusEl.childNodes;
+      for (var i = 0; i < childNodes.length; i++) {
+        var node = childNodes[i];
+        if (node.nodeType === 3 /* Node.TEXT_NODE */) {
+          if (node.nodeValue && node.nodeValue.trim().length > 0) {
+            node.nodeValue = "";
+          }
+        }
+      }
+    } catch(e) {}
+  }
+
+  function createThinkingOrbCanvas() {
+    var wrap = document.createElement("span");
+    wrap.className = "dsh-thinking-orb-wrap";
+    wrap.setAttribute("aria-hidden", "true");
+    var cvs = document.createElement("canvas");
+    cvs.className = "dsh-thinking-orb-canvas";
+    var size = 20;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cvs.width = size * dpr;
+    cvs.height = size * dpr;
+    cvs.style.width = size + "px";
+    cvs.style.height = size + "px";
+    wrap.appendChild(cvs);
+    return { wrap: wrap, canvas: cvs };
+  }
+
+  function startThinkingOrb(targetEl) {
+    if (!targetEl || !document.contains(targetEl)) return;
+    if (orbMountedStatusEl === targetEl && orbCanvas && targetEl.contains(orbCanvas.parentNode)) {
+      return;
+    }
+    stopThinkingOrb();
+
+    var orb = createThinkingOrbCanvas();
+    orbCanvas = orb.canvas;
+    orbCtx = orbCanvas.getContext("2d");
+    orbMountedStatusEl = targetEl;
+    targetEl.insertBefore(orb.wrap, targetEl.firstChild);
+    orbActive = true;
+    orbStartTime = performance.now();
+    // GPU/CPU 优化：resolveActiveToolState 每帧做多次全 DOM querySelectorAll，
+    // 改为每 300ms 一次（Orb 形态切换延迟最多 300ms，观感无差）
+    var orbLastScan = 0;
+    var orbLastInfo = null;
+
+    function renderOrb(now) {
+      if (!orbActive || !orbCtx || !orbMountedStatusEl || !document.contains(orbMountedStatusEl)) {
+        stopThinkingOrb();
+        return;
+      }
+      orbRaf = requestAnimationFrame(renderOrb);
+
+      if (document.visibilityState === "hidden") return;
+
+      if (now - orbLastScan >= 300 || !orbLastInfo) {
+        orbLastScan = now;
+        orbLastInfo = resolveActiveToolState();
+      }
+      var activeInfo = orbLastInfo;
+      orbCurrentState = activeInfo.state;
+
+      if (orb.wrap && orb.wrap.getAttribute("data-state") !== activeInfo.state) {
+        orb.wrap.setAttribute("data-state", activeInfo.state);
+      }
+
+      syncTurnStatusText(orbMountedStatusEl, activeInfo.text);
+
+      var size = 20;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var preset = getOrbPreset(activeInfo.state, 20);
+      var renderFn = cp[preset.mode] || cp.orbits;
+
+      var elapsed = (now - orbStartTime) * 0.001 * preset.speed;
+      var res = renderFn(size, elapsed, preset.opts);
+
+      var isDark = getBeamThemeIsDark();
+      orbCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      orbCtx.clearRect(0, 0, size, size);
+      Xd(orbCtx, res, isDark);
+    }
+
+    orbRaf = requestAnimationFrame(renderOrb);
+  }
+
+  function stopThinkingOrb() {
+    orbActive = false;
+    if (orbRaf) {
+      cancelAnimationFrame(orbRaf);
+      orbRaf = 0;
+    }
+    if (orbCanvas && orbCanvas.parentNode) {
+      try { orbCanvas.parentNode.remove(); } catch(e) {}
+    }
+    orbCanvas = null;
+    orbCtx = null;
+    orbMountedStatusEl = null;
+    orbTextSpan = null;
+  }
+
+  function syncThinkingOrb() {
+    var statusEl = document.querySelector(".Md3f7G_turnStatus, [role=\"status\"][aria-live=\"polite\"]");
+    if (statusEl && isExecuting()) {
+      startThinkingOrb(statusEl);
+    } else {
+      if (orbActive) stopThinkingOrb();
+    }
+  }
+
   function attachComposerBeam() {
     if (isBeamDisabled()) return;
     if (beamAttachedCard && document.contains(beamAttachedCard)) return;
@@ -1017,78 +2347,114 @@ function apply() {
       card.appendChild(bloom);
     }
     var radius = resolveBorderRadius(card);
-    ensureBeamStyles(radius);
-    // Ensure card styling for beam
+    ensureBeamStyles(radius, "colorful");
     card.style.setProperty("overflow", "visible");
     card.style.setProperty("isolation", "isolate");
     if (window.getComputedStyle(card).position === "static") card.style.position = "relative";
     beamAttachedCard = card;
-    currentBeamMode = 'hairline';
-    // Initial state
+    currentBeamMode = "hairline";
     updateBeamState();
-    // Typing listener
+
     var input = findComposerInput(card);
     if (input) {
-      beamTypingHandler = function(){ updateBeamState(); };
-      input.addEventListener('input', beamTypingHandler);
-      input.addEventListener('change', beamTypingHandler);
-      input._dshBeamHasListener = true;
-      // Send detection: Enter or send button click -> immediate executing
-      var onSend = function(){
-        var val = input.value !== undefined ? input.value : input.textContent;
-        if (val && String(val).trim().length>0) {
-          pendingExecuting = true;
-          if (pendingTimer) clearTimeout(pendingTimer);
-          // fallback clear after 5s if stop button never appears (e.g., blocked)
-          pendingTimer = setTimeout(function(){ pendingExecuting=false; updateBeamState(); }, 5000);
-          updateBeamState();
+      beamTypingHandler = function() {
+        triggerTypingBreathe();
+      };
+      beamKeydownHandler = function(e) {
+        if (e.isComposing || e.keyCode === 229) {
+          triggerTypingBreathe();
+          return;
+        }
+        if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+          var val = input.value !== undefined ? input.value : input.textContent;
+          if (val && String(val).trim().length > 0) {
+            typingActive = false;
+            if (typingTimer) clearTimeout(typingTimer);
+            pendingExecuting = true;
+            if (pendingTimer) clearTimeout(pendingTimer);
+            pendingTimer = setTimeout(function() { pendingExecuting = false; updateBeamState(); }, 5000);
+            updateBeamState();
+            return;
+          }
+        }
+        if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key && (e.key.length === 1 || e.key === "Backspace" || e.key === "Delete")) {
+          triggerTypingBreathe();
         }
       };
-      input.addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey){ onSend(); }});
-      // Store for cleanup
-      input._dshBeamOnSend = onSend;
+
+      input.addEventListener("input", beamTypingHandler);
+      input.addEventListener("change", beamTypingHandler);
+      input.addEventListener("keydown", beamKeydownHandler);
+      input.addEventListener("compositionstart", function() { triggerTypingBreathe(); });
+      input.addEventListener("compositionupdate", function() { triggerTypingBreathe(); });
+      input.addEventListener("compositionend", function() { triggerTypingBreathe(); });
+      card._dshBeamInput = input;
     }
-    // Send button click
+
     var sendBtn = card.querySelector('button[aria-label="Send message"], button[aria-label="发送消息"], button[aria-label*="Send"], button[aria-label*="发送"], .uV2eYG_primary');
     if (sendBtn) {
-      var sendHandler = function(){ pendingExecuting = true; if(pendingTimer) clearTimeout(pendingTimer); pendingTimer=setTimeout(function(){ pendingExecuting=false; updateBeamState(); },5000); updateBeamState(); };
-      sendBtn.addEventListener('click', sendHandler);
+      var sendHandler = function() {
+        typingActive = false;
+        if (typingTimer) clearTimeout(typingTimer);
+        pendingExecuting = true;
+        if (pendingTimer) clearTimeout(pendingTimer);
+        pendingTimer = setTimeout(function() { pendingExecuting = false; updateBeamState(); }, 5000);
+        updateBeamState();
+      };
+      sendBtn.addEventListener("click", sendHandler);
       card._dshBeamSendBtn = sendBtn;
       card._dshBeamSendHandler = sendHandler;
     }
-    // ResizeObserver for borderRadius
+
     if (window.ResizeObserver) {
-      if (beamResizeObs) try{ beamResizeObs.disconnect(); }catch(e){}
-      beamResizeObs = new ResizeObserver(function(){
+      if (beamResizeObs) try { beamResizeObs.disconnect(); } catch(e) {}
+      beamResizeObs = new ResizeObserver(function() {
         if (!beamAttachedCard) return;
         var nr = resolveBorderRadius(beamAttachedCard);
-        ensureBeamStyles(nr);
+        ensureBeamStyles(nr, currentBeamMode === "typing" ? "mono" : (currentBeamMode === "planning" ? "sunset" : "colorful"));
       });
-      try{ beamResizeObs.observe(card); }catch(e){}
+      try { beamResizeObs.observe(card); } catch(e) {}
     }
-    // Poll for executing/plan changes (200ms)
+
     if (beamPollTimer) clearInterval(beamPollTimer);
     beamPollTimer = setInterval(updateBeamState, 200);
-    // Also observe DOM for plan chip / stop button
+
     if (!beamMutObs && window.MutationObserver) {
-      beamMutObs = new MutationObserver(function(){ updateBeamState(); });
+      beamMutObs = new MutationObserver(function() { updateBeamState(); });
       var rootEl = document.querySelector("#root") || document.documentElement;
-      try{ beamMutObs.observe(rootEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-label','class','data-plan-mode'] }); }catch(e){}
+      try { beamMutObs.observe(rootEl, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "class", "data-plan-mode", "data-state"] }); } catch(e) {}
     }
-    card._dshBeamCleanup = function(){
-      if (input && beamTypingHandler) { try{ input.removeEventListener('input', beamTypingHandler); input.removeEventListener('change', beamTypingHandler); if(input._dshBeamOnSend) input.removeEventListener('keydown', input._dshBeamOnSend); }catch(e){} }
-      if (card._dshBeamSendBtn && card._dshBeamSendHandler) { try{ card._dshBeamSendBtn.removeEventListener('click', card._dshBeamSendHandler); }catch(e){} }
-      if (beamPollTimer) { clearInterval(beamPollTimer); beamPollTimer=null; }
-      if (beamMutObs) { try{ beamMutObs.disconnect(); beamMutObs=null; }catch(e){} }
-      if (beamResizeObs) { try{ beamResizeObs.disconnect(); beamResizeObs=null; }catch(e){} }
-      if (pulseTimer) { clearTimeout(pulseTimer); pulseTimer=null; }
-      if (beamPulseTimer) { clearTimeout(beamPulseTimer); beamPulseTimer=null; }
+
+    card._dshBeamCleanup = function() {
+      if (input) {
+        try {
+          if (beamTypingHandler) {
+            input.removeEventListener("input", beamTypingHandler);
+            input.removeEventListener("change", beamTypingHandler);
+          }
+          if (beamKeydownHandler) {
+            input.removeEventListener("keydown", beamKeydownHandler);
+          }
+        } catch(e) {}
+      }
+      if (card._dshBeamSendBtn && card._dshBeamSendHandler) {
+        try { card._dshBeamSendBtn.removeEventListener("click", card._dshBeamSendHandler); } catch(e) {}
+      }
+      if (beamPollTimer) { clearInterval(beamPollTimer); beamPollTimer = null; }
+      if (beamMutObs) { try { beamMutObs.disconnect(); beamMutObs = null; } catch(e) {} }
+      if (beamResizeObs) { try { beamResizeObs.disconnect(); beamResizeObs = null; } catch(e) {} }
+      if (pulseTimer) { clearTimeout(pulseTimer); pulseTimer = null; }
+      if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; }
+      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+      try { stopThinkingOrb(); } catch(e) {}
     };
   }
+
   function detachComposerBeam() {
     var card = beamAttachedCard;
     if (!card) return;
-    try{ if (card._dshBeamCleanup) card._dshBeamCleanup(); }catch(e){}
+    try { if (card._dshBeamCleanup) card._dshBeamCleanup(); } catch(e) {}
+    try { stopThinkingOrb(); } catch(e) {}
     card.removeAttribute("data-beam");
     card.removeAttribute("data-active");
     card.removeAttribute("data-fading");
@@ -1098,52 +2464,68 @@ function apply() {
     card.removeAttribute("data-paused");
     card.style.removeProperty("--beam-strength");
     card.style.removeProperty("--beam-hue-base");
+    card.style.removeProperty("filter");
     card.style.removeProperty("isolation");
     var bloom = card.querySelector("[data-beam-bloom]");
-    if (bloom) try{ bloom.remove(); }catch(e){}
-    if (beamResizeObs) try{ beamResizeObs.disconnect(); beamResizeObs=null; }catch(e){}
+    if (bloom) try { bloom.remove(); } catch(e) {}
+    if (beamResizeObs) try { beamResizeObs.disconnect(); beamResizeObs = null; } catch(e) {}
     beamAttachedCard = null;
-    currentBeamMode='hairline';
+    currentBeamMode = "hairline";
   }
+
   function refreshBeamTheme() {
     if (!beamAttachedCard) return;
     var r = resolveBorderRadius(beamAttachedCard);
-    ensureBeamStyles(r);
+    var v = currentBeamMode === "typing" ? "mono" : (currentBeamMode === "planning" ? "sunset" : "colorful");
+    ensureBeamStyles(r, v);
     updateBeamState();
   }
+
   function watchBeamComposer() {
     if (isBeamDisabled()) { detachComposerBeam(); return; }
     attachComposerBeam();
     if (!beamMutObs && window.MutationObserver) {
-      beamMutObs = new MutationObserver(function(){
+      beamMutObs = new MutationObserver(function() {
         if (!beamAttachedCard) attachComposerBeam();
         else updateBeamState();
       });
       var rootEl = document.querySelector("#root") || document.documentElement;
-      try{ beamMutObs.observe(rootEl, { childList: true, subtree: true }); }catch(e){}
+      try { beamMutObs.observe(rootEl, { childList: true, subtree: true }); } catch(e) {}
     }
   }
-  try{
-    if (typeof window.__dshDeepSeekBg !== 'object' || window.__dshDeepSeekBg === null) window.__dshDeepSeekBg = {};
+
+  try {
+    if (typeof window.__dshDeepSeekBg !== "object" || window.__dshDeepSeekBg === null) window.__dshDeepSeekBg = {};
     window.__dshDeepSeekBg.beam = {
       attach: attachComposerBeam,
       detach: detachComposerBeam,
-      setStrength: function(v){ setBeamStrength(v, {persist:false}); },
-      setIdleStrength: function(v){ beamState.idleStrength = Math.max(0,Math.min(1,v)); refreshBeamTheme(); },
-      setFocusStrength: function(v){ beamState.focusStrength = Math.max(0,Math.min(1,v)); refreshBeamTheme(); },
-      disable: function(){ try{ localStorage.setItem("dsh-beam-disabled","1"); }catch(e){} detachComposerBeam(); },
-      enable: function(){ try{ localStorage.removeItem("dsh-beam-disabled"); }catch(e){} watchBeamComposer(); },
+      setStrength: function(v) { setBeamStrength(v, { persist: false }); },
+      setIdleStrength: function(v) { beamState.idleStrength = Math.max(0, Math.min(1, v)); refreshBeamTheme(); },
+      setFocusStrength: function(v) { beamState.focusStrength = Math.max(0, Math.min(1, v)); refreshBeamTheme(); },
+      disable: function() { try { localStorage.setItem("dsh-beam-disabled", "1"); } catch(e) {} detachComposerBeam(); },
+      enable: function() { try { localStorage.removeItem("dsh-beam-disabled"); } catch(e) {} watchBeamComposer(); },
       refresh: refreshBeamTheme,
-      get state(){ return currentBeamMode; },
-      get isExecuting(){ return isExecuting(); },
-      get isTyping(){ return isTyping(); },
+      get state() { return currentBeamMode; },
+      get isExecuting() { return isExecuting(); },
+      get isTyping() { return isTyping(); },
       update: updateBeamState,
-      get id(){ return BEAM_ID; },
-      get card(){ return beamAttachedCard; }
+      get id() { return BEAM_ID; },
+      get card() { return beamAttachedCard; }
     };
-  }catch(e){}
+    window.__dshDeepSeekBg.orbs = {
+      start: startThinkingOrb,
+      stop: stopThinkingOrb,
+      sync: syncThinkingOrb,
+      get active() { return orbActive; },
+      get canvas() { return orbCanvas; },
+      get state() { return orbCurrentState; },
+      resolveState: resolveActiveToolState,
+      getPreset: getOrbPreset
+    };
+  } catch(e) {}
 
-  /* ------------------------------------------------------------------ *
+  
+/* ------------------------------------------------------------------ *
    * 着色器（与 DeepSeek 打包产物逐字一致）
    * ------------------------------------------------------------------ */
   var VERT = "#version 300 es\nin vec4 a_position;\nout vec2 vUv;\nvoid main() {\n  vUv = a_position.xy * 0.5 + 0.5;\n  gl_Position = a_position;\n}\n";
@@ -1566,8 +2948,14 @@ function apply() {
 
     var W = 0, H = 0, wQ = 0, hQ = 0;
     var flip = false;
-    var k = Math.min(window.devicePixelRatio || 1, 1.5);
+    // GPU 优化：极光是柔和渐变背景，内部分辨率按 DPR 上限 1.5 再乘 0.75 渲染，
+    // 由 CSS 放大到全屏。像素量约为原 1.5x 的 1/4（1x 屏幕）~ 56%（retina），
+    // 对流动渐变背景肉眼几乎无差，fragment 负载（本插件最大 GPU 开销）大幅下降。
+    var AURORA_SCALE = 0.75;
+    function auroraScale() { return Math.min(window.devicePixelRatio || 1, 1.5) * AURORA_SCALE; }
+    var k = auroraScale();
     function resizeAll() {
+      k = auroraScale(); // DPR 变化时保持 resize 判定与渲染一致，避免每帧重建纹理
       W = Math.round(canvas.clientWidth * k);
       H = Math.round(canvas.clientHeight * k);
       canvas.width = W; canvas.height = H;
@@ -1606,7 +2994,7 @@ function apply() {
       last = now - (now - last) % FRAME;
       var cfg = currentAuroraConfig();
 
-      var kk = Math.min(window.devicePixelRatio || 1, 1.5);
+      var kk = auroraScale();
       var w = Math.round(canvas.clientWidth * kk);
       var h = Math.round(canvas.clientHeight * kk);
       if (w !== W || h !== H) resizeAll();
@@ -1617,8 +3005,11 @@ function apply() {
       mouse.svy += ((mouse.y - mouse.smoothY) * 0.5 - mouse.svy) * cfg.mouseVelocity;
 
       // --- flowmap pass（鼠标笔刷 → 低分辨率流场，双缓冲乒乓） ---
+      // GPU 优化：无鼠标笔刷（Windows/触屏/reduced-motion）时流场恒为初始中性态
+      // （r=0, gb=0.5，没有笔刷输入其内容永不改变），整帧跳过该 pass，画面逐像素一致。
       var src = flip ? targetA : targetB;
       var dst = flip ? targetB : targetA;
+      if (useMouse) {
       flip = !flip;
       gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
       gl.viewport(0, 0, wQ, hQ);
@@ -1635,6 +3026,7 @@ function apply() {
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, W, H);
+      }
 
       // --- 渲染 ---
       var t = (performance.now() - start) * 0.001 * (cfg.speed / 100);
@@ -1972,9 +3364,9 @@ function apply() {
 
   function startWhale() {
     var canvas = whaleCanvas;
-    // premultipliedAlpha:true —— three.js WebGLRenderer 官方默认值，
-    // 与官网 R3F 渲染管线一致（gl: {alpha:true, antialias:true}）
-    var gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: true, antialias: true });
+    // GPU 优化：点精灵粒子不需要 MSAA，antialias:false 省掉全屏 MSAA resolve；
+    // low-power 提示驱动选择低功耗 GPU。渲染效果与原来一致（GL_POINTS 本来就不走多边形 AA）。
+    var gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: true, antialias: false, powerPreference: "low-power" });
     if (!gl) { canvas.dataset.state = "no-webgl2"; return; }
     diag.whaleGL = true;
     var img = new Image();
@@ -2073,9 +3465,12 @@ function apply() {
     var HALF_H = Math.tan(FOV / 2) * CAM_DIST; // viewport（z=0 平面）半高
     var view = m4Translation(0, 0, -15);
 
+    // GPU 优化：鲸鱼是柔光粒子层，1.25x 物理分辨率渲染（原 1.5x 上限），
+    // 像素量减少约 30%，屏幕混合的柔光粒子放大后无感知差异
+    var WHALE_DPR = 1.25;
     function resize() {
       var w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
-      var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      var dpr = WHALE_DPR;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -2090,7 +3485,7 @@ function apply() {
       last = now - (now - last) % FRAME;
 
       var w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
-      if (Math.round(w * Math.min(window.devicePixelRatio || 1, 1.5)) !== canvas.width) resize();
+      if (Math.round(w * WHALE_DPR) !== canvas.width) resize();
 
       var elapsed = (now - start) / 1000;
       var L = Math.max(0, Math.min(1, (elapsed - 0.3) / 2.5));
@@ -2176,7 +3571,9 @@ function apply() {
     if (!ctx) return;
     diag.constellation = true;
 
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // GPU 优化：细线星座网格的 2D canvas 上限 1.5x（原 2x），
+    // 填充像素量约减 44%；0.5px 线条在 1.5x 下仍为 0.75 物理像素，观感不变
+    var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     var dots = [], cols = 0, rows = 0;
     var mouse = { x: NaN, y: NaN };
     var raf = 0;
