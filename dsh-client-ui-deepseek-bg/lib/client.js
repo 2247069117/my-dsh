@@ -798,7 +798,7 @@ function apply() {
     } catch(e) {}
     return 16;
   }
-  var typingExtraCSS = `\n  /* Typing one-shot inward breathe (per key) */\n  [data-beam="dsh-composer"][data-typing][data-active]::after,\n  [data-beam="dsh-composer"][data-typing][data-active]::before,\n  [data-beam="dsh-composer"][data-typing][data-active] [data-beam-bloom] {\n    animation: beam-typing-shrink 1.1s ease-in-out infinite, beam-spin-dsh-composer 2.45s linear infinite, beam-hue-shift-dsh-composer 12s ease-in-out infinite !important;\n  }\n  @keyframes beam-typing-shrink {\n    0%, 100% { transform: scale(1); }\n    50% { transform: scale(0.985); }\n  }\n  [data-beam="dsh-composer"][data-typing][data-active] {\n    animation: beam-typing-shrink 1.1s ease-in-out infinite !important;\n  }\n`;
+  var typingExtraCSS = `\n  /* Typing one-shot inward breathe (per key, focus+keydown) */\n  [data-beam="dsh-composer"][data-typing][data-active]::after,\n  [data-beam="dsh-composer"][data-typing][data-active]::before,\n  [data-beam="dsh-composer"][data-typing][data-active] [data-beam-bloom] {\n    animation: beam-typing-breathe 0.4s ease-out !important;\n  }\n  @keyframes beam-typing-breathe {\n    0% { transform: scale(1); opacity: 1; }\n    50% { transform: scale(0.97); opacity: 0.9; }\n    100% { transform: scale(1); opacity: 1; }\n  }\n  [data-beam="dsh-composer"][data-typing][data-active] {\n    animation: beam-typing-breathe 0.4s ease-out !important;\n  }\n`;
   function ensureBeamStyles(borderRadius, variant) {
     var isDark = getBeamThemeIsDark();
     var r = typeof borderRadius === 'number' ? borderRadius : 16;
