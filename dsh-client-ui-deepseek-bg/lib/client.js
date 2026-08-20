@@ -539,9 +539,9 @@ function apply(ctx) {
    * ===================================================================== */
   var SETTINGS_KEY = "dsh-bg-settings";
   var PRESETS = {
-    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, auroraScale: 0.75, fps: 30, blur: 8 },
-    half: { label: "均衡", aurora: true, whale: false, constellation: true, beam: true, glass: true, orbs: true, auroraScale: 0.55, fps: 24, blur: 8 },
-    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: false, auroraScale: 0.4, fps: 20, blur: 6 }
+    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.75, fps: 30, blur: 8 },
+    half: { label: "均衡", aurora: true, whale: false, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 24, blur: 8 },
+    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: false, mouse: false, auroraScale: 0.4, fps: 20, blur: 6 }
   };
   var wakeConstellationRef = null;
   var shellGlassApplyRef = null; // 指向 makeShellTransparent 内部的玻璃应用函数（供设置切换即时重跑）
@@ -570,6 +570,7 @@ function apply(ctx) {
     if (s.aurora) score += 52 * Math.min(1.2, (s.auroraScale || 0.75) / 0.75);
     if (s.whale) score += 20;
     if (s.constellation) score += 9;
+    if (s.mouse) score += 4; // 极光 flowmap 笔刷 pass + 交互物理
     if (s.beam) score += 8;
     if (s.glass) score += 9 * Math.min(1.6, (s.blur || 8) / 8);
     if (s.orbs) score += 2;
@@ -580,7 +581,7 @@ function apply(ctx) {
     return {
       mode: bgSettings.mode,
       aurora: !!bgSettings.aurora, whale: !!bgSettings.whale, constellation: !!bgSettings.constellation,
-      beam: !!bgSettings.beam, glass: !!bgSettings.glass, orbs: !!bgSettings.orbs,
+      beam: !!bgSettings.beam, glass: !!bgSettings.glass, orbs: !!bgSettings.orbs, mouse: !!bgSettings.mouse,
       auroraScale: bgSettings.auroraScale, fps: bgSettings.fps, blur: bgSettings.blur,
       autoBattery: !!bgSettings.autoBattery,
       gpu: estimateGpu(),
@@ -725,6 +726,7 @@ function apply(ctx) {
       { key: "aurora", title: "极光背景", desc: "WebGL2 流体渐变，本插件最大 GPU 开销", level: "high" },
       { key: "whale", title: "粒子鲸鱼", desc: "全屏 WebGL2 点阵粒子，光线跟随鼠标", level: "mid" },
       { key: "constellation", title: "星座网格", desc: "2D 网格，鼠标斥力弹簧物理", level: "low" },
+      { key: "mouse", title: "鼠标跟随交互", desc: "极光笔刷流场 / 鲸鱼光线与粒子扭曲 / 星座斥力", level: "low" },
       { key: "beam", title: "Border Beam 光效", desc: "输入框边界旋转光晕与打字呼吸", level: "mid" },
       { key: "glass", title: "玻璃拟态", desc: "侧边栏/气泡/代码块的 backdrop blur", level: "mid" },
       { key: "orbs", title: "Thinking Orbs", desc: "状态栏 3D 点阵活动指示器", level: "low" }
@@ -3314,13 +3316,15 @@ function apply(ctx) {
     resizeAll();
 
     var mouse = { x: 0.5, y: 0.5, smoothX: 0.5, smoothY: 0.5, vx: 0, vy: 0, svx: 0, svy: 0 };
-    var useMouse = !reducedMotion && !coarse && !isWindows;
+    // 鼠标笔刷/光线跟随：由设置面板「鼠标跟随交互」开关实时控制（每帧判定）
+    function auroraMouseEnabled() { return !reducedMotion && !coarse && !isWindows && bgSettings.mouse; }
     function onMove(e) {
       var r = canvas.getBoundingClientRect();
       mouse.x = (e.clientX - r.left) / r.width;
       mouse.y = 1 - (e.clientY - r.top) / r.height;
     }
-    if (useMouse) window.addEventListener("mousemove", onMove, { passive: true });
+    // 监听常驻（一个 passive listener 成本可忽略），是否生效由 auroraMouseEnabled 逐帧决定
+    window.addEventListener("mousemove", onMove, { passive: true });
 
     var start = performance.now();
     var raf = 0;
@@ -3363,7 +3367,7 @@ function apply(ctx) {
       // （r=0, gb=0.5，没有笔刷输入其内容永不改变），整帧跳过该 pass，画面逐像素一致。
       var src = flip ? targetA : targetB;
       var dst = flip ? targetB : targetA;
-      if (useMouse) {
+      if (auroraMouseEnabled()) {
       flip = !flip;
       gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
       gl.viewport(0, 0, wQ, hQ);
@@ -3375,7 +3379,7 @@ function apply(ctx) {
       gl.uniform2f(uFlow.mouse, mouse.smoothX, mouse.smoothY);
       gl.uniform2f(uFlow.velocity, mouse.svx, mouse.svy);
       gl.uniform1f(uFlow.brushRadius, cfg.mouseRadius);
-      gl.uniform1f(uFlow.brushStrength, useMouse ? cfg.mouseStrength : 0);
+      gl.uniform1f(uFlow.brushStrength, auroraMouseEnabled() ? cfg.mouseStrength : 0);
       gl.uniform1f(uFlow.decay, cfg.decay);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -3398,7 +3402,7 @@ function apply(ctx) {
         gl.uniform1f(uFluid.distortBoost, cfg.distortBoost);
         gl.uniform1f(uFluid.swirlBoost, cfg.swirlBoost);
         var lx = cfg.lightX != null ? cfg.lightX : 0.89;
-        var lf = useMouse && cfg.lightFollow != null ? cfg.lightFollow : 0;
+        var lf = auroraMouseEnabled() && cfg.lightFollow != null ? cfg.lightFollow : 0;
         gl.uniform2f(uFluid.lightPos, lx + (mouse.smoothX - lx) * lf, cfg.lightY != null ? cfg.lightY : 0.46);
         gl.uniform1f(uFluid.lightCore, coarse ? 0 : (cfg.lightCore != null ? cfg.lightCore : 0.14));
         gl.uniform1f(uFluid.lightHalo, coarse ? 0 : (cfg.lightHalo != null ? cfg.lightHalo : 0.2));
@@ -3793,6 +3797,7 @@ function apply(ctx) {
     // 鼠标状态机（官方：mouseActive / mouseHasMoved）
     var mouse = { x: 0, y: 0, active: false, hasMoved: false };
     function onMove(e) {
+      if (!bgSettings.mouse) return; // 设置面板「鼠标跟随交互」关闭时忽略
       mouse.active = true;
       mouse.hasMoved = true;
       var w = window.innerWidth || 1, h = window.innerHeight || 1;
@@ -3869,13 +3874,13 @@ function apply(ctx) {
       gl.uniform1f(u.uScatter, 0);
       gl.uniform1f(u.uMouseRadius, MOUSE_DEFAULTS.radius);
       gl.uniform1f(u.uMouseDistort, MOUSE_DEFAULTS.distort);
-      // 鼠标强度：官方以 (1-0.05^dt) 插值
-      var target = mouse.active ? MOUSE_DEFAULTS.strength : 0;
+      // 鼠标强度：官方以 (1-0.05^dt) 插值；设置面板关闭时恒为 0
+      var target = (mouse.active && bgSettings.mouse) ? MOUSE_DEFAULTS.strength : 0;
       strength += (target - strength) * (1 - Math.pow(0.05, dt));
       gl.uniform1f(u.uMouseStrength, strength);
-      // 光线：官方 lightParams.followX —— light.x 跟随鼠标世界坐标
+      // 光线：官方 lightParams.followX —— light.x 跟随鼠标世界坐标（关闭时固定）
       var halfW = HALF_H * aspect;
-      gl.uniform3f(u.uLightPos, LIGHT_DEFAULTS.x + mouse.x * halfW * LIGHT_DEFAULTS.followX, LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
+      gl.uniform3f(u.uLightPos, LIGHT_DEFAULTS.x + (bgSettings.mouse ? mouse.x : 0) * halfW * LIGHT_DEFAULTS.followX, LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
       gl.uniform1f(u.uLightRange, LIGHT_DEFAULTS.range);
       gl.uniform1f(u.uShadeMin, LIGHT_DEFAULTS.shadeMin);
       gl.uniform1f(u.uShadeMax, LIGHT_DEFAULTS.shadeMax);
@@ -3960,6 +3965,7 @@ function apply(ctx) {
     resize();
 
     function onMove(e) {
+      if (!bgSettings.mouse) return; // 设置面板「鼠标跟随交互」关闭时忽略（网格保持静止）
       var r = canvas.getBoundingClientRect();
       mouse.x = e.clientX - r.left;
       mouse.y = e.clientY - r.top;
@@ -4056,7 +4062,7 @@ function apply(ctx) {
         resize();
       }
 
-      var mx = mouse.x, my = mouse.y;
+      var mx = bgSettings.mouse ? mouse.x : NaN, my = bgSettings.mouse ? mouse.y : NaN;
       var maxSpeed = 0;
       for (var i = 0; i < dots.length; i++) {
         var p = dots[i];
