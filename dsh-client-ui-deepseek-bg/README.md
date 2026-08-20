@@ -1,6 +1,6 @@
 # dsh-client-ui-deepseek-bg
 
-DeepSeek 官网风格深色皮肤插件：**极光背景 + 粒子鲸鱼 + 星座网格**，以及**侧边栏 / 输入框 / 消息气泡 / 代码块**的玻璃拟态材质，**1.3.0 Border Beam 状态机**（`beam.jakubantalik.com` 移植，执行彩虹/Plan橙黄，打字内缩震动，`0.8x`）。
+DeepSeek 官网风格深色皮肤插件：**极光背景 + 粒子鲸鱼 + 星座网格**，以及**侧边栏 / 输入框 / 消息气泡 / 代码块**的玻璃拟态材质，**1.3.2 Border Beam 状态机**（`beam.jakubantalik.com` 移植，执行彩虹/Plan橙黄，打字内缩震动，`0.8x`）。
 
 - **深色/浅色**：极光与玻璃（仅深色）不变，输入框 `md` 全边框环绕：**执行**彩虹/`Plan`橙黄（`0.8x 2.45s`）仅**点箭头后**才转，打字为内缩震动（键盘触发）
 - 纯客户端插件，不需要改任何构建文件。
@@ -9,7 +9,7 @@ DeepSeek 官网风格深色皮肤插件：**极光背景 + 粒子鲸鱼 + 星座
 - 🐋 中央粒子化鲸鱼：光线跟随鼠标、粒子随光点亮、入场组装动画（官网 HeroDigitileR3F 同款实现）
 - 🌌 深蓝流体极光背景 + 白色星座网格（仅深色）
 - 🧊 侧边栏、底部输入框、你的消息气泡、助手输出的代码块：半透明磨砂玻璃（blur 12px + 官方 ds-glass 令牌，仅深色）
-- ✨ **Border Beam 状态机**：`hairline(空闲)` → `typing(键盘触发 内缩震动)` → `executing(彩虹2.45s)` / `planning(橙黄2.45s，仅Plan模式+执行)` → `pulse 0.8s` → `hairline`；`typing` 800ms无键回落
+- ✨ **Border Beam 状态机**：`hairline(空闲)` → `typing(键盘触发 内缩震动 mono)` → `executing(彩虹2.45s)` / `planning(橙黄8°静止 仅Plan+执行)` → `pulse 0.8s` → `hairline`
 
 ## 安装（约 1 分钟）
 

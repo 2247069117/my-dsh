@@ -404,7 +404,8 @@ function apply() {
     var bloomGradients = getLineBloomGradients(isDark, id);
     var hueAnim = "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
     var hueBloomAnim = "animation: beam-hue-shift-bloom-"+id+" 8s ease-in-out infinite;";
-    var hueKeyframes = "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}\n@keyframes beam-hue-shift-bloom-"+id+" {\n  0% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) + "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
+    var __hr = _hueRange;
+    var hueKeyframes = "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+__hr+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+__hr+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+__hr+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}\n@keyframes beam-hue-shift-bloom-"+id+" {\n  0% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) + "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
 
   var BEAM_DURATION = 2.45; // 0.8x (1.96/0.8) // md full border
   var BEAM_HUE_RANGE = 30;
@@ -426,19 +427,18 @@ function apply() {
       ]
     }
   };
-  function getColorGradients(isDark, id){ var pal=colorPalettes.colorful.border; return pal.map(function(c){ return 'radial-gradient(ellipse '+c.size+' at '+c.pos+', '+c.color+', transparent)'; }).join(',\n    '); }
-  function getInnerGradients(isDark, id){
-    var pal=colorPalettes.colorful.border;
+  function getColorGradients(variant, isDark, id){ var _v=variant||'colorful'; var pal=(colorPalettes[_v]||colorPalettes.colorful).border; return pal.map(function(c){ return 'radial-gradient(ellipse '+c.size+' at '+c.pos+', '+c.color+', transparent)'; }).join(',\n    '); }
+  function getInnerGradients(variant, isDark, id){ var _v=variant||'colorful';
+    var pal=(colorPalettes[_v]||colorPalettes.colorful).border; var baseOpacity = _v==='mono'?0.225:0.45;
     return pal.map(function(c){
-      var rgba=c.color.replace('rgb(','rgba(').replace(')',', 0.45)');
+      var rgba=c.color.replace('rgb(','rgba(').replace(')',', '+baseOpacity+')');
       var sz=c.size.split(' ').map(function(s){ return Math.round(parseInt(s)*0.9)+'px'; }).join(' ');
       return 'radial-gradient(ellipse '+sz+' at '+c.pos+', '+rgba+', transparent)';
     }).join(',\n    ');
   }
   function getBloomGradients(isDark, id){ return getColorGradients(isDark,id); }
-  // Override buildBeamCSS to use md full border (conic)
   var _origBuildBeamCSS = buildBeamCSS;
-  buildBeamCSS = function(id, borderRadius, isDark){
+  buildBeamCSS = function(id, borderRadius, isDark, variant){ variant = variant || 'colorful'; var _hueRange = variant==='sunset'?8:(variant==='mono'?0:30);
     var cfg = isDark ? BEAM_CFG_DARK : BEAM_CFG_LIGHT;
     var sat = isDark ? 1.2 : 1.5;
     var innerRadius = Math.max(0, borderRadius - 1);
@@ -448,8 +448,8 @@ function apply() {
     var whiteGrad = isDark
       ? "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 54%,\n        rgba(255, 255, 255, 0.1) 57%,\n        rgba(255, 255, 255, 0.3) 60%,\n        rgba(255, 255, 255, 0.6) 63%,\n        rgba(255, 255, 255, 0.75) 66%,\n        rgba(255, 255, 255, 0.6) 69%,\n        rgba(255, 255, 255, 0.3) 72%,\n        rgba(255, 255, 255, 0.1) 75%,\n        transparent 78%, transparent 100%\n      )"
       : "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 54%,\n        rgba(0, 0, 0, 0.08) 57%,\n        rgba(0, 0, 0, 0.2) 60%,\n        rgba(0, 0, 0, 0.4) 63%,\n        rgba(0, 0, 0, 0.55) 66%,\n        rgba(0, 0, 0, 0.4) 69%,\n        rgba(0, 0, 0, 0.2) 72%,\n        rgba(0, 0, 0, 0.08) 75%,\n        transparent 78%, transparent 100%\n      )";
-    var colorGrads = getColorGradients(isDark, id);
-    var innerGrads = getInnerGradients(isDark, id);
+    var colorGrads = getColorGradients(variant, isDark, id);
+    var innerGrads = getInnerGradients(variant, isDark, id);
     var bloomGrad = isDark
       ? "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 58%,\n        rgba(255, 255, 255, 0.03) 62%,\n        rgba(255, 255, 255, 0.08) 65%,\n        rgba(255, 255, 255, 0.2) 67%,\n        rgba(255, 255, 255, 0.45) 69%,\n        rgba(255, 255, 255, 0.85) 70%,\n        rgba(255, 255, 255, 0.85) 70.5%,\n        rgba(255, 255, 255, 0.45) 71.5%,\n        rgba(255, 255, 255, 0.2) 73%,\n        rgba(255, 255, 255, 0.08) 75%,\n        rgba(255, 255, 255, 0.03) 78%,\n        transparent 82%\n      )"
       : "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 58%,\n        rgba(0, 0, 0, 0.02) 62%,\n        rgba(0, 0, 0, 0.08) 65%,\n        rgba(0, 0, 0, 0.2) 67%,\n        rgba(0, 0, 0, 0.4) 69%,\n        rgba(0, 0, 0, 0.6) 70%,\n        rgba(0, 0, 0, 0.6) 70.5%,\n        rgba(0, 0, 0, 0.4) 71.5%,\n        rgba(0, 0, 0, 0.2) 73%,\n        rgba(0, 0, 0, 0.08) 75%,\n        rgba(0, 0, 0, 0.02) 78%,\n        transparent 82%\n      )";
@@ -739,12 +739,36 @@ function apply() {
   var typingActive = false;
   var typingTimer = null;
   var beamState = { mode: 'hairline', idleStrength: 0.65, focusStrength: 1.0, disabled: false };
-  // palette for state machine: extend colorPalettes to support mono/sunset for typing/planning
-  // Ensure colorPalettes has mono and sunset for md (add if missing)
+  // Ensure proper palettes for mono/sunset (use original warm/grey palettes, not random)
   if (typeof colorPalettes !== 'undefined' && !colorPalettes.mono) {
+    // Proper palettes from border-beam styles.ts
+    colorPalettes.mono = { border: [
+      { color: 'rgb(180, 180, 180)', pos: '33% -7.4%', size: '70px 40px' },
+      { color: 'rgb(140, 140, 140)', pos: '12% -5%', size: '60px 35px' },
+      { color: 'rgb(160, 160, 160)', pos: '2.1% 68.3%', size: '40px 70px' },
+      { color: 'rgb(130, 130, 130)', pos: '2.1% 68.3%', size: '20px 35px' },
+      { color: 'rgb(170, 170, 170)', pos: '74.4% 100%', size: '180px 32px' },
+      { color: 'rgb(150, 150, 150)', pos: '55% 100%', size: '85px 26px' },
+      { color: 'rgb(190, 190, 190)', pos: '93.9% 0%', size: '74px 32px' },
+      { color: 'rgb(145, 145, 145)', pos: '100% 27.1%', size: '26px 42px' },
+      { color: 'rgb(165, 165, 165)', pos: '100% 27.1%', size: '52px 48px' }
+    ] };
+    colorPalettes.sunset = { border: [
+      { color: 'rgb(255, 80, 50)', pos: '33% -7.4%', size: '70px 40px' },
+      { color: 'rgb(255, 160, 40)', pos: '12% -5%', size: '60px 35px' },
+      { color: 'rgb(255, 120, 60)', pos: '2.1% 68.3%', size: '40px 70px' },
+      { color: 'rgb(255, 200, 50)', pos: '2.1% 68.3%', size: '20px 35px' },
+      { color: 'rgb(255, 100, 80)', pos: '74.4% 100%', size: '180px 32px' },
+      { color: 'rgb(255, 180, 60)', pos: '55% 100%', size: '85px 26px' },
+      { color: 'rgb(255, 60, 60)', pos: '93.9% 0%', size: '74px 32px' },
+      { color: 'rgb(255, 140, 50)', pos: '100% 27.1%', size: '26px 42px' },
+      { color: 'rgb(255, 90, 70)', pos: '100% 27.1%', size: '52px 48px' }
+    ] };
+    // Keep old fallback for ocean if needed
+  }
+  if (false) {
     // fallback minimal mono/sunset for md if not present (use greys / warm)
-    colorPalettes.mono = { border: colorPalettes.colorful.border.map(function(c){ return {color: 'rgb(180,180,180)', pos:c.pos, size:c.size}; }) };
-    colorPalettes.sunset = { border: colorPalettes.colorful.border.map(function(c){ var m=c.color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/); var r=m? (200+Math.random()*55|0):255; var g=m? (100+Math.random()*80|0):120; var b=m? 40:50; return {color:'rgb('+r+','+g+','+b+')', pos:c.pos, size:c.size}; }) };
+
   }
 
   function isBeamDisabled() {
@@ -768,7 +792,8 @@ function apply() {
   function ensureBeamStyles(borderRadius, variant) {
     var isDark = getBeamThemeIsDark();
     var r = typeof borderRadius === 'number' ? borderRadius : 16;
-    var css = buildBeamCSS(BEAM_ID, r, isDark) + typingExtraCSS;
+    var v = variant || 'colorful';
+    var css = buildBeamCSS(BEAM_ID, r, isDark, v) + typingExtraCSS;
     if (!beamStyleTag) {
       beamStyleTag = document.getElementById("dsh-beam-css");
       if (!beamStyleTag) {
@@ -855,24 +880,25 @@ function apply() {
       return;
     }
     if (mode === 'typing') {
-      // Inward shrinking vibration - pulse-like
+      // Inward shrinking vibration - more prominent mono
       card.setAttribute('data-beam', BEAM_ID);
       card.setAttribute('data-typing', '');
       card.setAttribute('data-active', '');
       card.removeAttribute('data-paused');
-      card.style.setProperty('--beam-strength', '0.35');
+      card.style.setProperty('--beam-strength', '0.55');
       // Use mono with shrinking animation (handled via extra CSS below)
       card.style.setProperty('--beam-hue-base', '0deg');
       return;
     }
     if (mode === 'planning') {
-      // Orange-yellow executing in plan mode (only when executing+plan)
+      // Orange-yellow prominent, not colorful - use sunset static warm
       card.setAttribute('data-beam', BEAM_ID);
       card.setAttribute('data-planning', '');
       card.setAttribute('data-active','');
       card.removeAttribute('data-paused');
-      card.style.setProperty('--beam-strength','0.9');
-      card.style.setProperty('--beam-hue-base','35deg'); // warm orange
+      card.style.setProperty('--beam-strength','1');
+      card.style.setProperty('--beam-hue-base','15deg');
+      card.style.setProperty('filter','saturate(1.4) brightness(1.2)'); // warm orange
       return;
     }
     if (mode === 'executing') {
