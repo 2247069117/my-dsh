@@ -736,6 +736,8 @@ function apply() {
   var pendingTimer = null;
   var beamPollTimer = null;
   var beamTypingHandler = null;
+  var typingActive = false;
+  var typingTimer = null;
   var beamState = { mode: 'hairline', idleStrength: 0.65, focusStrength: 1.0, disabled: false };
   // palette for state machine: extend colorPalettes to support mono/sunset for typing/planning
   // Ensure colorPalettes has mono and sunset for md (add if missing)
