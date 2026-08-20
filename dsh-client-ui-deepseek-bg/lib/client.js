@@ -452,8 +452,8 @@ function apply() {
     var colorGrads, innerGrads;
     if (variant==='sunset') {
       // Aggressive single orange-yellow conic for Plan
-      colorGrads = "conic-gradient(from var(--beam-angle-"+id+"), transparent 0%, transparent 45%, rgb(255, 160, 30) 50%, rgb(255, 200, 50) 55%, rgb(255, 120, 20) 60%, transparent 65%, transparent 100%)";
-      innerGrads = "conic-gradient(from var(--beam-angle-"+id+"), transparent 0%, transparent 45%, rgba(255, 160, 30, 0.5) 50%, rgba(255, 200, 50, 0.5) 55%, transparent 65%)";
+      colorGrads = "conic-gradient(from var(--beam-angle-"+id+"), transparent 0%, transparent 45%, rgb(255, 110, 0) 50%, rgb(255, 150, 0) 55%, rgb(255, 80, 0) 60%, transparent 65%, transparent 100%)";
+      innerGrads = "conic-gradient(from var(--beam-angle-"+id+"), transparent 0%, transparent 45%, rgba(255, 110, 0, 0.6) 50%, rgba(255, 150, 0, 0.5) 55%, transparent 65%)";
     } else {
       colorGrads = getColorGradients(variant, isDark, id);
       innerGrads = getInnerGradients(variant, isDark, id);
