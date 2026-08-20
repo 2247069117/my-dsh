@@ -584,7 +584,7 @@ function apply(ctx) {
     if (s.aurora) score += 52 * Math.min(1.2, (s.auroraScale || 0.75) / 0.75);
     if (s.whale) score += 20;
     if (s.constellation) score += 9;
-    if (s.mouse) score += 4; // 极光 flowmap 笔刷 pass + 交互物理
+    if (s.mouse) score += 1; // 光标交互物理（极光漫游笔刷始终在跑，成本几乎无差）
     if (s.beam) score += 8;
     if (s.glass) score += 9 * Math.min(1.6, (s.blur || 8) / 8);
     if (s.orbs) score += 2;
@@ -740,7 +740,7 @@ function apply(ctx) {
       { key: "aurora", title: "极光背景", desc: "WebGL2 流体渐变，本插件最大 GPU 开销", level: "high" },
       { key: "whale", title: "粒子鲸鱼", desc: "全屏 WebGL2 点阵粒子，光线跟随鼠标", level: "mid" },
       { key: "constellation", title: "星座网格", desc: "2D 网格，鼠标斥力弹簧物理", level: "low" },
-      { key: "mouse", title: "鼠标跟随交互", desc: "极光笔刷流场 / 鲸鱼光线与粒子扭曲 / 星座斥力", level: "low" },
+      { key: "mouse", title: "鼠标跟随交互", desc: "极光/鲸鱼/星座跟随光标互动；关闭后极光改为自主缓慢漂移，画面保持流动", level: "low" },
       { key: "beam", title: "Border Beam 光效", desc: "输入框边界旋转光晕与打字呼吸", level: "mid" },
       { key: "glass", title: "玻璃拟态", desc: "侧边栏/气泡/代码块的 backdrop blur", level: "mid" },
       { key: "orbs", title: "Thinking Orbs", desc: "状态栏 3D 点阵活动指示器", level: "low" }
@@ -3376,12 +3376,26 @@ function apply(ctx) {
       mouse.svx += ((mouse.x - mouse.smoothX) * 0.5 - mouse.svx) * cfg.mouseVelocity;
       mouse.svy += ((mouse.y - mouse.smoothY) * 0.5 - mouse.svy) * cfg.mouseVelocity;
 
-      // --- flowmap pass（鼠标笔刷 → 低分辨率流场，双缓冲乒乓） ---
-      // GPU 优化：无鼠标笔刷（Windows/触屏/reduced-motion）时流场恒为初始中性态
-      // （r=0, gb=0.5，没有笔刷输入其内容永不改变），整帧跳过该 pass，画面逐像素一致。
+      // --- 笔刷位置：跟随鼠标 或（关闭时）自主漂移 ---
+      // 鼠标跟随关闭时若直接停掉 flowmap，流场冻结、光线钉死，深色极光基底
+      // 极暗会看起来像"极光消失"——所以改为 Lissajous 漫游笔刷，极光保持流动感
+      var useM = auroraMouseEnabled();
+      var brushX = mouse.smoothX, brushY = mouse.smoothY;
+      var brushVX = mouse.svx, brushVY = mouse.svy;
+      var brushStrength = useM ? cfg.mouseStrength : cfg.mouseStrength * 0.28;
+      if (!useM) {
+        var driftT = (now - start) * 0.001;
+        var a1 = driftT * 0.09, b1 = driftT * 0.13;
+        brushX = 0.5 + 0.38 * Math.sin(a1);
+        brushY = 0.5 + 0.3 * Math.cos(b1);
+        var e1 = 0.1;
+        brushVX = (0.38 * (Math.sin(a1 + e1) - Math.sin(a1))) / e1;
+        brushVY = (0.3 * (Math.cos(b1 + e1) - Math.cos(b1))) / e1;
+      }
+
+      // --- flowmap pass（低分辨率流场，双缓冲乒乓；鼠标或漫游笔刷持续喂入） ---
       var src = flip ? targetA : targetB;
       var dst = flip ? targetB : targetA;
-      if (auroraMouseEnabled()) {
       flip = !flip;
       gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
       gl.viewport(0, 0, wQ, hQ);
@@ -3390,15 +3404,14 @@ function apply(ctx) {
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, src.tex);
       gl.uniform1i(uFlow.prev, 0);
-      gl.uniform2f(uFlow.mouse, mouse.smoothX, mouse.smoothY);
-      gl.uniform2f(uFlow.velocity, mouse.svx, mouse.svy);
+      gl.uniform2f(uFlow.mouse, brushX, brushY);
+      gl.uniform2f(uFlow.velocity, brushVX, brushVY);
       gl.uniform1f(uFlow.brushRadius, cfg.mouseRadius);
-      gl.uniform1f(uFlow.brushStrength, auroraMouseEnabled() ? cfg.mouseStrength : 0);
+      gl.uniform1f(uFlow.brushStrength, brushStrength);
       gl.uniform1f(uFlow.decay, cfg.decay);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, W, H);
-      }
 
       // --- 渲染 ---
       var t = (performance.now() - start) * 0.001 * (cfg.speed / 100);
@@ -3416,8 +3429,9 @@ function apply(ctx) {
         gl.uniform1f(uFluid.distortBoost, cfg.distortBoost);
         gl.uniform1f(uFluid.swirlBoost, cfg.swirlBoost);
         var lx = cfg.lightX != null ? cfg.lightX : 0.89;
-        var lf = auroraMouseEnabled() && cfg.lightFollow != null ? cfg.lightFollow : 0;
-        gl.uniform2f(uFluid.lightPos, lx + (mouse.smoothX - lx) * lf, cfg.lightY != null ? cfg.lightY : 0.46);
+        // 光线跟随笔刷（鼠标或漫游点）；关闭鼠标跟随时用略低的跟随系数让光更缓
+        var lf = cfg.lightFollow != null ? cfg.lightFollow * (auroraMouseEnabled() ? 1 : 0.85) : 0;
+        gl.uniform2f(uFluid.lightPos, lx + (brushX - lx) * lf, cfg.lightY != null ? cfg.lightY : 0.46);
         gl.uniform1f(uFluid.lightCore, coarse ? 0 : (cfg.lightCore != null ? cfg.lightCore : 0.14));
         gl.uniform1f(uFluid.lightHalo, coarse ? 0 : (cfg.lightHalo != null ? cfg.lightHalo : 0.2));
         gl.uniform1f(uFluid.vignette, cfg.vignette != null ? cfg.vignette : 0.38);
