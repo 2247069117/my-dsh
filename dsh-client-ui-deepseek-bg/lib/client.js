@@ -540,9 +540,9 @@ function apply(ctx) {
   var SETTINGS_KEY = "dsh-bg-settings";
   var PRESETS = {
     // 全特效：极光分辨率与玻璃模糊全部拉满（滑杆上限 1.0x / 12px）
-    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 1, fps: 30, blur: 12 },
-    half: { label: "均衡", aurora: true, whale: false, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 24, blur: 8 },
-    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: false, mouse: false, auroraScale: 0.4, fps: 20, blur: 6 }
+    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 1, fps: 30, blur: 12, followMs: 20, lightFollow: 1 },
+    half: { label: "均衡", aurora: true, whale: false, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 24, blur: 8, followMs: 20, lightFollow: 1 },
+    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: false, mouse: false, auroraScale: 0.4, fps: 20, blur: 6, followMs: 20, lightFollow: 1 }
   };
   var wakeConstellationRef = null;
   var shellGlassApplyRef = null; // 指向 makeShellTransparent 内部的玻璃应用函数（供设置切换即时重跑）
@@ -597,6 +597,8 @@ function apply(ctx) {
       aurora: !!bgSettings.aurora, whale: !!bgSettings.whale, constellation: !!bgSettings.constellation,
       beam: !!bgSettings.beam, glass: !!bgSettings.glass, orbs: !!bgSettings.orbs, mouse: !!bgSettings.mouse,
       auroraScale: bgSettings.auroraScale, fps: bgSettings.fps, blur: bgSettings.blur,
+      followMs: bgSettings.followMs != null ? bgSettings.followMs : 20,
+      lightFollow: bgSettings.lightFollow != null ? bgSettings.lightFollow : 1,
       autoBattery: !!bgSettings.autoBattery,
       gpu: estimateGpu(),
       canvasW: auroraCanvas ? auroraCanvas.width : 0,
@@ -813,6 +815,18 @@ function apply(ctx) {
             h("option", { value: 8 }, "8 px"),
             h("option", { value: 10 }, "10 px"),
             h("option", { value: 12 }, "12 px（最通透）"))),
+        h("div", { className: "dsh-bg-adv-row" },
+          h("span", null, "跟手灵敏度",
+            h("div", { style: { fontSize: 11, opacity: 0.6 } }, "平滑时间常数：越小越贴手，越大越绵柔（建议 5–40ms）")),
+          h("input", { type: "range", className: "dsh-bg-slider", min: 5, max: 120, step: 5, value: snap.followMs,
+            onChange: function (e) { updateSetting("followMs", parseInt(e.target.value, 10)); } }),
+          h("span", { style: { width: 52, textAlign: "right", fontSize: 12, opacity: 0.75 } }, snap.followMs + "ms")),
+        h("div", { className: "dsh-bg-adv-row" },
+          h("span", null, "光线跟随强度",
+            h("div", { style: { fontSize: 11, opacity: 0.6 } }, "0% 固定不动，100% 完全贴住光标")),
+          h("input", { type: "range", className: "dsh-bg-slider", min: 0, max: 100, step: 5, value: Math.round(snap.lightFollow * 100),
+            onChange: function (e) { updateSetting("lightFollow", parseInt(e.target.value, 10) / 100); } }),
+          h("span", { style: { width: 52, textAlign: "right", fontSize: 12, opacity: 0.75 } }, Math.round(snap.lightFollow * 100) + "%")),
         h("div", { className: "dsh-bg-adv-row" },
           h("div", { style: { flex: 1 } },
             h("div", { style: { fontSize: 13 } }, "低电量自动节能"),
@@ -3401,12 +3415,14 @@ function apply(ctx) {
       if (now - lastFlow >= 1000 / flowHz) {
         var fdt = Math.min(0.25, (now - lastFlow) / 1000);
         lastFlow = now - (now - lastFlow) % (1000 / flowHz);
-        // 帧率无关临界阻尼平滑：时间常数 ~20ms —— 无输入滞后、滤掉事件抖动
-        var kp = 1 - Math.exp(-fdt / 0.02);
+        // 帧率无关临界阻尼平滑：时间常数由「跟手灵敏度」控制（默认 20ms）
+        // —— 越小越贴手、滤掉事件抖动，越大越绵柔
+        var followTau = (bgSettings.followMs != null ? bgSettings.followMs : 20) / 1000;
+        var kp = 1 - Math.exp(-fdt / followTau);
         mouse.smoothX += ((useM ? mouse.x : driftX) - mouse.smoothX) * kp;
         mouse.smoothY += ((useM ? mouse.y : driftY) - mouse.smoothY) * kp;
-        // 速度平滑：时间常数 ~80ms，拖尾方向稳定不抖
-        var kv = 1 - Math.exp(-fdt / 0.08);
+        // 速度平滑：时间常数为跟手灵敏度的 4 倍（默认 80ms），拖尾方向稳定不抖
+        var kv = 1 - Math.exp(-fdt / (followTau * 4));
         mouse.svx += (mouse.rawVX - mouse.svx) * kv;
         mouse.svy += (mouse.rawVY - mouse.svy) * kv;
 
@@ -3459,8 +3475,8 @@ function apply(ctx) {
         gl.uniform1f(uFluid.distortBoost, cfg.distortBoost);
         gl.uniform1f(uFluid.swirlBoost, cfg.swirlBoost);
         var lx = cfg.lightX != null ? cfg.lightX : 0.89;
-        // 光线跟随已平滑的笔刷位置（smoothX 时间常数 20ms），跟手即时
-        var lf = cfg.lightFollow != null ? cfg.lightFollow * (useM ? 1 : 0.85) : 0;
+        // 光线跟随：官方 lightFollow 系数 × 设置面板「光线跟随强度」（默认 100%）
+        var lf = cfg.lightFollow != null ? cfg.lightFollow * (bgSettings.lightFollow != null ? bgSettings.lightFollow : 1) * (useM ? 1 : 0.85) : 0;
         gl.uniform2f(uFluid.lightPos, lx + (mouse.smoothX - lx) * lf, cfg.lightY != null ? cfg.lightY : 0.46);
         gl.uniform1f(uFluid.lightCore, coarse ? 0 : (cfg.lightCore != null ? cfg.lightCore : 0.14));
         gl.uniform1f(uFluid.lightHalo, coarse ? 0 : (cfg.lightHalo != null ? cfg.lightHalo : 0.2));
@@ -3939,12 +3955,13 @@ function apply(ctx) {
       strength += (target - strength) * (1 - Math.pow(0.05, dt));
       gl.uniform1f(u.uMouseStrength, strength);
       // 光线：官方 lightParams.followX —— light.x 跟随鼠标世界坐标（关闭时固定）；
-      // 屏幕坐标先做帧率无关指数平滑（时间常数 ~40ms），消除事件抖动又不拖后腿
-      var wk = 1 - Math.exp(-dt / 0.04);
+      // 屏幕坐标先做帧率无关指数平滑（时间常数为跟手灵敏度的 2 倍，默认 40ms），
+      // 强度由「光线跟随强度」控制，消除事件抖动又不拖后腿
+      var wk = 1 - Math.exp(-dt / ((bgSettings.followMs != null ? bgSettings.followMs : 20) * 2 / 1000));
       wSX += ((bgSettings.mouse ? mouse.x : 0) - wSX) * wk;
       wSY += ((bgSettings.mouse ? mouse.y : 0) - wSY) * wk;
       var halfW = HALF_H * aspect;
-      gl.uniform3f(u.uLightPos, LIGHT_DEFAULTS.x + wSX * halfW * LIGHT_DEFAULTS.followX, LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
+      gl.uniform3f(u.uLightPos, LIGHT_DEFAULTS.x + wSX * halfW * LIGHT_DEFAULTS.followX * (bgSettings.lightFollow != null ? bgSettings.lightFollow : 1), LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
       gl.uniform1f(u.uLightRange, LIGHT_DEFAULTS.range);
       gl.uniform1f(u.uShadeMin, LIGHT_DEFAULTS.shadeMin);
       gl.uniform1f(u.uShadeMax, LIGHT_DEFAULTS.shadeMax);
