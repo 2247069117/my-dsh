@@ -8,6 +8,9 @@ window.__ModuleLoader__.load({
     var module = { exports: {} };
     var exports = module.exports;
     Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+    // 设置页面板需要 React（平台 seed 模块）；拿不到就跳过设置 UI，不影响背景效果
+    var react = null;
+    try { react = require("react"); } catch (e) {}
     if (document.getElementById("dsh-deepseek-bg-css") === null) {
       var styleTag = document.createElement("style");
       styleTag.id = "dsh-deepseek-bg-css";
@@ -147,9 +150,9 @@ body[data-ds-dark-theme] .pI_x6G_sidebarCol::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* GPU 优化：全高侧边栏 blur 12→8，其后是平滑极光渐变，观感无差 */
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* GPU 优化：全高侧边栏 blur 跟随设置面板（--dsh-bg-blur，默认 8px） */
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px));
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px));
 }
 
 /* 侧边栏内容根：不再叠不透明底色。
@@ -167,9 +170,9 @@ body[data-ds-dark-theme] [data-slot="sidebar"] > div {
 body[data-ds-dark-theme] .uV2eYG_card,
 body[data-ds-dark-theme] [data-composer-card="true"] {
   background: rgba(13, 15, 19, 0.55) !important;
-  /* GPU 优化：输入卡片背后有滚动文字，模糊最可见，保留 10px（原 12px） */
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
+  /* GPU 优化：输入卡片背后有滚动文字，模糊最可见；强度跟随设置面板 */
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   border-color: hsla(0, 0%, 100%, 0.08) !important;
   box-shadow: 0 0 1px 0 rgba(0, 0, 0, 0.2), 0 0 4px 0 rgba(0, 0, 0, 0.02), 0 12px 32px 0 rgba(0, 0, 0, 0.08) !important;
 }
@@ -192,9 +195,9 @@ body[data-ds-dark-theme] .qDHVXG_fade {
 /* 用户消息气泡 */
 body[data-ds-dark-theme] .gdEzaW_bubble {
   background: rgba(13, 15, 19, 0.55) !important;
-  /* GPU 优化：气泡数量多且背后是平滑极光，8px 与 12px 观感无差 */
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  /* GPU 优化：气泡数量多且背后是平滑极光；强度跟随设置面板 */
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
 }
 
@@ -209,9 +212,9 @@ body[data-ds-dark-theme] ._body_1ye18_20,
 body[data-ds-dark-theme] ._copyButton_10eou_142,
 body[data-ds-dark-theme] ._bannerWrap_178r4_21 {
   background: rgba(13, 15, 19, 0.55) !important;
-  /* GPU 优化：代码块数量多，8px 与 12px 观感无差 */
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  /* GPU 优化：代码块数量多；强度跟随设置面板 */
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
 }
 
@@ -243,9 +246,9 @@ body[data-ds-dark-theme] .CY-8Ka_terminal,
 body[data-ds-dark-theme] .CY-8Ka_ioCard,
 body[data-ds-dark-theme] .o3BgMG_ioCard {
   background: rgba(13, 15, 19, 0.65) !important;
-  /* GPU 优化：终端/输出卡片 8px */
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  /* GPU 优化：终端/输出卡片，强度跟随设置面板 */
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   border: 1px solid hsla(0, 0%, 100%, 0.08) !important;
   border-radius: 10px !important;
   box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.06), 0 4px 16px rgba(0, 0, 0, 0.25) !important;
@@ -333,8 +336,8 @@ body[data-ds-dark-theme] .Md3f7G_turnStatus[data-planning] {
 body[data-ds-dark-theme] .LVzXQa_card,
 body[data-ds-dark-theme] [data-slot="plan-review"] > div {
   background: rgba(13, 15, 19, 0.68) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   border: 1px solid rgba(255, 150, 40, 0.25) !important;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 150, 40, 0.15) !important;
 }
@@ -351,8 +354,8 @@ body[data-ds-dark-theme] .LVzXQa_dot {
 body[data-ds-dark-theme] ._7yHdaG_panel,
 body[data-ds-dark-theme] [data-slot="conversation.input.dock"] ._7yHdaG_panel {
   background: rgba(13, 15, 19, 0.65) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   border: 1px solid hsla(0, 0%, 100%, 0.08) !important;
   border-bottom: none !important;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25) !important;
@@ -368,8 +371,8 @@ body[data-ds-dark-theme] ._7yHdaG_row:hover {
 body[data-ds-dark-theme] .Mbwy4a_card,
 body[data-ds-dark-theme] [data-slot="user-questions"] > div {
   background: rgba(13, 15, 19, 0.68) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   border: 1px solid hsla(0, 0%, 100%, 0.1) !important;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
 }
@@ -378,8 +381,8 @@ body[data-ds-dark-theme] [data-slot="user-questions"] > div {
 body[data-ds-dark-theme] .VOzbGW_panel,
 body[data-ds-dark-theme] [data-slot="approval"] > div {
   background: rgba(13, 15, 19, 0.75) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   border: 1px solid hsla(0, 0%, 100%, 0.1) !important;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
   border-radius: 16px !important;
@@ -406,6 +409,38 @@ body[data-ds-dark-theme] .uV2eYG_card[data-planning] .uV2eYG_primary {
   box-shadow: 0 2px 12px rgba(255, 90, 54, 0.45) !important;
 }
 
+/* ============ 玻璃开关（body.dsh-bg-no-glass）：移除 backdrop blur，垫实底色保可读性 ============ */
+body[data-ds-dark-theme].dsh-bg-no-glass .pI_x6G_sidebarCol::before {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important;
+}
+body[data-ds-dark-theme].dsh-bg-no-glass .pI_x6G_sidebarCol {
+  background: rgba(13, 15, 19, 0.92) !important;
+}
+body[data-ds-dark-theme].dsh-bg-no-glass .uV2eYG_card,
+body[data-ds-dark-theme].dsh-bg-no-glass [data-composer-card="true"],
+body[data-ds-dark-theme].dsh-bg-no-glass .gdEzaW_bubble,
+body[data-ds-dark-theme].dsh-bg-no-glass ._block_10eou_7,
+body[data-ds-dark-theme].dsh-bg-no-glass ._block_biesw_7,
+body[data-ds-dark-theme].dsh-bg-no-glass ._block_srovd_7,
+body[data-ds-dark-theme].dsh-bg-no-glass ._block_s66q0_7,
+body[data-ds-dark-theme].dsh-bg-no-glass ._block_178r4_4,
+body[data-ds-dark-theme].dsh-bg-no-glass ._block_d4nqi_7,
+body[data-ds-dark-theme].dsh-bg-no-glass ._body_1ye18_20,
+body[data-ds-dark-theme].dsh-bg-no-glass ._copyButton_10eou_142,
+body[data-ds-dark-theme].dsh-bg-no-glass ._bannerWrap_178r4_21,
+body[data-ds-dark-theme].dsh-bg-no-glass .LVzXQa_card,
+body[data-ds-dark-theme].dsh-bg-no-glass .Mbwy4a_card,
+body[data-ds-dark-theme].dsh-bg-no-glass ._7yHdaG_panel,
+body[data-ds-dark-theme].dsh-bg-no-glass .VOzbGW_panel,
+body[data-ds-dark-theme].dsh-bg-no-glass .CY-8Ka_ioCard,
+body[data-ds-dark-theme].dsh-bg-no-glass .o3BgMG_ioCard {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(13, 15, 19, 0.92) !important;
+}
+
 
 `;
       document.head.appendChild(styleTag);
@@ -426,7 +461,7 @@ body[data-ds-dark-theme] .uV2eYG_card[data-planning] .uV2eYG_primary {
  *  - 触屏设备跳过星座网格；prefers-reduced-motion 时渲染单帧静态
  *  - Windows 平台不做鼠标流体笔刷（与官方一致）
  */
-function apply() {
+function apply(ctx) {
   "use strict";
   if (window.__dshDeepSeekBg && window.__dshDeepSeekBg._inited) return;
   if (typeof window.__dshDeepSeekBg !== 'object' || window.__dshDeepSeekBg === null) window.__dshDeepSeekBg = {};
@@ -496,6 +531,303 @@ function apply() {
   var state = { dark: detectDark() };
   function currentAuroraConfig() { return state.dark ? DARK_AURORA : LIGHT_AURORA; }
   function currentConstellation() { return state.dark ? DARK_CONSTELLATION : LIGHT_CONSTELLATION; }
+
+  /* ===================================================================== *
+   * GPU 特效设置（设置页「背景特效」面板 + 运行时联动）
+   *   档位预设 → 独立开关（自动转自定义）→ 高级参数 → 低电量自动节能
+   *   全部即时生效、localStorage 持久化（dsh-bg-settings）
+   * ===================================================================== */
+  var SETTINGS_KEY = "dsh-bg-settings";
+  var PRESETS = {
+    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, auroraScale: 0.75, fps: 30, blur: 8 },
+    half: { label: "均衡", aurora: true, whale: false, constellation: true, beam: true, glass: true, orbs: true, auroraScale: 0.55, fps: 24, blur: 8 },
+    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: false, auroraScale: 0.4, fps: 20, blur: 6 }
+  };
+  var wakeConstellationRef = null;
+  var shellGlassApplyRef = null; // 指向 makeShellTransparent 内部的玻璃应用函数（供设置切换即时重跑）
+  var batteryState = null;
+  var batteryLowApplied = false;
+  var lastManualMode = null;
+
+  function loadSettings() {
+    var d = { mode: "full", autoBattery: false };
+    var base = PRESETS.full;
+    for (var k in base) if (k !== "label") d[k] = base[k];
+    try {
+      var raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        for (var k2 in parsed) if (Object.prototype.hasOwnProperty.call(parsed, k2)) d[k2] = parsed[k2];
+      }
+    } catch (e) {}
+    return d;
+  }
+  var bgSettings = loadSettings();
+
+  function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(bgSettings)); } catch (e) {} }
+  function estimateGpu() {
+    var s = bgSettings, score = 0;
+    if (s.aurora) score += 52 * Math.min(1.2, (s.auroraScale || 0.75) / 0.75);
+    if (s.whale) score += 20;
+    if (s.constellation) score += 9;
+    if (s.beam) score += 8;
+    if (s.glass) score += 9 * Math.min(1.6, (s.blur || 8) / 8);
+    if (s.orbs) score += 2;
+    score *= ((s.fps || 30) / 30);
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+  function snapshotSettings() {
+    return {
+      mode: bgSettings.mode,
+      aurora: !!bgSettings.aurora, whale: !!bgSettings.whale, constellation: !!bgSettings.constellation,
+      beam: !!bgSettings.beam, glass: !!bgSettings.glass, orbs: !!bgSettings.orbs,
+      auroraScale: bgSettings.auroraScale, fps: bgSettings.fps, blur: bgSettings.blur,
+      autoBattery: !!bgSettings.autoBattery,
+      gpu: estimateGpu(),
+      canvasW: auroraCanvas ? auroraCanvas.width : 0,
+      canvasH: auroraCanvas ? auroraCanvas.height : 0
+    };
+  }
+  var settingsListeners = [];
+  function notifySettings() { for (var i = 0; i < settingsListeners.length; i++) { try { settingsListeners[i](); } catch (e) {} } }
+  function subscribeSettings(fn) {
+    settingsListeners.push(fn);
+    return function () { var i = settingsListeners.indexOf(fn); if (i >= 0) settingsListeners.splice(i, 1); };
+  }
+  function applyPreset(mode) {
+    var p = PRESETS[mode]; if (!p) return;
+    for (var k in p) if (k !== "label") bgSettings[k] = p[k];
+    bgSettings.mode = mode;
+    commitSettings();
+  }
+  function updateSetting(key, value) { bgSettings[key] = value; bgSettings.mode = "custom"; commitSettings(); }
+  function resetSettings() { applyPreset("full"); bgSettings.autoBattery = false; commitSettings(); }
+  function commitSettings() { saveSettings(); applyBgSettings(); notifySettings(); }
+
+  /** 鲸鱼层显隐：深色主题 + 设置开关 双重条件 */
+  function updateWhaleDisplay() {
+    if (!whaleLayer) return;
+    whaleLayer.style.display = (state.dark && bgSettings.whale) ? "flex" : "none";
+  }
+
+  /** 把每个子系统立即切换到当前设置 */
+  function applyBgSettings() {
+    try { document.body.classList.toggle("dsh-bg-no-glass", !bgSettings.glass); } catch (e) {}
+    try { updateWhaleDisplay(); } catch (e) {}
+    try {
+      if (bgSettings.beam) watchBeamComposer();
+      else detachComposerBeam();
+    } catch (e) {}
+    try { if (shellGlassApplyRef) shellGlassApplyRef(); } catch (e) {} // 玻璃内联样式按开关重跑一次（轮询由 makeShellTransparent 持有）
+    try { syncThinkingOrb(); } catch (e) {}
+    try { if (bgSettings.constellation && wakeConstellationRef) wakeConstellationRef(); } catch (e) {}
+    if (bgSettings.autoBattery) { try { initBatteryAuto(); } catch (e) {} }
+    else { try { disableBatteryAuto(); } catch (e) {} }
+  }
+
+  /* ---- 低电量自动节能（Battery API，不支持则静默跳过） ---- */
+  function initBatteryAuto() {
+    if (batteryState || !navigator.getBattery) return;
+    navigator.getBattery().then(function (b) {
+      if (!bgSettings.autoBattery) return;
+      var onB = function () {
+        var low = !b.charging && b.level <= 0.2;
+        if (low && !batteryLowApplied) {
+          if (bgSettings.mode !== "eco") lastManualMode = bgSettings.mode;
+          batteryLowApplied = true;
+          applyPreset("eco");
+        } else if (!low && batteryLowApplied) {
+          batteryLowApplied = false;
+          if (lastManualMode && PRESETS[lastManualMode]) { applyPreset(lastManualMode); lastManualMode = null; }
+        }
+      };
+      batteryState = { b: b, onB: onB };
+      try {
+        b.addEventListener("levelchange", onB);
+        b.addEventListener("chargingchange", onB);
+      } catch (e) {}
+      onB();
+    }).catch(function () {});
+  }
+  function disableBatteryAuto() {
+    if (!batteryState) return;
+    try {
+      batteryState.b.removeEventListener("levelchange", batteryState.onB);
+      batteryState.b.removeEventListener("chargingchange", batteryState.onB);
+    } catch (e) {}
+    batteryState = null;
+  }
+
+  /* ---- 设置页「背景特效」面板 ---- */
+  var SETTINGS_UI_CSS = [
+    ".dsh-bg-settings{display:flex;flex-direction:column;gap:14px;max-width:560px;padding-bottom:28px;}",
+    ".dsh-bg-settings h3{margin:0;font-size:15px;font-weight:600;line-height:22px;}",
+    ".dsh-bg-card{border:1px solid rgba(128,128,128,.22);border-radius:12px;padding:12px 14px;background:rgba(128,128,128,.06);}",
+    ".dsh-bg-presets{display:flex;gap:8px;}",
+    ".dsh-bg-preset{flex:1;cursor:pointer;border:1px solid rgba(128,128,128,.25);background:transparent;color:inherit;border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;text-align:left;transition:border-color .15s,background .15s;}",
+    ".dsh-bg-preset:hover{background:rgba(128,128,128,.1);}",
+    ".dsh-bg-preset[data-active=\"true\"]{border-color:#4d8bf5;color:#6ea8ff;background:rgba(77,139,245,.12);}",
+    ".dsh-bg-meter{height:8px;border-radius:4px;background:rgba(128,128,128,.18);overflow:hidden;}",
+    ".dsh-bg-meter>div{height:100%;border-radius:4px;transition:width .25s ease,background .25s ease;}",
+    ".dsh-bg-meter-label{display:flex;justify-content:space-between;font-size:12px;opacity:.75;margin-bottom:6px;}",
+    ".dsh-bg-row{display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid rgba(128,128,128,.12);}",
+    ".dsh-bg-row:last-child{border-bottom:none;}",
+    ".dsh-bg-row-info{flex:1;min-width:0;}",
+    ".dsh-bg-row-title{font-size:13px;font-weight:500;}",
+    ".dsh-bg-row-desc{font-size:12px;opacity:.65;margin-top:2px;}",
+    ".dsh-bg-chip{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid rgba(128,128,128,.3);opacity:.85;margin-left:8px;white-space:nowrap;}",
+    ".dsh-bg-chip[data-level=\"high\"]{color:#ff9d6b;border-color:rgba(255,140,80,.4);}",
+    ".dsh-bg-chip[data-level=\"mid\"]{color:#ffd166;border-color:rgba(255,200,90,.4);}",
+    ".dsh-bg-chip[data-level=\"low\"]{color:#7ee2a8;border-color:rgba(110,220,160,.4);}",
+    ".dsh-bg-switch{position:relative;width:36px;height:20px;flex:none;cursor:pointer;border-radius:999px;border:none;background:rgba(128,128,128,.3);transition:background .15s;padding:0;}",
+    ".dsh-bg-switch[aria-checked=\"true\"]{background:#4d8bf5;}",
+    ".dsh-bg-switch::after{content:\"\";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s ease;}",
+    ".dsh-bg-switch[aria-checked=\"true\"]::after{transform:translateX(16px);}",
+    ".dsh-bg-slider{width:100%;accent-color:#4d8bf5;}",
+    ".dsh-bg-select{background:transparent;color:inherit;border:1px solid rgba(128,128,128,.3);border-radius:8px;padding:4px 8px;font-size:12px;font-family:inherit;}",
+    ".dsh-bg-adv summary{cursor:pointer;font-size:13px;opacity:.8;user-select:none;}",
+    ".dsh-bg-adv-row{display:flex;align-items:center;gap:12px;padding:8px 0;font-size:13px;}",
+    ".dsh-bg-adv-row>span{flex:1;}",
+    ".dsh-bg-reset{cursor:pointer;border:1px solid rgba(128,128,128,.3);background:transparent;color:inherit;border-radius:10px;padding:7px 16px;font-size:13px;font-family:inherit;}",
+    ".dsh-bg-reset:hover{background:rgba(128,128,128,.1);}",
+    ".dsh-bg-note{font-size:11px;opacity:.55;line-height:1.5;}",
+    "@media (prefers-reduced-motion: reduce){.dsh-bg-meter>div{transition:none;}}"
+  ].join("\n");
+
+  function injectSettingsCss() {
+    try {
+      if (document.getElementById("dsh-bg-settings-css")) return;
+      var tag = document.createElement("style");
+      tag.id = "dsh-bg-settings-css";
+      tag.textContent = SETTINGS_UI_CSS;
+      document.head.appendChild(tag);
+    } catch (e) {}
+  }
+
+  function BgSettingsSection() {
+    var h = react.createElement;
+    var snapState = react.useState(snapshotSettings());
+    var snap = snapState[0];
+    var setSnap = snapState[1];
+    react.useEffect(function () {
+      return subscribeSettings(function () { setSnap(snapshotSettings()); });
+    }, []);
+    var gpu = snap.gpu;
+    var meterColor = gpu < 35 ? "#4ade80" : (gpu < 60 ? "#facc15" : "#fb7185");
+    var presetIds = ["full", "half", "eco"];
+    var presetNames = { full: "全特效", half: "均衡", eco: "节能" };
+    var presetDescs = {
+      full: "全部特效，观感最佳",
+      half: "保留极光/星座/玻璃，关闭鲸鱼与 Orbs",
+      eco: "仅保留玻璃与静态深色背景"
+    };
+    var rows = [
+      { key: "aurora", title: "极光背景", desc: "WebGL2 流体渐变，本插件最大 GPU 开销", level: "high" },
+      { key: "whale", title: "粒子鲸鱼", desc: "全屏 WebGL2 点阵粒子，光线跟随鼠标", level: "mid" },
+      { key: "constellation", title: "星座网格", desc: "2D 网格，鼠标斥力弹簧物理", level: "low" },
+      { key: "beam", title: "Border Beam 光效", desc: "输入框边界旋转光晕与打字呼吸", level: "mid" },
+      { key: "glass", title: "玻璃拟态", desc: "侧边栏/气泡/代码块的 backdrop blur", level: "mid" },
+      { key: "orbs", title: "Thinking Orbs", desc: "状态栏 3D 点阵活动指示器", level: "low" }
+    ];
+    var levelText = { high: "高", mid: "中", low: "低" };
+    function presetButtons() {
+      return presetIds.map(function (id) {
+        return h("button", {
+          key: id,
+          type: "button",
+          className: "dsh-bg-preset",
+          "data-active": snap.mode === id,
+          onClick: function () { applyPreset(id); }
+        },
+          h("div", { style: { fontWeight: 600, fontSize: 13 } }, presetNames[id]),
+          h("div", { style: { fontSize: 11, opacity: 0.65, marginTop: 3 } }, presetDescs[id]));
+      });
+    }
+    function switchBtn(key) {
+      return h("button", {
+        type: "button",
+        className: "dsh-bg-switch",
+        role: "switch",
+        "aria-checked": snap[key] ? "true" : "false",
+        "aria-label": "开关",
+        onClick: function () { updateSetting(key, !snap[key]); }
+      });
+    }
+    function rowEl(row) {
+      return h("div", { key: row.key, className: "dsh-bg-row" },
+        h("div", { className: "dsh-bg-row-info" },
+          h("div", { className: "dsh-bg-row-title" }, row.title,
+            h("span", { className: "dsh-bg-chip", "data-level": row.level }, levelText[row.level] + "负载")),
+          h("div", { className: "dsh-bg-row-desc" }, row.desc)),
+        switchBtn(row.key));
+    }
+    return h("div", { className: "dsh-bg-settings" },
+      h("h3", null, "DeepSeek 背景特效"),
+      h("div", { className: "dsh-bg-card" },
+        h("div", { style: { fontSize: 13, fontWeight: 500, marginBottom: 8 } }, "性能档位"),
+        h("div", { className: "dsh-bg-presets" }, presetButtons()),
+        h("div", { className: "dsh-bg-meter-label", style: { marginTop: 12 } },
+          h("span", null, "估算 GPU 负载"),
+          h("span", null, gpu + "%")),
+        h("div", { className: "dsh-bg-meter" }, h("div", { style: { width: gpu + "%", background: meterColor } })),
+        h("div", { className: "dsh-bg-note", style: { marginTop: 6 } },
+          "按分辨率 × 帧率 × 模糊半径估算，仅供参考；切换即时生效并自动保存。")),
+      h("div", { className: "dsh-bg-card" },
+        h("div", { style: { fontSize: 13, fontWeight: 500, marginBottom: 4 } }, "特效开关（手动调整后自动转为「自定义」档位）"),
+        rows.map(rowEl)),
+      h("details", { className: "dsh-bg-adv dsh-bg-card" },
+        h("summary", null, "渲染质量（高级）"),
+        h("div", { className: "dsh-bg-adv-row" },
+          h("span", null, "极光分辨率"),
+          h("input", { type: "range", className: "dsh-bg-slider", min: 0.4, max: 1, step: 0.05, value: snap.auroraScale,
+            onChange: function (e) { updateSetting("auroraScale", parseFloat(e.target.value)); } }),
+          h("span", { style: { width: 52, textAlign: "right", fontSize: 12, opacity: 0.75 } }, "×" + snap.auroraScale.toFixed(2))),
+        h("div", { className: "dsh-bg-adv-row" },
+          h("span", null, "动画帧率上限"),
+          h("select", { className: "dsh-bg-select", value: snap.fps,
+            onChange: function (e) { updateSetting("fps", parseInt(e.target.value, 10)); } },
+            h("option", { value: 20 }, "20 fps（最省）"),
+            h("option", { value: 24 }, "24 fps"),
+            h("option", { value: 30 }, "30 fps（流畅）"))),
+        h("div", { className: "dsh-bg-adv-row" },
+          h("span", null, "玻璃模糊强度"),
+          h("select", { className: "dsh-bg-select", value: snap.blur,
+            onChange: function (e) { updateSetting("blur", parseInt(e.target.value, 10)); } },
+            h("option", { value: 6 }, "6 px（最省）"),
+            h("option", { value: 8 }, "8 px"),
+            h("option", { value: 10 }, "10 px"),
+            h("option", { value: 12 }, "12 px（最通透）"))),
+        h("div", { className: "dsh-bg-adv-row" },
+          h("div", { style: { flex: 1 } },
+            h("div", { style: { fontSize: 13 } }, "低电量自动节能"),
+            h("div", { style: { fontSize: 11, opacity: 0.6 } }, "电量 ≤20% 且未充电时切到节能档，恢复后还原")),
+          switchBtn("autoBattery")),
+        h("div", { className: "dsh-bg-adv-row" },
+          h("span", null, "当前极光画布"),
+          h("span", { style: { width: 140, textAlign: "right", fontSize: 12, opacity: 0.75 } },
+            snap.canvasW + "×" + snap.canvasH + " (" + snap.auroraScale.toFixed(2) + "x)"))),
+      h("div", { className: "dsh-bg-adv-row", style: { justifyContent: "space-between" } },
+        h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
+        h("span", { className: "dsh-bg-note" }, "v1.7.0 · 即时生效")));
+  }
+
+  /** 注册设置页条目（需要 slots 服务；缺 ctx/slots 时静默跳过） */
+  function setupSettingsUi(ctx) {
+    if (!react) return;
+    try {
+      var slots = ctx && ctx.get ? ctx.get("slots") : null;
+      if (!slots) return;
+      injectSettingsCss();
+      slots.inject("settings.section", function () {
+        return slots.register({
+          name: "settings.section",
+          id: "dsh-bg-effects",
+          order: 5,
+          label: function () { return "背景特效"; }
+        }, BgSettingsSection);
+      });
+    } catch (e) {}
+  }
 
 
 /* ===================================================================== *
@@ -902,7 +1234,7 @@ function apply() {
    * ------------------------------------------------------------------ */
   var container = document.createElement("div");
   container.id = "dsh-ds-bg";
-  container.dataset.version = "25"; // 部署版本标记：页面控制台可查 document.getElementById('dsh-ds-bg')?.dataset.version
+  container.dataset.version = "26"; // 部署版本标记：页面控制台可查 document.getElementById('dsh-ds-bg')?.dataset.version
   // 关键样式内联兜底：即使外部 CSS 未加载，背景层也保持 fixed + 底层
   container.style.cssText = "position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;" +
     "background:linear-gradient(180deg,#9cc1e7 0%,rgba(250,250,250,0) 100%),#f9f8f8;" +
@@ -940,7 +1272,9 @@ function apply() {
     // 内联兜底：暗色时容器底色也一并切换；鲸鱼仅暗色显示（官网深色 hero 元素）
     container.style.setProperty("background", state.dark ? "#0a0a0a" :
       "linear-gradient(180deg,#9cc1e7 0%,rgba(250,250,250,0) 100%),#f9f8f8", "important");
-    whaleLayer.style.display = state.dark ? "flex" : "none";
+    updateWhaleDisplay(); // 深色主题 + 特效设置开关 共同决定鲸鱼显隐
+    // 玻璃开关：body 类名由 CSS 接管（关闭时移除 backdrop blur、垫实底色）
+    try { document.body.classList.toggle("dsh-bg-no-glass", !bgSettings.glass); } catch (e) {}
     // 深色主题：body 透明让背景透出；浅色主题：移除覆盖，恢复官方原版
     if (document.body) {
       if (state.dark) document.body.style.setProperty("background", "transparent", "important");
@@ -1065,8 +1399,9 @@ function apply() {
       if (!el || !el.style) return;
       for (var i = 0; i < GLASS_PROPS.length; i++) el.style.removeProperty(GLASS_PROPS[i]);
     }
-    function apply() {
-      if (!state.dark) {
+    function applyShellGlass() {
+      // 玻璃开关关闭：走与浅色主题相同的清理路径（CSS 侧由 body.dsh-bg-no-glass 接管）
+      if (!state.dark || !bgSettings.glass) {
         // 浅色主题：撤销所有覆盖，恢复官方原版
         var frame0 = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
           document.querySelector('[data-slot="root"] > div');
@@ -1083,6 +1418,8 @@ function apply() {
         for (var g0 = 0; g0 < glassEls0.length; g0++) clearInline(glassEls0[g0]);
         return;
       }
+      // 玻璃模糊强度由设置面板实时控制（CSS 全部走 blur(var(--dsh-bg-blur))）
+      try { document.body.style.setProperty("--dsh-bg-blur", (bgSettings.blur || 8) + "px"); } catch (e) {}
       var frame = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
         document.querySelector('[data-slot="root"] > div');
       if (frame && frame.style) {
@@ -1121,8 +1458,8 @@ function apply() {
       var card = document.querySelector(".uV2eYG_card, [data-composer-card=\"true\"]");
       if (card && card.style) {
         card.style.setProperty("background", glassBg, "important");
-        card.style.setProperty("backdrop-filter", "blur(10px)", "important");
-        card.style.setProperty("-webkit-backdrop-filter", "blur(10px)", "important");
+        card.style.setProperty("backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
+        card.style.setProperty("-webkit-backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
         card.style.setProperty("border-color", glassBorder, "important");
         card.style.setProperty("box-shadow", glassShadow, "important");
       }
@@ -1138,20 +1475,21 @@ function apply() {
         var ge = glassEls[gi];
         if (ge && ge.style) {
           ge.style.setProperty("background", glassBg, "important");
-          ge.style.setProperty("backdrop-filter", "blur(8px)", "important");
-          ge.style.setProperty("-webkit-backdrop-filter", "blur(8px)", "important");
+          ge.style.setProperty("backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
+          ge.style.setProperty("-webkit-backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
           ge.style.setProperty("box-shadow", glassRing, "important");
         }
       }
     }
-    apply();
+    applyShellGlass();
+    shellGlassApplyRef = applyShellGlass; // 暴露给设置开关：切换玻璃时立即重跑
     var tries = 0;
     var timer = setInterval(function () {
-      apply();
+      applyShellGlass();
       if (++tries > 75) clearInterval(timer); // 最多约 60s
     }, 800);
     if (window.MutationObserver) {
-      var mo = new MutationObserver(apply);
+      var mo = new MutationObserver(applyShellGlass);
       var rootEl = document.querySelector("#root") || document.documentElement;
       mo.observe(rootEl, { childList: true, subtree: true });
     }
@@ -1177,6 +1515,8 @@ function apply() {
   var beamState = { mode: "hairline", idleStrength: 0.65, focusStrength: 1.0, disabled: false };
 
   function isBeamDisabled() {
+    // 设置面板的 Beam 开关优先；URL/localStorage 逃生舱保留
+    if (bgSettings && bgSettings.beam === false) return true;
     try {
       if (typeof location !== "undefined" && (location.search.indexOf("beam=0") !== -1 || location.search.indexOf("nobeam") !== -1 || location.search.indexOf("beam=false") !== -1)) return true;
       if (typeof localStorage !== "undefined" && localStorage.getItem("dsh-beam-disabled") === "1") return true;
@@ -2327,6 +2667,10 @@ function apply() {
   }
 
   function syncThinkingOrb() {
+    if (!bgSettings || bgSettings.orbs === false) {
+      if (orbActive) stopThinkingOrb();
+      return;
+    }
     var statusEl = document.querySelector(".Md3f7G_turnStatus, [role=\"status\"][aria-live=\"polite\"]");
     if (statusEl && isExecuting()) {
       startThinkingOrb(statusEl);
@@ -2952,7 +3296,8 @@ function apply() {
     // 由 CSS 放大到全屏。像素量约为原 1.5x 的 1/4（1x 屏幕）~ 56%（retina），
     // 对流动渐变背景肉眼几乎无差，fragment 负载（本插件最大 GPU 开销）大幅下降。
     var AURORA_SCALE = 0.75;
-    function auroraScale() { return Math.min(window.devicePixelRatio || 1, 1.5) * AURORA_SCALE; }
+    // 分辨率由设置面板的「极光分辨率」滑杆实时控制（0.4–1.0）
+    function auroraScale() { return Math.min(window.devicePixelRatio || 1, 1.5) * (bgSettings.auroraScale || AURORA_SCALE); }
     var k = auroraScale();
     function resizeAll() {
       k = auroraScale(); // DPR 变化时保持 resize 判定与渲染一致，避免每帧重建纹理
@@ -2981,6 +3326,7 @@ function apply() {
     var raf = 0;
     var running = true;
     var last = 0;
+    var auroraBlanked = false;
     var FRAME = 1000 / 30;
 
     function hex2rgb(hex) {
@@ -2990,8 +3336,16 @@ function apply() {
 
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      if (!running || !state.dark || now - last < FRAME) return;
-      last = now - (now - last) % FRAME;
+      if (!running || !state.dark) return;
+      var frameMs = 1000 / (bgSettings.fps || 30); // 帧率上限跟随设置
+      if (!bgSettings.aurora) {
+        // 关闭：清空画布一次（透明）后跳过渲染，rAF 空转成本可忽略
+        if (!auroraBlanked) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); auroraBlanked = true; }
+        return;
+      }
+      if (now - last < frameMs) return;
+      last = now - (now - last) % frameMs;
+      auroraBlanked = false;
       var cfg = currentAuroraConfig();
 
       var kk = auroraScale();
@@ -3480,9 +3834,10 @@ function apply() {
     function frame(now) {
       raf = requestAnimationFrame(frame);
       if (whaleLayer.style.display === "none") return;
-      if (now - last < FRAME) return;
+      var frameMs = 1000 / (bgSettings.fps || 30);
+      if (now - last < frameMs) return;
       var dt = Math.min(0.5, (now - last) / 1000);
-      last = now - (now - last) % FRAME;
+      last = now - (now - last) % frameMs;
 
       var w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
       if (Math.round(w * WHALE_DPR) !== canvas.width) resize();
@@ -3677,11 +4032,23 @@ function apply() {
         raf = requestAnimationFrame(loop);
       }
     }
+    wakeConstellationRef = wake; // 设置面板重新开启星座时唤醒（idle 停止后 rAF 已停）
 
+    var constBlanked = false;
     function loop(now) {
-      if (!state.dark) { raf = requestAnimationFrame(loop); return; }
-      if (now - last < FRAME) { raf = requestAnimationFrame(loop); return; }
-      last = now - (now - last) % FRAME;
+      if (!state.dark || !bgSettings.constellation) {
+        // 关闭：清空画布一次后空转（与浅色主题同一模式，代价可忽略）
+        if (!bgSettings.constellation && !constBlanked) {
+          ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+          constBlanked = true;
+        }
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      constBlanked = false;
+      var frameMs = 1000 / (bgSettings.fps || 30);
+      if (now - last < frameMs) { raf = requestAnimationFrame(loop); return; }
+      last = now - (now - last) % frameMs;
 
       // 布局未就绪时补一次尺寸同步
       if (Math.round(canvas.clientWidth * dpr) !== canvas.width ||
@@ -3762,10 +4129,13 @@ function apply() {
     }
   }
 
+  setupSettingsUi(ctx); // 注册设置页「背景特效」条目（slots 未就绪时由 inject 等待）
   boot();
 }
 
     exports.apply = apply;
+    // 设置面板依赖 slots 服务（由 dsh-client-ui-slots 提供）；未就绪时等待其出现
+    exports.inject = ["slots"];
     return module.exports;
   }
 });

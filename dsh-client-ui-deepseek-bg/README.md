@@ -57,9 +57,25 @@ dsh plugin --profile web remove dsh-client-ui-deepseek-bg
 - 玻璃材质的选择器与 DSH 构建版本相关。如果装上后**背景生效但玻璃没生效**，说明你的 DSH 版本与作者构建不同，把 `lib/client.js` 里的类名（如 `.uV2eYG_card`、`.gdEzaW_bubble`、`._block_10eou_7` 等）换成你版本的即可，或者反馈给作者更新。
 - 主题切换实时生效；若切换后残留异常，刷新一次页面即可。
 - 排查：
-  - `document.getElementById('dsh-ds-bg')?.dataset.version` 应返回版本号（当前 `25`）；`undefined` 说明插件未加载
+  - `document.getElementById('dsh-ds-bg')?.dataset.version` 应返回版本号（当前 `26`）；`undefined` 说明插件未加载
   - `document.querySelector('[data-beam="dsh-composer"]')` 应指向输入框卡片；执行时 `data-active` 存在且 `animation` 转动，空闲仅 `hairline`
   - 控制台 `window.__dshDeepSeekBg.beam` 提供 `state / isExecuting / isTyping / setStrength / disable / enable / refresh / update` 调试句柄
+
+## 设置页「背景特效」面板（v1.7.0）
+
+打开 **设置 → 背景特效**（侧边栏底部设置齿轮 → 左侧导航「背景特效」），所有调整**即时生效并自动保存**（localStorage `dsh-bg-settings`）：
+
+- **性能档位**：`全特效` / `均衡` / `节能` 一键切换
+  - 全特效：所有特效开启（极光 0.75x、30fps）
+  - 均衡：关闭鲸鱼与 Orbs（极光 0.55x、24fps）
+  - 节能：仅保留玻璃拟态与静态深色背景（20fps、blur 6px）
+- **估算 GPU 负载**：按 分辨率 × 帧率 × 模糊半径 实时估算的负载条（绿/黄/红三档）
+- **特效开关**：极光背景 / 粒子鲸鱼 / 星座网格 / Border Beam / 玻璃拟态 / Thinking Orbs 独立开关（带负载标签；手动调整后档位自动变为「自定义」）
+- **渲染质量（高级）**：极光分辨率滑杆（0.4x–1.0x）、动画帧率上限（20/24/30fps）、玻璃模糊强度（6/8/10/12px）、**低电量自动节能**（Battery API：电量 ≤20% 未充电时自动切「节能」，恢复后还原原档位）
+- **当前极光画布**：实时显示实际渲染分辨率（验证降档效果）
+- **恢复默认**：一键回到全特效
+
+旧版逃生舱仍然有效：`?beam=0` / `?nowhale` / `localStorage 'dsh-beam-disabled'`。
 
 ## GPU 优化（v1.6.0）
 
