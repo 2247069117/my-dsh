@@ -746,6 +746,7 @@ function apply() {
   var beamTypingHandler = null;
   var typingActive = false;
   var typingTimer = null;
+  var typingBreatheTimer = null;
   var typingTimer = null;
   var beamState = { mode: 'hairline', idleStrength: 0.65, focusStrength: 1.0, disabled: false };
   // Ensure proper palettes for mono/sunset (use original warm/grey palettes, not random)
@@ -797,7 +798,7 @@ function apply() {
     } catch(e) {}
     return 16;
   }
-  var typingExtraCSS = `\n  /* Typing inward shrink vibration */\n  [data-beam="dsh-composer"][data-typing][data-active]::after,\n  [data-beam="dsh-composer"][data-typing][data-active]::before,\n  [data-beam="dsh-composer"][data-typing][data-active] [data-beam-bloom] {\n    animation: beam-typing-shrink 1.1s ease-in-out infinite, beam-spin-dsh-composer 2.45s linear infinite, beam-hue-shift-dsh-composer 12s ease-in-out infinite !important;\n  }\n  @keyframes beam-typing-shrink {\n    0%, 100% { transform: scale(1); }\n    50% { transform: scale(0.985); }\n  }\n  [data-beam="dsh-composer"][data-typing][data-active] {\n    animation: beam-typing-shrink 1.1s ease-in-out infinite !important;\n  }\n`;
+  var typingExtraCSS = `\n  /* Typing one-shot inward breathe (per key) */\n  [data-beam="dsh-composer"][data-typing][data-active]::after,\n  [data-beam="dsh-composer"][data-typing][data-active]::before,\n  [data-beam="dsh-composer"][data-typing][data-active] [data-beam-bloom] {\n    animation: beam-typing-shrink 1.1s ease-in-out infinite, beam-spin-dsh-composer 2.45s linear infinite, beam-hue-shift-dsh-composer 12s ease-in-out infinite !important;\n  }\n  @keyframes beam-typing-shrink {\n    0%, 100% { transform: scale(1); }\n    50% { transform: scale(0.985); }\n  }\n  [data-beam="dsh-composer"][data-typing][data-active] {\n    animation: beam-typing-shrink 1.1s ease-in-out infinite !important;\n  }\n`;
   function ensureBeamStyles(borderRadius, variant) {
     var isDark = getBeamThemeIsDark();
     var r = typeof borderRadius === 'number' ? borderRadius : 16;
@@ -824,13 +825,28 @@ function apply() {
     if (!card) return null;
     return card.querySelector('textarea, [contenteditable="true"], [data-composer-input], .uV2eYG_input');
   }
-  function isTyping() {
-    return typingActive;
-  }
-  function setTypingActive(v) {
-    if (typingActive === v) return;
-    typingActive = v;
-    updateBeamState();
+  function isTyping() { return false; } // not used as persistent state, typing is now one-shot
+  function setTypingActive(v) {}
+  function triggerTypingBreathe() {
+    var card = beamAttachedCard || document.querySelector('[data-composer-card="true"], .uV2eYG_card');
+    if (!card || isExecuting() || isPlanMode()) return;
+    // One-shot inward breathe: 0.4s scale 1 -> 0.97 -> 1
+    card.setAttribute('data-beam', BEAM_ID);
+    card.setAttribute('data-typing', '');
+    card.setAttribute('data-active','');
+    card.style.setProperty('--beam-strength','0.9');
+    // Remove after 400ms
+    if (typingBreatheTimer) clearTimeout(typingBreatheTimer);
+    typingBreatheTimer = setTimeout(function(){
+      if (!isExecuting() && !isPlanMode()) {
+        card.removeAttribute('data-typing');
+        // If still not typing/executing, go to hairline
+        if (!isTyping() && !isExecuting()) {
+          card.removeAttribute('data-active');
+          card.style.setProperty('--beam-strength','0.08');
+        }
+      }
+    }, 400);
   }
   function isPlanMode() {
     try {
@@ -937,7 +953,6 @@ function apply() {
       return 'executing';
     }
     if (currentBeamMode === 'pulse') return 'pulse';
-    if (isTyping()) return 'typing';
     return 'hairline';
   }
   function updateBeamState() {
