@@ -404,6 +404,7 @@ function apply() {
     var bloomGradients = getLineBloomGradients(isDark, id);
     var hueAnim = "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
     var hueBloomAnim = "animation: beam-hue-shift-bloom-"+id+" 8s ease-in-out infinite;";
+    var _hueRange = BEAM_HUE_RANGE;
     var __hr = _hueRange;
     var hueKeyframes = "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+__hr+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+__hr+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+__hr+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}\n@keyframes beam-hue-shift-bloom-"+id+" {\n  0% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) + "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: blur(8px) hue-rotate(calc(var(--beam-hue-base, 0deg) - "+(BEAM_HUE_RANGE+10)+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
 
