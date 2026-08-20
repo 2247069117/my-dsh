@@ -402,7 +402,7 @@ function apply() {
     var colorGradients = getLineColorGradients(isDark, id);
     var innerGradients = getLineInnerGradients(id);
     var bloomGradients = getLineBloomGradients(isDark, id);
-    var hueAnim = "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
+    var hueAnim = _static ? "" : "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
     var hueBloomAnim = "animation: beam-hue-shift-bloom-"+id+" 8s ease-in-out infinite;";
     var _hueRange = BEAM_HUE_RANGE;
     var __hr = _hueRange;
@@ -439,18 +439,25 @@ function apply() {
   }
   function getBloomGradients(isDark, id){ return getColorGradients(isDark,id); }
   var _origBuildBeamCSS = buildBeamCSS;
-  buildBeamCSS = function(id, borderRadius, isDark, variant){ variant = variant || 'colorful'; var _hueRange = variant==='sunset'?8:(variant==='mono'?0:30);
+  buildBeamCSS = function(id, borderRadius, isDark, variant){ variant = variant || 'colorful'; var _hueRange = variant==='sunset'?0:(variant==='mono'?0:30); var _static = variant==='sunset' || variant==='mono';
     var cfg = isDark ? BEAM_CFG_DARK : BEAM_CFG_LIGHT;
     var sat = isDark ? 1.2 : 1.5;
     var innerRadius = Math.max(0, borderRadius - 1);
     var hueAnim = "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
-    var hueKeyframes = "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
+    var hueKeyframes = _static ? "" : "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
     var isDarkStr = isDark;
     var whiteGrad = isDark
       ? "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 54%,\n        rgba(255, 255, 255, 0.1) 57%,\n        rgba(255, 255, 255, 0.3) 60%,\n        rgba(255, 255, 255, 0.6) 63%,\n        rgba(255, 255, 255, 0.75) 66%,\n        rgba(255, 255, 255, 0.6) 69%,\n        rgba(255, 255, 255, 0.3) 72%,\n        rgba(255, 255, 255, 0.1) 75%,\n        transparent 78%, transparent 100%\n      )"
       : "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 54%,\n        rgba(0, 0, 0, 0.08) 57%,\n        rgba(0, 0, 0, 0.2) 60%,\n        rgba(0, 0, 0, 0.4) 63%,\n        rgba(0, 0, 0, 0.55) 66%,\n        rgba(0, 0, 0, 0.4) 69%,\n        rgba(0, 0, 0, 0.2) 72%,\n        rgba(0, 0, 0, 0.08) 75%,\n        transparent 78%, transparent 100%\n      )";
-    var colorGrads = getColorGradients(variant, isDark, id);
-    var innerGrads = getInnerGradients(variant, isDark, id);
+    var colorGrads, innerGrads;
+    if (variant==='sunset') {
+      // Aggressive single orange-yellow conic for Plan
+      colorGrads = "conic-gradient(from var(--beam-angle-"+id+"), transparent 0%, transparent 45%, rgb(255, 160, 30) 50%, rgb(255, 200, 50) 55%, rgb(255, 120, 20) 60%, transparent 65%, transparent 100%)";
+      innerGrads = "conic-gradient(from var(--beam-angle-"+id+"), transparent 0%, transparent 45%, rgba(255, 160, 30, 0.5) 50%, rgba(255, 200, 50, 0.5) 55%, transparent 65%)";
+    } else {
+      colorGrads = getColorGradients(variant, isDark, id);
+      innerGrads = getInnerGradients(variant, isDark, id);
+    }
     var bloomGrad = isDark
       ? "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 58%,\n        rgba(255, 255, 255, 0.03) 62%,\n        rgba(255, 255, 255, 0.08) 65%,\n        rgba(255, 255, 255, 0.2) 67%,\n        rgba(255, 255, 255, 0.45) 69%,\n        rgba(255, 255, 255, 0.85) 70%,\n        rgba(255, 255, 255, 0.85) 70.5%,\n        rgba(255, 255, 255, 0.45) 71.5%,\n        rgba(255, 255, 255, 0.2) 73%,\n        rgba(255, 255, 255, 0.08) 75%,\n        rgba(255, 255, 255, 0.03) 78%,\n        transparent 82%\n      )"
       : "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 58%,\n        rgba(0, 0, 0, 0.02) 62%,\n        rgba(0, 0, 0, 0.08) 65%,\n        rgba(0, 0, 0, 0.2) 67%,\n        rgba(0, 0, 0, 0.4) 69%,\n        rgba(0, 0, 0, 0.6) 70%,\n        rgba(0, 0, 0, 0.6) 70.5%,\n        rgba(0, 0, 0, 0.4) 71.5%,\n        rgba(0, 0, 0, 0.2) 73%,\n        rgba(0, 0, 0, 0.08) 75%,\n        rgba(0, 0, 0, 0.02) 78%,\n        transparent 82%\n      )";
@@ -881,12 +888,12 @@ function apply() {
       return;
     }
     if (mode === 'typing') {
-      // Inward shrinking vibration - more prominent mono
+      // Inward shrinking vibration - more prominent mono, higher strength
       card.setAttribute('data-beam', BEAM_ID);
       card.setAttribute('data-typing', '');
       card.setAttribute('data-active', '');
       card.removeAttribute('data-paused');
-      card.style.setProperty('--beam-strength', '0.55');
+      card.style.setProperty('--beam-strength', '0.85');
       // Use mono with shrinking animation (handled via extra CSS below)
       card.style.setProperty('--beam-hue-base', '0deg');
       return;
