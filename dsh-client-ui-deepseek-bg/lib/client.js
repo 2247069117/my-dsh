@@ -439,7 +439,7 @@ function apply() {
   }
   function getBloomGradients(isDark, id){ return getColorGradients(isDark,id); }
   var _origBuildBeamCSS = buildBeamCSS;
-  buildBeamCSS = function(id, borderRadius, isDark, variant){ variant = variant || 'colorful'; var _hueRange = variant==='sunset'?0:(variant==='mono'?0:30); var _static = variant==='sunset' || variant==='mono';
+  buildBeamCSS = function(id, borderRadius, isDark, variant){ variant = variant || 'colorful'; var _hueRange = 30; var _static = variant==='mono';
     var cfg = isDark ? BEAM_CFG_DARK : BEAM_CFG_LIGHT;
     var sat = isDark ? 1.2 : 1.5;
     var innerRadius = Math.max(0, borderRadius - 1);
