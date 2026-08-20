@@ -402,7 +402,7 @@ function apply() {
     var colorGradients = getLineColorGradients(isDark, id);
     var innerGradients = getLineInnerGradients(id);
     var bloomGradients = getLineBloomGradients(isDark, id);
-    var hueAnim = _static ? "" : "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
+    var hueAnim = "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
     var hueBloomAnim = "animation: beam-hue-shift-bloom-"+id+" 8s ease-in-out infinite;";
     var _hueRange = BEAM_HUE_RANGE;
     var __hr = _hueRange;
@@ -444,7 +444,7 @@ function apply() {
     var sat = isDark ? 1.2 : 1.5;
     var innerRadius = Math.max(0, borderRadius - 1);
     var hueAnim = "animation: beam-hue-shift-"+id+" 12s ease-in-out infinite;";
-    var hueKeyframes = _static ? "" : "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
+    var hueKeyframes = "@keyframes beam-hue-shift-"+id+" {\n  0% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  50% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) + "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n  100% { filter: hue-rotate(calc(var(--beam-hue-base, 0deg) - "+BEAM_HUE_RANGE+"deg)) brightness("+BEAM_BRIGHTNESS.toFixed(2)+") saturate("+sat.toFixed(2)+"); }\n}";
     var isDarkStr = isDark;
     var whiteGrad = isDark
       ? "conic-gradient(\n        from var(--beam-angle-"+id+"),\n        transparent 0%, transparent 54%,\n        rgba(255, 255, 255, 0.1) 57%,\n        rgba(255, 255, 255, 0.3) 60%,\n        rgba(255, 255, 255, 0.6) 63%,\n        rgba(255, 255, 255, 0.75) 66%,\n        rgba(255, 255, 255, 0.6) 69%,\n        rgba(255, 255, 255, 0.3) 72%,\n        rgba(255, 255, 255, 0.1) 75%,\n        transparent 78%, transparent 100%\n      )"
