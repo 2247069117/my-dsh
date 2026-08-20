@@ -746,6 +746,7 @@ function apply() {
   var beamTypingHandler = null;
   var typingActive = false;
   var typingTimer = null;
+  var typingTimer = null;
   var beamState = { mode: 'hairline', idleStrength: 0.65, focusStrength: 1.0, disabled: false };
   // Ensure proper palettes for mono/sunset (use original warm/grey palettes, not random)
   if (typeof colorPalettes !== 'undefined' && !colorPalettes.mono) {
