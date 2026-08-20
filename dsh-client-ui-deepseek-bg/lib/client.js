@@ -3329,13 +3329,23 @@ function apply(ctx) {
     var targetA = null, targetB = null;
     resizeAll();
 
-    var mouse = { x: 0.5, y: 0.5, smoothX: 0.5, smoothY: 0.5, vx: 0, vy: 0, svx: 0, svy: 0 };
+    var mouse = { x: 0.5, y: 0.5, smoothX: 0.5, smoothY: 0.5, vx: 0, vy: 0, svx: 0, svy: 0, rawVX: 0, rawVY: 0, lastT: 0, lastMove: 0 };
     // 鼠标笔刷/光线跟随：由设置面板「鼠标跟随交互」开关实时控制（每帧判定）
     function auroraMouseEnabled() { return !reducedMotion && !coarse && !isWindows && bgSettings.mouse; }
     function onMove(e) {
       var r = canvas.getBoundingClientRect();
-      mouse.x = (e.clientX - r.left) / r.width;
-      mouse.y = 1 - (e.clientY - r.top) / r.height;
+      var nx = (e.clientX - r.left) / r.width;
+      var ny = 1 - (e.clientY - r.top) / r.height;
+      var t = performance.now();
+      var dt = Math.max(1, t - (mouse.lastT || t));
+      // 用事件时间戳求真实速度（归一化坐标/秒），驱动流场拖尾方向；限幅防异常事件
+      var vx = (nx - mouse.x) / (dt / 1000);
+      var vy = (ny - mouse.y) / (dt / 1000);
+      var sp = Math.sqrt(vx * vx + vy * vy);
+      if (sp > 6) { vx = vx / sp * 6; vy = vy / sp * 6; }
+      mouse.rawVX = vx; mouse.rawVY = vy;
+      mouse.x = nx; mouse.y = ny;
+      mouse.lastT = t; mouse.lastMove = t;
     }
     // 监听常驻（一个 passive listener 成本可忽略），是否生效由 auroraMouseEnabled 逐帧决定
     window.addEventListener("mousemove", onMove, { passive: true });
@@ -3343,9 +3353,10 @@ function apply(ctx) {
     var start = performance.now();
     var raf = 0;
     var running = true;
-    var last = 0;
+    // flowmap 与渲染解耦为两个独立节奏：交互活跃期均 60Hz，静止回落低频
+    var lastFlow = 0, lastRender = 0;
+    var latestTex = null;
     var auroraBlanked = false;
-    var FRAME = 1000 / 30;
 
     function hex2rgb(hex) {
       var h = hex.replace("#", "");
@@ -3355,15 +3366,11 @@ function apply(ctx) {
     function frame(now) {
       raf = requestAnimationFrame(frame);
       if (!running || !state.dark) return;
-      var frameMs = 1000 / (bgSettings.fps || 30); // 帧率上限跟随设置
       if (!bgSettings.aurora) {
         // 关闭：清空画布一次（透明）后跳过渲染，rAF 空转成本可忽略
         if (!auroraBlanked) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); auroraBlanked = true; }
         return;
       }
-      if (now - last < frameMs) return;
-      last = now - (now - last) % frameMs;
-      auroraBlanked = false;
       var cfg = currentAuroraConfig();
 
       var kk = auroraScale();
@@ -3371,47 +3378,70 @@ function apply(ctx) {
       var h = Math.round(canvas.clientHeight * kk);
       if (w !== W || h !== H) resizeAll();
 
-      mouse.smoothX += (mouse.x - mouse.smoothX) * cfg.mouseSmoothing;
-      mouse.smoothY += (mouse.y - mouse.smoothY) * cfg.mouseSmoothing;
-      mouse.svx += ((mouse.x - mouse.smoothX) * 0.5 - mouse.svx) * cfg.mouseVelocity;
-      mouse.svy += ((mouse.y - mouse.smoothY) * 0.5 - mouse.svy) * cfg.mouseVelocity;
-
-      // --- 笔刷位置：跟随鼠标 或（关闭时）自主漂移 ---
-      // 鼠标跟随关闭时若直接停掉 flowmap，流场冻结、光线钉死，深色极光基底
-      // 极暗会看起来像"极光消失"——所以改为 Lissajous 漫游笔刷，极光保持流动感
       var useM = auroraMouseEnabled();
-      var brushX = mouse.smoothX, brushY = mouse.smoothY;
-      var brushVX = mouse.svx, brushVY = mouse.svy;
-      var brushStrength = useM ? cfg.mouseStrength : cfg.mouseStrength * 0.28;
+      // 交互活跃期（最近 200ms 内有鼠标移动）：flowmap 与渲染同步提到 60fps，
+      // 笔刷轨迹/光线跟手无感；静止后自动回落设置帧率，不白烧 GPU
+      var active = useM && (now - (mouse.lastMove || 0) < 200);
+      var flowHz = active ? 60 : 30;
+      var renderHz = active ? Math.max(60, bgSettings.fps || 30) : (bgSettings.fps || 30);
+
+      // 漫游笔刷目标（鼠标跟随关闭时）：Lissajous 轨迹 + 解析速度
+      var driftX = 0.5, driftY = 0.5, driftVX = 0, driftVY = 0;
       if (!useM) {
         var driftT = (now - start) * 0.001;
         var a1 = driftT * 0.09, b1 = driftT * 0.13;
-        brushX = 0.5 + 0.38 * Math.sin(a1);
-        brushY = 0.5 + 0.3 * Math.cos(b1);
+        driftX = 0.5 + 0.38 * Math.sin(a1);
+        driftY = 0.5 + 0.3 * Math.cos(b1);
         var e1 = 0.1;
-        brushVX = (0.38 * (Math.sin(a1 + e1) - Math.sin(a1))) / e1;
-        brushVY = (0.3 * (Math.cos(b1 + e1) - Math.cos(b1))) / e1;
+        driftVX = (0.38 * (Math.sin(a1 + e1) - Math.sin(a1))) / e1;
+        driftVY = (0.3 * (Math.cos(b1 + e1) - Math.cos(b1))) / e1;
       }
 
-      // --- flowmap pass（低分辨率流场，双缓冲乒乓；鼠标或漫游笔刷持续喂入） ---
-      var src = flip ? targetA : targetB;
-      var dst = flip ? targetB : targetA;
-      flip = !flip;
-      gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
-      gl.viewport(0, 0, wQ, hQ);
-      gl.useProgram(progFlow);
-      bindAttrib(progFlow);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, src.tex);
-      gl.uniform1i(uFlow.prev, 0);
-      gl.uniform2f(uFlow.mouse, brushX, brushY);
-      gl.uniform2f(uFlow.velocity, brushVX, brushVY);
-      gl.uniform1f(uFlow.brushRadius, cfg.mouseRadius);
-      gl.uniform1f(uFlow.brushStrength, brushStrength);
-      gl.uniform1f(uFlow.decay, cfg.decay);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, W, H);
+      // ---- flowmap 更新（独立节奏：交互期 60Hz，静止 30Hz；与渲染解耦保证笔刷实时性） ----
+      if (now - lastFlow >= 1000 / flowHz) {
+        var fdt = Math.min(0.25, (now - lastFlow) / 1000);
+        lastFlow = now - (now - lastFlow) % (1000 / flowHz);
+        // 帧率无关临界阻尼平滑：时间常数 ~20ms —— 无输入滞后、滤掉事件抖动
+        var kp = 1 - Math.exp(-fdt / 0.02);
+        mouse.smoothX += ((useM ? mouse.x : driftX) - mouse.smoothX) * kp;
+        mouse.smoothY += ((useM ? mouse.y : driftY) - mouse.smoothY) * kp;
+        // 速度平滑：时间常数 ~80ms，拖尾方向稳定不抖
+        var kv = 1 - Math.exp(-fdt / 0.08);
+        mouse.svx += (mouse.rawVX - mouse.svx) * kv;
+        mouse.svy += (mouse.rawVY - mouse.svy) * kv;
+
+        var brushX = mouse.smoothX, brushY = mouse.smoothY;
+        var brushVX = useM ? mouse.svx : driftVX;
+        var brushVY = useM ? mouse.svy : driftVY;
+        var brushStrength = useM ? cfg.mouseStrength : cfg.mouseStrength * 0.28;
+
+        // --- flowmap pass（低分辨率流场，双缓冲乒乓；鼠标或漫游笔刷持续喂入） ---
+        var src = flip ? targetA : targetB;
+        var dst = flip ? targetB : targetA;
+        flip = !flip;
+        latestTex = dst.tex;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+        gl.viewport(0, 0, wQ, hQ);
+        gl.useProgram(progFlow);
+        bindAttrib(progFlow);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(uFlow.prev, 0);
+        gl.uniform2f(uFlow.mouse, brushX, brushY);
+        gl.uniform2f(uFlow.velocity, brushVX, brushVY);
+        gl.uniform1f(uFlow.brushRadius, cfg.mouseRadius);
+        gl.uniform1f(uFlow.brushStrength, brushStrength);
+        // 衰减按实际帧间隔归一化（基准 30fps）：任何更新频率下拖尾淡出速度一致
+        gl.uniform1f(uFlow.decay, Math.pow(cfg.decay, fdt * 30));
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, W, H);
+      }
+
+      // ---- 渲染（帧率跟随设置；交互活跃期提到 60fps） ----
+      if (now - lastRender < 1000 / renderHz) return;
+      lastRender = now - (now - lastRender) % (1000 / renderHz);
+      auroraBlanked = false;
 
       // --- 渲染 ---
       var t = (performance.now() - start) * 0.001 * (cfg.speed / 100);
@@ -3419,7 +3449,7 @@ function apply(ctx) {
         gl.useProgram(progFluid);
         bindAttrib(progFluid);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, dst.tex);
+        gl.bindTexture(gl.TEXTURE_2D, latestTex);
         gl.uniform1i(uFluid.flowmap, 0);
         gl.uniform1f(uFluid.time, t);
         gl.uniform2f(uFluid.resolution, W, H);
@@ -3429,9 +3459,9 @@ function apply(ctx) {
         gl.uniform1f(uFluid.distortBoost, cfg.distortBoost);
         gl.uniform1f(uFluid.swirlBoost, cfg.swirlBoost);
         var lx = cfg.lightX != null ? cfg.lightX : 0.89;
-        // 光线跟随笔刷（鼠标或漫游点）；关闭鼠标跟随时用略低的跟随系数让光更缓
-        var lf = cfg.lightFollow != null ? cfg.lightFollow * (auroraMouseEnabled() ? 1 : 0.85) : 0;
-        gl.uniform2f(uFluid.lightPos, lx + (brushX - lx) * lf, cfg.lightY != null ? cfg.lightY : 0.46);
+        // 光线跟随已平滑的笔刷位置（smoothX 时间常数 20ms），跟手即时
+        var lf = cfg.lightFollow != null ? cfg.lightFollow * (useM ? 1 : 0.85) : 0;
+        gl.uniform2f(uFluid.lightPos, lx + (mouse.smoothX - lx) * lf, cfg.lightY != null ? cfg.lightY : 0.46);
         gl.uniform1f(uFluid.lightCore, coarse ? 0 : (cfg.lightCore != null ? cfg.lightCore : 0.14));
         gl.uniform1f(uFluid.lightHalo, coarse ? 0 : (cfg.lightHalo != null ? cfg.lightHalo : 0.2));
         gl.uniform1f(uFluid.vignette, cfg.vignette != null ? cfg.vignette : 0.38);
@@ -3454,7 +3484,7 @@ function apply(ctx) {
         gl.useProgram(progPart);
         bindAttrib(progPart);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, dst.tex);
+        gl.bindTexture(gl.TEXTURE_2D, latestTex);
         gl.uniform1i(uPart.flowmap, 0);
         gl.uniform1f(uPart.time, t);
         gl.uniform1f(uPart.pixelRatio, window.devicePixelRatio || 1);
@@ -3843,9 +3873,10 @@ function apply(ctx) {
     var start = performance.now();
     var raf = 0;
     var last = 0;
-    var FRAME = 1000 / 30;
     var strength = 0;
     var b = { x: 0, y: 0 };
+    // 光线跟随的平滑状态（屏幕归一化坐标，帧率无关指数平滑，时间常数 ~40ms）
+    var wSX = 0, wSY = 0;
     var FOV = 50 * Math.PI / 180;
     // 相机距离：官方 18 → 15（18/15 = 1.2），鲸鱼整体等比放大 1.2 倍
     var CAM_DIST = 15;
@@ -3867,7 +3898,8 @@ function apply(ctx) {
     function frame(now) {
       raf = requestAnimationFrame(frame);
       if (whaleLayer.style.display === "none") return;
-      var frameMs = 1000 / (bgSettings.fps || 30);
+      // 鼠标跟随开启时鲸鱼提到 60fps（点精灵渲染开销小），光线/扭曲跟手更顺滑
+      var frameMs = 1000 / (bgSettings.mouse ? 60 : (bgSettings.fps || 30));
       if (now - last < frameMs) return;
       var dt = Math.min(0.5, (now - last) / 1000);
       last = now - (now - last) % frameMs;
@@ -3906,9 +3938,13 @@ function apply(ctx) {
       var target = (mouse.active && bgSettings.mouse) ? MOUSE_DEFAULTS.strength : 0;
       strength += (target - strength) * (1 - Math.pow(0.05, dt));
       gl.uniform1f(u.uMouseStrength, strength);
-      // 光线：官方 lightParams.followX —— light.x 跟随鼠标世界坐标（关闭时固定）
+      // 光线：官方 lightParams.followX —— light.x 跟随鼠标世界坐标（关闭时固定）；
+      // 屏幕坐标先做帧率无关指数平滑（时间常数 ~40ms），消除事件抖动又不拖后腿
+      var wk = 1 - Math.exp(-dt / 0.04);
+      wSX += ((bgSettings.mouse ? mouse.x : 0) - wSX) * wk;
+      wSY += ((bgSettings.mouse ? mouse.y : 0) - wSY) * wk;
       var halfW = HALF_H * aspect;
-      gl.uniform3f(u.uLightPos, LIGHT_DEFAULTS.x + (bgSettings.mouse ? mouse.x : 0) * halfW * LIGHT_DEFAULTS.followX, LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
+      gl.uniform3f(u.uLightPos, LIGHT_DEFAULTS.x + wSX * halfW * LIGHT_DEFAULTS.followX, LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
       gl.uniform1f(u.uLightRange, LIGHT_DEFAULTS.range);
       gl.uniform1f(u.uShadeMin, LIGHT_DEFAULTS.shadeMin);
       gl.uniform1f(u.uShadeMax, LIGHT_DEFAULTS.shadeMax);
@@ -3916,7 +3952,8 @@ function apply(ctx) {
       if (mouse.hasMoved) {
         var wx = mouse.x * halfW, wy = mouse.y * HALF_H;
         if (strength < 0.01) { b.x = wx; b.y = wy; }
-        else { b.x += (wx - b.x) * MOUSE_DEFAULTS.decay; b.y += (wy - b.y) * MOUSE_DEFAULTS.decay; }
+        // 帧率无关：官方 decay 是每 30fps 帧的插值系数，按实际 dt 归一化，60fps 下手感一致
+        else { b.x += (wx - b.x) * (1 - Math.pow(1 - MOUSE_DEFAULTS.decay, dt * 30)); b.y += (wy - b.y) * (1 - Math.pow(1 - MOUSE_DEFAULTS.decay, dt * 30)); }
       }
       var inv = m4Inverse(model);
       var ux = inv[0]*b.x + inv[4]*b.y + inv[12];
@@ -3967,7 +4004,6 @@ function apply(ctx) {
     var raf = 0;
     var idle = false;
     var last = 0;
-    var FRAME = 1000 / 30;
     var resizeTimer = null;
 
     function buildGrid() {
@@ -4080,7 +4116,8 @@ function apply(ctx) {
         return;
       }
       constBlanked = false;
-      var frameMs = 1000 / (bgSettings.fps || 30);
+      // 鼠标跟随开启时活跃期 60fps（2D 画布开销小），斥力响应更顺滑；静止仍按设置帧率
+      var frameMs = 1000 / (bgSettings.mouse ? 60 : (bgSettings.fps || 30));
       if (now - last < frameMs) { raf = requestAnimationFrame(loop); return; }
       last = now - (now - last) % frameMs;
 
