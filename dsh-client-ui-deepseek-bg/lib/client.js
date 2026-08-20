@@ -762,10 +762,11 @@ function apply() {
     } catch(e) {}
     return 16;
   }
+  var typingExtraCSS = `\n  /* Typing inward shrink vibration */\n  [data-beam="dsh-composer"][data-typing][data-active]::after,\n  [data-beam="dsh-composer"][data-typing][data-active]::before,\n  [data-beam="dsh-composer"][data-typing][data-active] [data-beam-bloom] {\n    animation: beam-typing-shrink 1.1s ease-in-out infinite, beam-spin-dsh-composer 2.45s linear infinite, beam-hue-shift-dsh-composer 12s ease-in-out infinite !important;\n  }\n  @keyframes beam-typing-shrink {\n    0%, 100% { transform: scale(1); }\n    50% { transform: scale(0.985); }\n  }\n  [data-beam="dsh-composer"][data-typing][data-active] {\n    animation: beam-typing-shrink 1.1s ease-in-out infinite !important;\n  }\n`;
   function ensureBeamStyles(borderRadius, variant) {
     var isDark = getBeamThemeIsDark();
     var r = typeof borderRadius === 'number' ? borderRadius : 16;
-    var css = buildBeamCSS(BEAM_ID, r, isDark);
+    var css = buildBeamCSS(BEAM_ID, r, isDark) + typingExtraCSS;
     if (!beamStyleTag) {
       beamStyleTag = document.getElementById("dsh-beam-css");
       if (!beamStyleTag) {
@@ -788,11 +789,12 @@ function apply() {
     return card.querySelector('textarea, [contenteditable="true"], [data-composer-input], .uV2eYG_input');
   }
   function isTyping() {
-    var card = beamAttachedCard || document.querySelector('[data-composer-card="true"], .uV2eYG_card');
-    var input = findComposerInput(card);
-    if (!input) return false;
-    var val = input.value !== undefined ? input.value : input.textContent;
-    return !!(val && String(val).trim().length > 0);
+    return typingActive;
+  }
+  function setTypingActive(v) {
+    if (typingActive === v) return;
+    typingActive = v;
+    updateBeamState();
   }
   function isPlanMode() {
     try {
@@ -851,25 +853,24 @@ function apply() {
       return;
     }
     if (mode === 'typing') {
-      // Mono static micro light, no spin
+      // Inward shrinking vibration - pulse-like
       card.setAttribute('data-beam', BEAM_ID);
       card.setAttribute('data-typing', '');
       card.setAttribute('data-active', '');
-      // Override animation to none via inline style on after/before is not possible, so we set strength low and rely on beam's static filter
-      // We will add a style rule to pause animation for typing
-      card.style.setProperty('--beam-strength', '0.25');
-      // Pause spin: add data-paused
-      card.setAttribute('data-paused','');
+      card.removeAttribute('data-paused');
+      card.style.setProperty('--beam-strength', '0.35');
+      // Use mono with shrinking animation (handled via extra CSS below)
+      card.style.setProperty('--beam-hue-base', '0deg');
       return;
     }
     if (mode === 'planning') {
+      // Orange-yellow executing in plan mode (only when executing+plan)
       card.setAttribute('data-beam', BEAM_ID);
+      card.setAttribute('data-planning', '');
       card.setAttribute('data-active','');
       card.removeAttribute('data-paused');
-      card.style.setProperty('--beam-strength','0.7');
-      // planning uses sunset palette; our buildBeamCSS currently is colorful, but we will filter via hue
-      // For now, use colorful with sunset via CSS filter hue-rotate 40deg (warm)
-      card.style.setProperty('--beam-hue-base','40deg');
+      card.style.setProperty('--beam-strength','0.9');
+      card.style.setProperty('--beam-hue-base','35deg'); // warm orange
       return;
     }
     if (mode === 'executing') {
@@ -894,10 +895,11 @@ function apply() {
   }
   function resolveBeamMode() {
     if (isBeamDisabled()) return 'hairline';
-    // If pendingExecuting is true, treat as executing even before stop button appears
-    if (pendingExecuting || isExecuting()) return 'executing';
-    if (currentBeamMode === 'pulse') return 'pulse'; // keep pulse until timer
-    if (isPlanMode()) return 'planning';
+    if (pendingExecuting || isExecuting()) {
+      if (isPlanMode()) return 'planning';
+      return 'executing';
+    }
+    if (currentBeamMode === 'pulse') return 'pulse';
     if (isTyping()) return 'typing';
     return 'hairline';
   }
@@ -924,8 +926,9 @@ function apply() {
         // bind new
         if (beamTypingHandler) {
           try{
+            // Re-bind with keyboard detection
+            freshInput.addEventListener('keydown', beamTypingHandler);
             freshInput.addEventListener('input', beamTypingHandler);
-            freshInput.addEventListener('change', beamTypingHandler);
             var onSendKey = function(e){ if(e.key==='Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey){ var v=freshInput.value!==undefined?freshInput.value:freshInput.textContent; if(v && String(v).trim().length>0){ pendingExecuting=true; if(pendingTimer) clearTimeout(pendingTimer); pendingTimer=setTimeout(function(){ pendingExecuting=false; updateBeamState(); },5000); updateBeamState(); } } };
             freshInput.addEventListener('keydown', onSendKey);
             freshInput._dshBeamOnSend = onSendKey;
