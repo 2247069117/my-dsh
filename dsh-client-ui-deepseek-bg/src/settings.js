@@ -1,6 +1,6 @@
 /* ===================================================================== *
  * src/settings.js — GPU 特效设置（initSettings）
- *   档位/开关/高级参数/低电量自动节能 + 设置页「背景特效」面板（React）。
+ *   档位/开关/高级参数 + 设置页「背景特效」面板（React）。
  *   创建 shared.settings（loadSettings 结果，各模块经 shared.settings 只读）；
  *   跨模块回调一律走 shared.refs.*（beam watch/detach、orbs sync、shell 玻璃、星座唤醒、鲸鱼显隐）。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
@@ -10,23 +10,20 @@ function initSettings(shared) {
 
   /* ===================================================================== *
    * GPU 特效设置（设置页「背景特效」面板 + 运行时联动）
-   *   档位预设 → 独立开关（自动转自定义）→ 高级参数 → 低电量自动节能
+   *   档位预设 → 独立开关（自动转自定义）→ 高级参数
    *   全部即时生效、localStorage 持久化（dsh-bg-settings）
+   *   默认档位：全特效（下载后即开即用，无需手动切换）
    * ===================================================================== */
   var SETTINGS_KEY = "dsh-bg-settings";
   var PRESETS = {
-    // 全特效：极光分辨率与玻璃模糊全部拉满（滑杆上限 1.0x / 12px）
+    // 全特效：极光分辨率与玻璃模糊全部拉满（滑杆上限 1.0x / 12px）——下载后默认即为此档
     full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 1, fps: 30, blur: 12, followMs: 120, lightFollow: 1 },
     half: { label: "均衡", aurora: false, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 30, blur: 8, followMs: 20, lightFollow: 1 },
     eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: true, mouse: false, auroraScale: 0.4, fps: 20, blur: 6, followMs: 20, lightFollow: 1 }
   };
-  var batteryState = null;
-  var batteryPending = false; // getBattery 异步期间的并发守卫
-  var batteryLowApplied = false;
-  var lastManualMode = null;
 
   function loadSettings() {
-    var d = { mode: "full", autoBattery: false };
+    var d = { mode: "full" };
     var parsed = null;
     try {
       var raw = localStorage.getItem(SETTINGS_KEY);
@@ -34,7 +31,6 @@ function initSettings(shared) {
     } catch (e) {}
     if (parsed && typeof parsed === "object") {
       if (typeof parsed.mode === "string") d.mode = parsed.mode;
-      if (typeof parsed.autoBattery === "boolean") d.autoBattery = parsed.autoBattery;
     }
     if (PRESETS[d.mode]) {
       // 档位模式：数值全部跟随预设（预设调整后自动生效，无需清理旧缓存）
@@ -46,7 +42,7 @@ function initSettings(shared) {
       var base = PRESETS.full;
       for (var k2 in base) if (k2 !== "label") d[k2] = base[k2];
       if (parsed && typeof parsed === "object") {
-        var allowed = { aurora:1, whale:1, constellation:1, beam:1, glass:1, mouse:1, auroraScale:1, fps:1, blur:1, followMs:1, lightFollow:1, autoBattery:1 };
+        var allowed = { aurora:1, whale:1, constellation:1, beam:1, glass:1, mouse:1, auroraScale:1, fps:1, blur:1, followMs:1, lightFollow:1 };
         for (var k3 in parsed) if (Object.prototype.hasOwnProperty.call(parsed, k3) && allowed[k3]) d[k3] = parsed[k3];
       }
       d.mode = "custom"; // 非法/过期 mode 值不得覆盖自定义档位
@@ -78,7 +74,6 @@ function initSettings(shared) {
       auroraScale: Number(bgSettings.auroraScale) || 1, fps: Number(bgSettings.fps) || 30, blur: Number(bgSettings.blur) || 8,
       followMs: bgSettings.followMs != null ? Number(bgSettings.followMs) : 20,
       lightFollow: bgSettings.lightFollow != null ? Number(bgSettings.lightFollow) : 1,
-      autoBattery: !!bgSettings.autoBattery,
       gpu: estimateGpu(),
       canvasW: (shared.dom && shared.dom.auroraCanvas) ? shared.dom.auroraCanvas.width : 0,
       canvasH: (shared.dom && shared.dom.auroraCanvas) ? shared.dom.auroraCanvas.height : 0
@@ -103,7 +98,7 @@ function initSettings(shared) {
     bgSettings.mode = "custom";
     commitSettings();
   }
-  function resetSettings() { applyPreset("full"); bgSettings.autoBattery = false; commitSettings(); }
+  function resetSettings() { applyPreset("full"); commitSettings(); }
   function commitSettings() { saveSettings(); applyBgSettings(); notifySettings(); }
 
 
@@ -123,49 +118,6 @@ function initSettings(shared) {
     try { if (shared.refs.shellGlassApply) shared.refs.shellGlassApply(); } catch (e) {} // 玻璃内联样式按开关重跑一次（轮询由 makeShellTransparent 持有）
     try { if (shared.refs.syncThinkingOrb) shared.refs.syncThinkingOrb(); } catch (e) {}
     try { if (bgSettings.constellation && shared.refs.wakeConstellation) shared.refs.wakeConstellation(); } catch (e) {}
-    if (bgSettings.autoBattery) { try { initBatteryAuto(); } catch (e) {} }
-    else { try { disableBatteryAuto(); } catch (e) {} }
-  }
-
-  /* ---- 低电量自动节能（Battery API，不支持则静默跳过） ---- */
-  function initBatteryAuto() {
-    if (batteryState || batteryPending || !navigator.getBattery) return;
-    batteryPending = true;
-    navigator.getBattery().then(function (b) {
-      batteryPending = false;
-      if (!bgSettings.autoBattery) { batteryState = null; return; }
-      var onB = function () {
-        var low = !b.charging && b.level <= 0.2;
-        if (low && !batteryLowApplied) {
-          if (bgSettings.mode !== "eco") lastManualMode = bgSettings.mode;
-          batteryLowApplied = true;
-          applyPreset("eco");
-        } else if (!low && batteryLowApplied) {
-          // 若用户在低电 eco 期间已手动改档（mode !== "eco"），尊重用户选择，不覆盖
-          if (bgSettings.mode !== "eco") { lastManualMode = null; batteryLowApplied = false; return; }
-          batteryLowApplied = false;
-          if (lastManualMode && PRESETS[lastManualMode]) { applyPreset(lastManualMode); lastManualMode = null; }
-        }
-      };
-      batteryState = { b: b, onB: onB };
-      try {
-        b.addEventListener("levelchange", onB);
-        b.addEventListener("chargingchange", onB);
-      } catch (e) {}
-      onB();
-    }).catch(function () {});
-  }
-  function disableBatteryAuto() {
-    batteryPending = false;
-    if (!batteryState) { batteryLowApplied = false; return; }
-    try {
-      batteryState.b.removeEventListener("levelchange", batteryState.onB);
-      batteryState.b.removeEventListener("chargingchange", batteryState.onB);
-    } catch (e) {}
-    batteryState = null;
-    batteryLowApplied = false;
-    // 关闭开关时不再自动回档 custom（避免覆盖用户在 eco 期间的手动调整），仅清理状态
-    lastManualMode = null;
   }
 
   /* ---- 设置页「背景特效」面板 ---- */
@@ -375,8 +327,7 @@ function initSettings(shared) {
           { value: 12, label: "12 px（深度毛玻璃）" }
         ], function (v) { updateSetting("blur", parseInt(v, 10)); }),
         sliderItem("跟手灵敏度", "鼠标跟随平滑时间常数（越小越贴手响应越快，越大越绵柔滞后）", snap.followMs + " ms", 5, 120, 5, snap.followMs, "5 ms (极速贴手)", "120 ms (绵柔)", function (v) { updateSetting("followMs", parseInt(v, 10)); }),
-        sliderItem("光线跟随强度", "粒子鲸鱼与高光聚焦点随光标移动的响应幅度", Math.round(snap.lightFollow * 100) + "%", 0, 100, 5, Math.round(snap.lightFollow * 100), "0% (固定不动)", "100% (完全跟随)", function (v) { updateSetting("lightFollow", parseInt(v, 10) / 100); }),
-        switchRow("低电量自动节能", "设备电量 ≤20% 且未接通电源时自动切至节能档，充电后还原", "autoBattery")),
+        sliderItem("光线跟随强度", "粒子鲸鱼与高光聚焦点随光标移动的响应幅度", Math.round(snap.lightFollow * 100) + "%", 0, 100, 5, Math.round(snap.lightFollow * 100), "0% (固定不动)", "100% (完全跟随)", function (v) { updateSetting("lightFollow", parseInt(v, 10) / 100); })),
       h("div", { className: "dsh-bg-foot" },
         h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
         h("span", { className: "dsh-bg-note" }, "v__PKG_VERSION__ · 即时生效并自动保存")));

@@ -31,7 +31,7 @@ function apply(ctx) {
 
   // 依赖顺序：theme → settings → dom → coalesce → beam → orbs → 渲染引擎 → shell → observer → boot
   initTheme(shared);         // 主题检测 / 官方参数配置 / state.dark 初值
-  initSettings(shared);      // bgSettings（shared.settings）+ 设置页 UI + 低电量自动节能
+  initSettings(shared);      // bgSettings（shared.settings）+ 设置页 UI（默认全特效）
   initDom(shared);           // 背景容器 / 极光 / 星座 canvas / 鲸鱼层 / diag
   initCoalesce(shared);      // 合批 MutationObserver（供 beam/orbs/shell 订阅）
   initBeam(shared);          // Border Beam 状态机 + composer/todo 集成（CSS 在 beam-css.js）
