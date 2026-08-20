@@ -539,7 +539,8 @@ function apply(ctx) {
    * ===================================================================== */
   var SETTINGS_KEY = "dsh-bg-settings";
   var PRESETS = {
-    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.75, fps: 30, blur: 8 },
+    // 全特效：极光分辨率与玻璃模糊全部拉满（滑杆上限 1.0x / 12px）
+    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 1, fps: 30, blur: 12 },
     half: { label: "均衡", aurora: true, whale: false, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 24, blur: 8 },
     eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: false, mouse: false, auroraScale: 0.4, fps: 20, blur: 6 }
   };
@@ -551,15 +552,28 @@ function apply(ctx) {
 
   function loadSettings() {
     var d = { mode: "full", autoBattery: false };
-    var base = PRESETS.full;
-    for (var k in base) if (k !== "label") d[k] = base[k];
+    var parsed = null;
     try {
       var raw = localStorage.getItem(SETTINGS_KEY);
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        for (var k2 in parsed) if (Object.prototype.hasOwnProperty.call(parsed, k2)) d[k2] = parsed[k2];
-      }
+      if (raw) parsed = JSON.parse(raw);
     } catch (e) {}
+    if (parsed && typeof parsed === "object") {
+      if (typeof parsed.mode === "string") d.mode = parsed.mode;
+      if (typeof parsed.autoBattery === "boolean") d.autoBattery = parsed.autoBattery;
+    }
+    if (PRESETS[d.mode]) {
+      // 档位模式：数值全部跟随预设（预设调整后自动生效，无需清理旧缓存）
+      var p = PRESETS[d.mode];
+      for (var k in p) if (k !== "label") d[k] = p[k];
+    } else {
+      // 自定义模式：全特效为底，叠加保存过的数值
+      d.mode = "custom";
+      var base = PRESETS.full;
+      for (var k2 in base) if (k2 !== "label") d[k2] = base[k2];
+      if (parsed && typeof parsed === "object") {
+        for (var k3 in parsed) if (Object.prototype.hasOwnProperty.call(parsed, k3)) d[k3] = parsed[k3];
+      }
+    }
     return d;
   }
   var bgSettings = loadSettings();
