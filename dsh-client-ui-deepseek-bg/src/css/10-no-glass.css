@@ -1,0 +1,40 @@
+/* ============ 玻璃开关（body.dsh-bg-no-glass）：移除 backdrop blur，垫实底色保可读性 ============ */
+body.dsh-bg-no-glass .pI_x6G_sidebarCol::before {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: transparent !important;
+}
+body.dsh-bg-no-glass .pI_x6G_sidebarCol {
+  background: rgba(13, 15, 19, 0.92) !important;
+}
+body.dsh-bg-no-glass .uV2eYG_card,
+body.dsh-bg-no-glass [data-composer-card="true"],
+body.dsh-bg-no-glass .gdEzaW_bubble,
+body.dsh-bg-no-glass ._block_10eou_7,
+body.dsh-bg-no-glass ._block_biesw_7,
+body.dsh-bg-no-glass ._block_srovd_7,
+body.dsh-bg-no-glass ._block_s66q0_7,
+body.dsh-bg-no-glass ._block_178r4_4,
+body.dsh-bg-no-glass ._block_d4nqi_7,
+body.dsh-bg-no-glass ._body_1ye18_20,
+body.dsh-bg-no-glass ._copyButton_10eou_142,
+body.dsh-bg-no-glass ._bannerWrap_178r4_21,
+body.dsh-bg-no-glass .LVzXQa_card,
+body.dsh-bg-no-glass .Mbwy4a_card,
+body.dsh-bg-no-glass .VOzbGW_panel,
+body.dsh-bg-no-glass .CY-8Ka_ioCard,
+body.dsh-bg-no-glass .o3BgMG_ioCard {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(13, 15, 19, 0.92) !important;
+}
+
+body.dsh-bg-no-glass [data-testid="todo-panel"],
+body.dsh-bg-no-glass [data-slot="conversation.input.dock"] section,
+body.dsh-bg-no-glass .lXshSW_root,
+body.dsh-bg-no-glass ._7yHdaG_panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #1d1d1d !important;
+}
+

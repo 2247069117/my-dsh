@@ -1,10 +1,12 @@
 /*!
  * dsh-client-ui-deepseek-bg 客户端入口（自动生成）
- * 注入 DeepSeek 官网风格背景与玻璃拟态；仅深色主题生效。
+ * 由 scripts/build.mjs 从 src/ 拼接生成——请勿直接修改本文件；
+ * 修改源码（src/ 下的模块与 CSS）后运行：node scripts/build.mjs
  */
 window.__ModuleLoader__.load({
   id: "dsh-client-ui-deepseek-bg",
   factory: (require) => {
+    "use strict";
     var module = { exports: {} };
     var exports = module.exports;
     Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
@@ -25,28 +27,19 @@ window.__ModuleLoader__.load({
  *  - canvas 蒙版:      linear-gradient(#000000fc 0%, #000000e8 8.98%, transparent 100%)
  *  - 入场动画:        opacity 0→1 + blur(20px)→0，1.8s ease-out（harness hero 同款）
  *
- * 重要：全部效果仅作用于深色主题（body[data-ds-dark-theme]）。
- *       浅色主题保持 DSH 官方原版外观，不做任何覆盖。
+ * 全主题统一深色：浅色/深色均使用 harness 深色主题（#0a0a0a + 玻璃/极光/鲸鱼）。
  */
 
-/* ---------- 背景层：仅深色主题显示 ---------- */
+/* ---------- 背景层：全主题统一深色 ---------- */
 #dsh-ds-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
-  background: linear-gradient(180deg, #9cc1e7 0%, rgba(250, 250, 250, 0) 100%), #f9f8f8;
+  background: #0a0a0a;
   animation: dsh-ds-enter 1.8s ease-out backwards;
   will-change: opacity, filter;
-}
-
-#dsh-ds-bg:not(.dsh-ds-dark) {
-  display: none;
-}
-
-#dsh-ds-bg.dsh-ds-dark {
-  background: #0a0a0a;
 }
 
 #dsh-ds-aurora,
@@ -66,20 +59,16 @@ window.__ModuleLoader__.load({
   background: transparent;
 }
 
-/* 官方深色 hero 的鲸鱼层：screen 混合，仅暗色主题显示 */
+/* 鲸鱼层：screen 混合，全主题显示 */
 .dsh-ds-whale {
   position: absolute;
   inset: 0;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
   mix-blend-mode: screen;
   z-index: 2;
-}
-
-#dsh-ds-bg.dsh-ds-dark .dsh-ds-whale {
-  display: flex;
 }
 
 @keyframes dsh-ds-enter {
@@ -100,36 +89,35 @@ window.__ModuleLoader__.load({
 }
 
 /* ===================================================================== *
- * 以下全部为深色主题专属覆盖（body[data-ds-dark-theme]）；
- * 浅色主题不匹配任何规则，保持官方原版。
+ * 外壳透明化：全主题统一深色背景透出
  * ===================================================================== */
 
 /* 背景透出：body 与外壳层透明化 */
-body[data-ds-dark-theme] {
+body {
   background: transparent !important;
 }
 
-body[data-ds-dark-theme] [data-slot="root"] > div {
+body [data-slot="root"] > div {
   background: transparent !important;
 }
 
 /* 当前构建的布局 frame 类名（精确覆盖，防中间包裹层） */
-body[data-ds-dark-theme] [data-slot="root"] .pI_x6G_frame {
+body [data-slot="root"] .pI_x6G_frame {
   background: transparent !important;
 }
 
 /* 插件加载前的启动屏 */
-body[data-ds-dark-theme] #root ._boot_9gj4p_6 {
+body #root ._boot_9gj4p_6 {
   background: transparent !important;
 }
 
 /* 视图根容器透明化：会话视图（bg-base）与详情列内容（轨迹视图 bg-layer-1）
    都是全高不透明容器，会盖住 DeepSeek 背景层 */
-body[data-ds-dark-theme] [data-slot="conversation"] > div {
+body [data-slot="conversation"] > div {
   background: transparent !important;
 }
 
-body[data-ds-dark-theme] .pI_x6G_detailsCol > div {
+body .pI_x6G_detailsCol > div {
   background: transparent !important;
 }
 
@@ -138,13 +126,13 @@ body[data-ds-dark-theme] .pI_x6G_detailsCol > div {
 /* 侧边对话栏：半透明 + 玻璃模糊
    注意：backdrop-filter 会让元素成为 fixed 后代的包含块（设置弹窗会被
    强制压成侧边栏宽度）——所以模糊放在 ::before 伪元素上，列本身只设背景 */
-body[data-ds-dark-theme] .pI_x6G_sidebarCol {
+body .pI_x6G_sidebarCol {
   position: relative;
   background: rgba(13, 15, 19, 0.55) !important;
   border-right-color: hsla(0, 0%, 100%, 0.08) !important;
 }
 
-body[data-ds-dark-theme] .pI_x6G_sidebarCol::before {
+body .pI_x6G_sidebarCol::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -160,15 +148,15 @@ body[data-ds-dark-theme] .pI_x6G_sidebarCol::before {
    侧边栏内部，一旦被困在侧边栏的堆叠上下文里就会被输入框（z-7）盖住；
    模糊伪元素用 z-index:-1 自然绘制在内容之下，内容无需提升层级
    [data-slot="sidebar"] > div 为跨构建通用选择器 */
-body[data-ds-dark-theme] .hHd-Xa_root,
-body[data-ds-dark-theme] [data-slot="sidebar"] > div {
+body .hHd-Xa_root,
+body [data-slot="sidebar"] > div {
   background: transparent !important;
 }
 
 /* 底部输入框卡片：官方玻璃卡片样式（ds-glass-card/dropdown 同款令牌）
    [data-composer-card="true"] 为跨构建通用属性选择器 */
-body[data-ds-dark-theme] .uV2eYG_card,
-body[data-ds-dark-theme] [data-composer-card="true"] {
+body .uV2eYG_card,
+body [data-composer-card="true"] {
   background: rgba(13, 15, 19, 0.55) !important;
   /* GPU 优化：输入卡片背后有滚动文字，模糊最可见；强度跟随设置面板 */
   backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
@@ -179,21 +167,21 @@ body[data-ds-dark-theme] [data-composer-card="true"] {
 
 /* 输入框座位：去掉向不透明底色的渐隐，让极光从玻璃下透出
    [data-composer-seat] 为跨构建通用属性选择器 */
-body[data-ds-dark-theme] .wSkVaW_composerSeat,
-body[data-ds-dark-theme] [data-composer-seat] {
+body .wSkVaW_composerSeat,
+body [data-composer-seat] {
   background: transparent !important;
 }
 
 /* 会话列表底部渐隐条（qDHVXG_fade）：原来用不透明侧边栏填充色渐变，
    在玻璃侧边栏下会露出浅色白条——透明化 */
-body[data-ds-dark-theme] .qDHVXG_fade {
+body .qDHVXG_fade {
   background: transparent !important;
 }
 
 /* ============ 消息气泡与代码块玻璃化（与侧边栏/输入框同款材质） ============ */
 
 /* 用户消息气泡 */
-body[data-ds-dark-theme] .gdEzaW_bubble {
+body .gdEzaW_bubble {
   background: rgba(13, 15, 19, 0.55) !important;
   /* GPU 优化：气泡数量多且背后是平滑极光；强度跟随设置面板 */
   backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
@@ -202,15 +190,15 @@ body[data-ds-dark-theme] .gdEzaW_bubble {
 }
 
 /* 代码块容器（终端/阅读/差异/搜索等 DSL 块）+ 复制按钮 + banner */
-body[data-ds-dark-theme] ._block_10eou_7,
-body[data-ds-dark-theme] ._block_biesw_7,
-body[data-ds-dark-theme] ._block_srovd_7,
-body[data-ds-dark-theme] ._block_s66q0_7,
-body[data-ds-dark-theme] ._block_178r4_4,
-body[data-ds-dark-theme] ._block_d4nqi_7,
-body[data-ds-dark-theme] ._body_1ye18_20,
-body[data-ds-dark-theme] ._copyButton_10eou_142,
-body[data-ds-dark-theme] ._bannerWrap_178r4_21 {
+body ._block_10eou_7,
+body ._block_biesw_7,
+body ._block_srovd_7,
+body ._block_s66q0_7,
+body ._block_178r4_4,
+body ._block_d4nqi_7,
+body ._body_1ye18_20,
+body ._copyButton_10eou_142,
+body ._bannerWrap_178r4_21 {
   background: rgba(13, 15, 19, 0.55) !important;
   /* GPU 优化：代码块数量多；强度跟随设置面板 */
   backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
@@ -219,10 +207,10 @@ body[data-ds-dark-theme] ._bannerWrap_178r4_21 {
 }
 
 /* ============ 工具调用行统一透明与悬浮交互（彻底消除 Bash 等黑框框） ============ */
-body[data-ds-dark-theme] .CY-8Ka_card,
-body[data-ds-dark-theme] .o3BgMG_root,
-body[data-ds-dark-theme] .ztWv_q_callRow,
-body[data-ds-dark-theme] .Md3f7G_callRow {
+body .CY-8Ka_card,
+body .o3BgMG_root,
+body .ztWv_q_callRow,
+body .Md3f7G_callRow {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -230,21 +218,21 @@ body[data-ds-dark-theme] .Md3f7G_callRow {
   -webkit-backdrop-filter: none !important;
 }
 
-body[data-ds-dark-theme] .CY-8Ka_root,
-body[data-ds-dark-theme] .o3BgMG_row {
+body .CY-8Ka_root,
+body .o3BgMG_row {
   background: transparent !important;
   border-radius: 6px !important;
   transition: background 0.15s ease !important;
 }
-body[data-ds-dark-theme] .CY-8Ka_root:hover,
-body[data-ds-dark-theme] .o3BgMG_row:hover {
+body .CY-8Ka_root:hover,
+body .o3BgMG_row:hover {
   background: rgba(255, 255, 255, 0.05) !important;
 }
 
 /* 展开后的终端与输出卡片（保持深邃毛玻璃） */
-body[data-ds-dark-theme] .CY-8Ka_terminal,
-body[data-ds-dark-theme] .CY-8Ka_ioCard,
-body[data-ds-dark-theme] .o3BgMG_ioCard {
+body .CY-8Ka_terminal,
+body .CY-8Ka_ioCard,
+body .o3BgMG_ioCard {
   background: rgba(13, 15, 19, 0.65) !important;
   /* GPU 优化：终端/输出卡片，强度跟随设置面板 */
   backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
@@ -264,6 +252,7 @@ body[data-ds-dark-theme] .o3BgMG_ioCard {
   margin-right: 8px;
   flex: none;
   vertical-align: middle;
+  font-size: 14px;
   -webkit-text-fill-color: initial !important;
   transition: filter 0.25s ease;
   filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.7));
@@ -277,6 +266,11 @@ body[data-ds-dark-theme] .o3BgMG_ioCard {
 .dsh-thinking-orb-wrap[data-state="breathing"] { filter: drop-shadow(0 0 7px rgba(255, 122, 41, 0.9)); }
 .dsh-thinking-orb-wrap[data-state="shaping"] { filter: drop-shadow(0 0 7px rgba(96, 165, 250, 0.85)); }
 .dsh-thinking-orb-wrap[data-state="working"] { filter: drop-shadow(0 0 7px rgba(59, 130, 246, 0.8)); }
+.dsh-thinking-orb-wrap[data-waiting] { filter: drop-shadow(0 0 6px rgba(148, 163, 184, 0.65)) !important; opacity: 0.92; }
+.dsh-thinking-orb-wrap[data-planning],
+[data-plan-mode="1"] .dsh-thinking-orb-wrap {
+  filter: drop-shadow(0 0 8px rgba(255, 122, 41, 0.95)) !important;
+}
 
 .dsh-thinking-orb-canvas {
   width: 20px;
@@ -284,12 +278,36 @@ body[data-ds-dark-theme] .o3BgMG_ioCard {
   display: block;
 }
 
-body[data-ds-dark-theme] .Md3f7G_turnStatus {
+/* 隐藏原生直接裸文本，防止 React Virtual DOM 冲突 */
+.Md3f7G_turnStatus,
+[role="status"][aria-live="polite"].Md3f7G_turnStatus {
+  font-size: 0 !important;
+}
+
+.dsh-turn-status-text {
+  font-size: 14px !important;
+  line-height: 24px !important;
+  font-weight: 500 !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  color: var(--dsw-static-deepseek-500, #1d6bf3);
+  -webkit-text-fill-color: var(--dsw-static-deepseek-500, #1d6bf3);
+}
+
+body .Md3f7G_turnStatus {
   display: inline-flex !important;
   align-items: center !important;
   font-weight: 500 !important;
-  font-size: 14px !important;
+  font-size: 0 !important;
   line-height: 24px !important;
+  filter: drop-shadow(0 0 10px rgba(77, 139, 245, 0.45)) !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 4px 0 !important;
+}
+
+body .dsh-turn-status-text {
+  display: inline-block !important;
   background: linear-gradient(90deg, #4d8bf5 0%, #60a5fa 35%, #ffffff 50%, #60a5fa 65%, #4d8bf5 100%) !important;
   background-size: 250% 100% !important;
   -webkit-background-clip: text !important;
@@ -297,22 +315,16 @@ body[data-ds-dark-theme] .Md3f7G_turnStatus {
   -webkit-text-fill-color: transparent !important;
   color: transparent !important;
   animation: 1.8s linear infinite Md3f7G_dsh-turn-status-shimmer !important;
-  filter: drop-shadow(0 0 10px rgba(77, 139, 245, 0.45)) !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  margin: 4px 0 !important;
 }
 
-body[data-ds-dark-theme] .dsh-turn-status-text {
-  display: inline !important;
-  background: inherit !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  color: transparent !important;
+.Md3f7G_turnStatusClock,
+[class*="turnStatusClock"] {
+  font-size: 12px !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
 }
 
-body[data-ds-dark-theme] .Md3f7G_turnStatusClock {
+body .Md3f7G_turnStatusClock {
   font-size: 12px !important;
   font-variant-numeric: tabular-nums !important;
   color: rgba(255, 255, 255, 0.6) !important;
@@ -322,54 +334,482 @@ body[data-ds-dark-theme] .Md3f7G_turnStatusClock {
   filter: none !important;
 }
 
-body[data-ds-dark-theme] [data-plan-mode="1"] .Md3f7G_turnStatus,
-body[data-ds-dark-theme] .Md3f7G_turnStatus[data-planning] {
+body [data-plan-mode="1"] .Md3f7G_turnStatus,
+body .Md3f7G_turnStatus[data-planning] {
+  filter: drop-shadow(0 0 10px rgba(255, 122, 41, 0.5)) !important;
+}
+
+body [data-plan-mode="1"] .dsh-turn-status-text,
+body .Md3f7G_turnStatus[data-planning] .dsh-turn-status-text {
   background: linear-gradient(90deg, #ff7a29 0%, #ff9d42 35%, #fff1d6 50%, #ff9d42 65%, #ff7a29 100%) !important;
   background-size: 250% 100% !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
-  filter: drop-shadow(0 0 10px rgba(255, 122, 41, 0.5)) !important;
+  color: transparent !important;
+}
+
+[data-plan-mode="1"] .dsh-turn-status-text,
+.Md3f7G_turnStatus[data-planning] .dsh-turn-status-text {
+  color: #ff7a29 !important;
+  -webkit-text-fill-color: #ff7a29 !important;
 }
 
 /* ============ 计划待审框 (Plan Review Card) ============ */
-body[data-ds-dark-theme] .LVzXQa_card,
-body[data-ds-dark-theme] [data-slot="plan-review"] > div {
+body .LVzXQa_card,
+body [data-slot="plan-review"] > div {
   background: rgba(13, 15, 19, 0.68) !important;
   backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   border: 1px solid rgba(255, 150, 40, 0.25) !important;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 150, 40, 0.15) !important;
 }
-body[data-ds-dark-theme] .LVzXQa_strip {
+body .LVzXQa_strip {
   background: rgba(255, 140, 40, 0.12) !important;
   color: #ff9d42 !important;
 }
-body[data-ds-dark-theme] .LVzXQa_dot {
+body .LVzXQa_dot {
   background: #ff7a29 !important;
   box-shadow: 0 0 8px rgba(255, 122, 41, 0.8) !important;
 }
 
-/* ============ 任务清单框 (Todo List Dock & Panel) ============ */
-body[data-ds-dark-theme] ._7yHdaG_panel,
-body[data-ds-dark-theme] [data-slot="conversation.input.dock"] ._7yHdaG_panel {
-  background: rgba(13, 15, 19, 0.65) !important;
+/* ============ 任务清单框 (Todo List Dock & Panel) — Pulse 官方风格 ============ */
+
+/* 1. 容器卡片材质（Card Container） */
+body [data-testid="todo-panel"],
+body [data-slot="conversation.input.dock"] section,
+body .lXshSW_root,
+body ._7yHdaG_panel,
+body [data-slot="conversation.input.dock"] ._7yHdaG_panel,
+body [data-slot="conversation.input.dock"] > div > section {
+  position: relative !important;
+  background: rgba(29, 29, 29, 0.78) !important;
   backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
-  border: 1px solid hsla(0, 0%, 100%, 0.08) !important;
-  border-bottom: none !important;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25) !important;
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: inset 0 0 0 1px rgba(44, 47, 54, 0.52), inset 0 0 50px 0 rgba(255, 255, 255, 0.02), 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+  margin-bottom: 8px !important;
+  overflow: visible !important;
+  isolation: isolate !important;
+  box-sizing: border-box !important;
+  transition: box-shadow 0.3s ease, background 0.3s ease !important;
 }
-body[data-ds-dark-theme] ._7yHdaG_header:hover {
+
+body [data-slot="conversation.input.dock"] {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+body ._7yHdaG_panel:after {
+  display: none !important;
+  border: none !important;
+}
+
+body .lXshSW_body {
+  position: relative !important;
+  z-index: 4 !important;
+  padding: 14px 18px !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+}
+
+body .lXshSW_header {
+  padding: 0 !important;
+  gap: 10px !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+body ._7yHdaG_header {
+  padding: 10px 14px !important;
+  gap: 10px !important;
+  border-radius: 12px !important;
+}
+
+body ._7yHdaG_header:hover,
+body .lXshSW_header:hover {
+  background: transparent !important;
+}
+
+body .lXshSW_lead,
+body ._7yHdaG_lead {
+  color: #858585 !important;
+  transition: color 0.15s ease !important;
+}
+
+body .lXshSW_header:hover .lXshSW_lead,
+body ._7yHdaG_header:hover ._7yHdaG_lead {
+  color: #ededed !important;
+}
+
+body .lXshSW_chevron,
+body ._7yHdaG_chevron {
+  color: #858585 !important;
+  transition: color 0.15s ease, transform 0.2s ease !important;
+}
+
+body .lXshSW_header:hover .lXshSW_chevron,
+body ._7yHdaG_header:hover ._7yHdaG_chevron {
+  color: #ededed !important;
+}
+
+/* 2. 标题与状态文字流光（Text Shimmer） */
+body .lXshSW_title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 20px !important;
+  background: linear-gradient(90deg, transparent 0%, transparent 40%, #ffffff 50%, transparent 60%, transparent 100%), #ededed !important;
+  background-size: 400% 100%, 100% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  animation: dsh-pulse-shimmer 2.4s linear infinite !important;
+  display: inline-block !important;
+}
+
+body .lXshSW_progress,
+body ._7yHdaG_count,
+body [data-testid="todo-panel"] [class*="progress"],
+body [data-testid="todo-panel"] [class*="title"] {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+  background: linear-gradient(90deg, transparent 0%, transparent 40%, #ededed 50%, transparent 60%, transparent 100%), #858585 !important;
+  background-size: 400% 100%, 100% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  animation: dsh-pulse-shimmer 2.4s linear infinite !important;
+  display: inline-block !important;
+}
+
+@keyframes dsh-pulse-shimmer {
+  0% {
+    background-position: 100% 0px, 0 0;
+  }
+  100% {
+    background-position: 0% 0px, 0 0;
+  }
+}
+
+/* 3. 任务条目与状态指示器（Task Items & Status Glyphs） */
+body .lXshSW_list,
+body ._7yHdaG_list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  max-height: 200px !important;
+  margin: 0 !important;
+  padding: 4px 0 0 0 !important;
+  list-style: none !important;
+  overflow-y: auto !important;
+}
+
+body .lXshSW_item,
+body ._7yHdaG_row,
+body [data-testid="todo-panel"] li {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  font-size: 13px !important;
+  line-height: 16px !important;
+  padding: 4px 6px !important;
+  border-radius: 8px !important;
+  transition: background 0.15s ease !important;
+  background: transparent !important;
+  box-sizing: border-box !important;
+}
+
+body .lXshSW_item:hover,
+body ._7yHdaG_row:hover,
+body [data-testid="todo-panel"] li:hover {
   background: rgba(255, 255, 255, 0.04) !important;
 }
-body[data-ds-dark-theme] ._7yHdaG_row:hover {
-  background: rgba(255, 255, 255, 0.03) !important;
+
+body .lXshSW_content {
+  min-width: 0 !important;
+  flex: auto !important;
+  transition: color 0.2s ease !important;
+}
+
+body .lXshSW_glyph {
+  flex: none !important;
+  place-items: center !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: grid !important;
+  transition: filter 0.25s ease, color 0.25s ease !important;
+}
+
+/* 进行中状态（in_progress） */
+body [data-status="in_progress"] .lXshSW_content,
+body .lXshSW_item[data-status="in_progress"] .lXshSW_content,
+body [data-testid="todo-panel"] [data-status="in_progress"] [class*="content"] {
+  color: #f5f5f5 !important;
+  -webkit-text-fill-color: #f5f5f5 !important;
+  font-weight: 500 !important;
+}
+
+body [data-status="in_progress"] .lXshSW_glyph,
+body .lXshSW_glyphProgress,
+body [data-testid="todo-panel"] [data-status="in_progress"] [class*="glyph"] {
+  color: #38bdf8 !important;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.65)) !important;
+  animation: dsh-task-spin 2s linear infinite !important;
+  transform-origin: center center !important;
+}
+
+body [data-status="in_progress"] svg circle,
+body .lXshSW_glyphProgress circle {
+  stroke-dasharray: 3 3 !important;
+  stroke: #38bdf8 !important;
+}
+
+@keyframes dsh-task-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 已完成状态（completed） */
+body [data-status="completed"] .lXshSW_content,
+body .lXshSW_item[data-status="completed"] .lXshSW_content,
+body [data-testid="todo-panel"] [data-status="completed"] [class*="content"] {
+  color: #686868 !important;
+  -webkit-text-fill-color: #686868 !important;
+  font-weight: 400 !important;
+}
+
+body [data-status="completed"] .lXshSW_glyph,
+body .lXshSW_glyphCompleted,
+body [data-testid="todo-panel"] [data-status="completed"] [class*="glyph"] {
+  color: #34d399 !important;
+  filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.35)) !important;
+  animation: none !important;
+}
+
+body [data-status="completed"] svg circle,
+body [data-status="completed"] svg path,
+body .lXshSW_glyphCompleted circle,
+body .lXshSW_glyphCompleted path {
+  color: #34d399 !important;
+  stroke: #34d399 !important;
+}
+
+/* 待处理状态（pending） */
+body [data-status="pending"] .lXshSW_content,
+body .lXshSW_item[data-status="pending"] .lXshSW_content,
+body [data-testid="todo-panel"] [data-status="pending"] [class*="content"] {
+  color: #858585 !important;
+  -webkit-text-fill-color: #858585 !important;
+  font-weight: 400 !important;
+}
+
+body [data-status="pending"] .lXshSW_glyph,
+body .lXshSW_glyphPending,
+body [data-testid="todo-panel"] [data-status="pending"] [class*="glyph"] {
+  color: #686868 !important;
+  filter: none !important;
+  opacity: 0.7 !important;
+  animation: none !important;
+}
+
+body [data-status="pending"] svg circle,
+body .lXshSW_glyphPending circle {
+  stroke-dasharray: 2.4 2.4 !important;
+  stroke: #686868 !important;
+}
+
+/* 4. Border Beam Pulse 边缘脉冲光束集成 */
+[data-beam="dsh-todo"] {
+  position: relative !important;
+  border-radius: 16px !important;
+  overflow: visible !important;
+  isolation: isolate !important;
+}
+
+[data-beam="dsh-todo"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 15px;
+  padding: 1px;
+  clip-path: inset(0 round 16px);
+  background:
+    radial-gradient(ellipse 70px 40px at 33% -7.4%, rgb(255, 50, 100), transparent),
+    radial-gradient(ellipse 60px 35px at 12% -5%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 40px 70px at 2.1% 68.3%, rgb(50, 200, 80), transparent),
+    radial-gradient(ellipse 20px 35px at 2.1% 68.3%, rgb(30, 185, 170), transparent),
+    radial-gradient(ellipse 180px 32px at 74.4% 100%, rgb(100, 70, 255), transparent),
+    radial-gradient(ellipse 85px 26px at 55% 100%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 74px 32px at 93.9% 0%, rgb(255, 120, 40), transparent),
+    radial-gradient(ellipse 26px 42px at 100% 27.1%, rgb(240, 50, 180), transparent),
+    radial-gradient(ellipse 52px 48px at 100% 27.1%, rgb(180, 40, 240), transparent);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.35;
+  transition: opacity 0.4s ease;
+  animation: none;
+}
+
+[data-beam="dsh-todo"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse 63px 36px at 33% -7.4%, rgba(255, 50, 100, 0.4), transparent),
+    radial-gradient(ellipse 54px 32px at 12% -5%, rgba(40, 140, 255, 0.4), transparent),
+    radial-gradient(ellipse 36px 63px at 2.1% 68.3%, rgba(50, 200, 80, 0.4), transparent),
+    radial-gradient(ellipse 18px 32px at 2.1% 68.3%, rgba(30, 185, 170, 0.4), transparent),
+    radial-gradient(ellipse 162px 29px at 74.4% 100%, rgba(100, 70, 255, 0.4), transparent),
+    radial-gradient(ellipse 77px 23px at 55% 100%, rgba(40, 140, 255, 0.4), transparent),
+    radial-gradient(ellipse 67px 29px at 93.9% 0%, rgba(255, 120, 40, 0.4), transparent),
+    radial-gradient(ellipse 23px 38px at 100% 27.1%, rgba(240, 50, 180, 0.4), transparent),
+    radial-gradient(ellipse 47px 43px at 100% 27.1%, rgba(180, 40, 240, 0.4), transparent);
+  box-shadow: inset 0 0 10px 1px rgba(255, 255, 255, 0.18);
+  -webkit-mask-image:
+    linear-gradient(white, transparent 24px, transparent calc(100% - 24px), white),
+    linear-gradient(to right, white, transparent 24px, transparent calc(100% - 24px), white);
+  -webkit-mask-composite: source-over;
+  mask-image:
+    linear-gradient(white, transparent 24px, transparent calc(100% - 24px), white),
+    linear-gradient(to right, white, transparent 24px, transparent calc(100% - 24px), white);
+  mask-composite: add;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.28;
+  clip-path: inset(0 round 16px);
+  transition: opacity 0.4s ease;
+  animation: none;
+}
+
+[data-beam="dsh-todo"] [data-beam-bloom] {
+  display: block;
+  position: absolute;
+  inset: -1px;
+  border-radius: 16px;
+  clip-path: inset(0 round 16px);
+  background:
+    radial-gradient(ellipse 70px 40px at 33% -7.4%, rgb(255, 50, 100), transparent),
+    radial-gradient(ellipse 60px 35px at 12% -5%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 40px 70px at 2.1% 68.3%, rgb(50, 200, 80), transparent),
+    radial-gradient(ellipse 20px 35px at 2.1% 68.3%, rgb(30, 185, 170), transparent),
+    radial-gradient(ellipse 180px 32px at 74.4% 100%, rgb(100, 70, 255), transparent),
+    radial-gradient(ellipse 85px 26px at 55% 100%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 74px 32px at 93.9% 0%, rgb(255, 120, 40), transparent),
+    radial-gradient(ellipse 26px 42px at 100% 27.1%, rgb(240, 50, 180), transparent),
+    radial-gradient(ellipse 52px 48px at 100% 27.1%, rgb(180, 40, 240), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 1px;
+  filter: blur(8px) brightness(1.2) saturate(1.2);
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.15;
+  transition: opacity 0.4s ease;
+  animation: none;
+}
+
+/* Active Pulse State: 存在进行中任务或运行状态时的灵动脉冲呼吸 */
+[data-beam="dsh-todo"][data-active]::after,
+[data-beam="dsh-todo"][data-pulse-active]::after {
+  opacity: 0.85;
+  animation: beam-pulse-hue-shift 12s ease-in-out infinite, dsh-pulse-breathe 2.8s ease-in-out infinite;
+}
+
+[data-beam="dsh-todo"][data-active]::before,
+[data-beam="dsh-todo"][data-pulse-active]::before {
+  opacity: 0.7;
+  animation: beam-pulse-hue-shift 12s ease-in-out infinite, dsh-pulse-inner-breathe 2.8s ease-in-out infinite;
+}
+
+[data-beam="dsh-todo"][data-active] [data-beam-bloom],
+[data-beam="dsh-todo"][data-pulse-active] [data-beam-bloom] {
+  opacity: 0.55;
+  animation: beam-pulse-hue-shift 12s ease-in-out infinite, dsh-pulse-bloom-breathe 2.8s ease-in-out infinite;
+}
+
+@keyframes beam-pulse-hue-shift {
+  0% {
+    filter: hue-rotate(-30deg) brightness(1.2) saturate(1.2);
+  }
+  50% {
+    filter: hue-rotate(30deg) brightness(1.2) saturate(1.2);
+  }
+  100% {
+    filter: hue-rotate(-30deg) brightness(1.2) saturate(1.2);
+  }
+}
+
+@keyframes dsh-pulse-breathe {
+  0%, 100% {
+    opacity: 0.45;
+    filter: hue-rotate(-30deg) brightness(1.15) saturate(1.2);
+  }
+  50% {
+    opacity: 0.95;
+    filter: hue-rotate(15deg) brightness(1.45) saturate(1.4);
+  }
+}
+
+@keyframes dsh-pulse-inner-breathe {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes dsh-pulse-bloom-breathe {
+  0%, 100% {
+    opacity: 0.25;
+    filter: blur(6px) brightness(1.1);
+  }
+  50% {
+    opacity: 0.65;
+    filter: blur(10px) brightness(1.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-beam="dsh-todo"]::after,
+  [data-beam="dsh-todo"]::before,
+  [data-beam="dsh-todo"] [data-beam-bloom],
+  body .lXshSW_title,
+  body .lXshSW_progress,
+  body ._7yHdaG_count,
+  body [data-status="in_progress"] .lXshSW_glyph,
+  body .lXshSW_glyphProgress {
+    animation: none !important;
+  }
 }
 
 /* ============ 提问框 (Ask User Question Card) ============ */
-body[data-ds-dark-theme] .Mbwy4a_card,
-body[data-ds-dark-theme] [data-slot="user-questions"] > div {
+body .Mbwy4a_card,
+body [data-slot="user-questions"] > div {
   background: rgba(13, 15, 19, 0.68) !important;
   backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
@@ -378,8 +818,8 @@ body[data-ds-dark-theme] [data-slot="user-questions"] > div {
 }
 
 /* ============ 授权/审批卡片与设置弹窗 ============ */
-body[data-ds-dark-theme] .VOzbGW_panel,
-body[data-ds-dark-theme] [data-slot="approval"] > div {
+body .VOzbGW_panel,
+body [data-slot="approval"] > div {
   background: rgba(13, 15, 19, 0.75) !important;
   backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
   -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
@@ -389,485 +829,76 @@ body[data-ds-dark-theme] [data-slot="approval"] > div {
 }
 
 /* ============ 发送按钮与交互微动效 ============ */
-body[data-ds-dark-theme] .uV2eYG_primary {
+body .uV2eYG_primary {
   background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
   box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35) !important;
   border-radius: 999px !important;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease, box-shadow 0.2s ease !important;
 }
-body[data-ds-dark-theme] .uV2eYG_primary:hover:not(:disabled) {
+body .uV2eYG_primary:hover:not(:disabled) {
   transform: scale(1.05) !important;
   filter: brightness(1.15) !important;
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.5) !important;
 }
-body[data-ds-dark-theme] .uV2eYG_primary:active:not(:disabled) {
+body .uV2eYG_primary:active:not(:disabled) {
   transform: scale(0.95) !important;
 }
-body[data-ds-dark-theme] [data-composer-card="true"][data-planning] .uV2eYG_primary,
-body[data-ds-dark-theme] .uV2eYG_card[data-planning] .uV2eYG_primary {
+body [data-composer-card="true"][data-planning] .uV2eYG_primary,
+body .uV2eYG_card[data-planning] .uV2eYG_primary {
   background: linear-gradient(135deg, #ff5a36, #ff9500) !important;
   box-shadow: 0 2px 12px rgba(255, 90, 54, 0.45) !important;
 }
 
 /* ============ 玻璃开关（body.dsh-bg-no-glass）：移除 backdrop blur，垫实底色保可读性 ============ */
-body[data-ds-dark-theme].dsh-bg-no-glass .pI_x6G_sidebarCol::before {
+body.dsh-bg-no-glass .pI_x6G_sidebarCol::before {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   background: transparent !important;
 }
-body[data-ds-dark-theme].dsh-bg-no-glass .pI_x6G_sidebarCol {
+body.dsh-bg-no-glass .pI_x6G_sidebarCol {
   background: rgba(13, 15, 19, 0.92) !important;
 }
-body[data-ds-dark-theme].dsh-bg-no-glass .uV2eYG_card,
-body[data-ds-dark-theme].dsh-bg-no-glass [data-composer-card="true"],
-body[data-ds-dark-theme].dsh-bg-no-glass .gdEzaW_bubble,
-body[data-ds-dark-theme].dsh-bg-no-glass ._block_10eou_7,
-body[data-ds-dark-theme].dsh-bg-no-glass ._block_biesw_7,
-body[data-ds-dark-theme].dsh-bg-no-glass ._block_srovd_7,
-body[data-ds-dark-theme].dsh-bg-no-glass ._block_s66q0_7,
-body[data-ds-dark-theme].dsh-bg-no-glass ._block_178r4_4,
-body[data-ds-dark-theme].dsh-bg-no-glass ._block_d4nqi_7,
-body[data-ds-dark-theme].dsh-bg-no-glass ._body_1ye18_20,
-body[data-ds-dark-theme].dsh-bg-no-glass ._copyButton_10eou_142,
-body[data-ds-dark-theme].dsh-bg-no-glass ._bannerWrap_178r4_21,
-body[data-ds-dark-theme].dsh-bg-no-glass .LVzXQa_card,
-body[data-ds-dark-theme].dsh-bg-no-glass .Mbwy4a_card,
-body[data-ds-dark-theme].dsh-bg-no-glass ._7yHdaG_panel,
-body[data-ds-dark-theme].dsh-bg-no-glass .VOzbGW_panel,
-body[data-ds-dark-theme].dsh-bg-no-glass .CY-8Ka_ioCard,
-body[data-ds-dark-theme].dsh-bg-no-glass .o3BgMG_ioCard {
+body.dsh-bg-no-glass .uV2eYG_card,
+body.dsh-bg-no-glass [data-composer-card="true"],
+body.dsh-bg-no-glass .gdEzaW_bubble,
+body.dsh-bg-no-glass ._block_10eou_7,
+body.dsh-bg-no-glass ._block_biesw_7,
+body.dsh-bg-no-glass ._block_srovd_7,
+body.dsh-bg-no-glass ._block_s66q0_7,
+body.dsh-bg-no-glass ._block_178r4_4,
+body.dsh-bg-no-glass ._block_d4nqi_7,
+body.dsh-bg-no-glass ._body_1ye18_20,
+body.dsh-bg-no-glass ._copyButton_10eou_142,
+body.dsh-bg-no-glass ._bannerWrap_178r4_21,
+body.dsh-bg-no-glass .LVzXQa_card,
+body.dsh-bg-no-glass .Mbwy4a_card,
+body.dsh-bg-no-glass .VOzbGW_panel,
+body.dsh-bg-no-glass .CY-8Ka_ioCard,
+body.dsh-bg-no-glass .o3BgMG_ioCard {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   background: rgba(13, 15, 19, 0.92) !important;
 }
 
+body.dsh-bg-no-glass [data-testid="todo-panel"],
+body.dsh-bg-no-glass [data-slot="conversation.input.dock"] section,
+body.dsh-bg-no-glass .lXshSW_root,
+body.dsh-bg-no-glass ._7yHdaG_panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #1d1d1d !important;
+}
 
 `;
       document.head.appendChild(styleTag);
     }
-/*!
- * dsh-deepseek-bg.js
- * DeepSeek 官网首页背景完整复刻（背景颜色 + 动画效果），作为 DSH Web GUI 的全屏固定背景。
- *
- * 移植自 www.deepseek.com 首页 hero（浅色：粒子极光 + 蓝色星座网格）与
- * www.deepseek.com/harness 落地页 hero（深色：3D 流体极光 + 白色星座网格）。
- * 两套 WebGL shader（flowmap / particle / fluid）、渲染循环、参数配置均从
- * DeepSeek 官方打包产物中原样提取。
- *
- * 行为与官方一致：
- *  - WebGL2 粒子/流体极光（30fps 节流、DPR 上限 1.5、IntersectionObserver 暂停）
- *  - 2D 星座网格（90px 间距、鼠标斥力弹簧物理、140px 交互半径）
- *  - 主题自适应：跟随 body[data-ds-dark-theme]（含 fallback 到 prefers-color-scheme）
- *  - 触屏设备跳过星座网格；prefers-reduced-motion 时渲染单帧静态
- *  - Windows 平台不做鼠标流体笔刷（与官方一致）
- */
-function apply(ctx) {
-  "use strict";
-  if (window.__dshDeepSeekBg && window.__dshDeepSeekBg._inited) return;
-  if (typeof window.__dshDeepSeekBg !== 'object' || window.__dshDeepSeekBg === null) window.__dshDeepSeekBg = {};
-  window.__dshDeepSeekBg._inited = true;
 
-  if (typeof document === "undefined") return;
-
-  var darkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
-  var reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var coarse = window.matchMedia && window.matchMedia("(hover: none), (pointer: coarse)").matches;
-  var isWindows = (navigator.userAgentData && navigator.userAgentData.platform === "Windows") ||
-    navigator.userAgent.indexOf("Windows") !== -1;
-
-  /* ------------------------------------------------------------------ *
-   * 主题检测
-   * ------------------------------------------------------------------ */
-  function detectDark() {
-    var b = document.body;
-    var d = document.documentElement;
-    if (b && b.hasAttribute("data-ds-dark-theme")) return true;
-    if (d && d.hasAttribute("data-ds-dark-theme")) return true;
-    if (b && b.hasAttribute("data-ds-light-theme")) return false;
-    if (d && d.hasAttribute("data-ds-light-theme")) return false;
-    if (d && d.dataset) {
-      if (d.dataset.theme === "dark") return true;
-      if (d.dataset.theme === "light") return false;
-    }
-    return !!(darkQuery && darkQuery.matches);
-  }
-
-  /* ------------------------------------------------------------------ *
-   * 官方参数配置
-   *   浅色：www.deepseek.com 首页 hero（particle 渲染）
-   *   深色：www.deepseek.com/harness hero（fluid 渲染）
-   * ------------------------------------------------------------------ */
-  var LIGHT_AURORA = {
-    type: "particle",
-    mouseRadius: 0.22, mouseStrength: 1.1, mouseSmoothing: 0.12, mouseVelocity: 0.15,
-    decay: 0.96, distortBoost: 1.35, noiseBoost: 0, swirlBoost: 0.45,
-    glowIntensity: 0, glowColors: ["#ffffff", "#ffffff", "#ffffff"],
-    speed: 14, distortion: 20, swirl: 12, swirlIterations: 8,
-    scale: 0.5, rotation: -5, proportion: 50, softness: 100, shapeScale: 10,
-    offsetX: 0, offsetY: 65,
-    colors: ["#8AA3D6", "#FFFFFF", "#FFFFFF"],
-    lightX: 0.89, lightY: 0.46, lightCore: 0, lightHalo: 0, vignette: 0, lightFollow: 0,
-    bloomThreshold: 0.61, bloomRange: 0.18, bloomStrength: 0, grain: 0
-  };
-
-  /* 官方深色 hero（www.deepseek.com/harness）参数，逐项取自缓存
-     page-07f506a1408ad0e8.js 中的 k 配置（fluid 渲染） */
-  var DARK_AURORA = {
-    type: "fluid",
-    mouseRadius: 0.09, mouseStrength: 1.8, mouseSmoothing: 0.1, mouseVelocity: 0.2,
-    decay: 0.925, distortBoost: 2.2, noiseBoost: 0.3, swirlBoost: 0.8,
-    glowIntensity: 0.13, glowColors: ["#fff7d1", "#538dca", "#2d448b"],
-    speed: 28, distortion: 18, swirl: 20, swirlIterations: 12,
-    scale: 1.77, rotation: 15, proportion: 60, softness: 80, shapeScale: 0,
-    offsetX: -124, offsetY: -48,
-    colors: ["#000000", "#1A3870", "#204a7e", "#eed8aa", "#000000"],
-    lightX: 0.89, lightY: 0.46, lightCore: 0.14, lightHalo: 0.2, vignette: 0.38, lightFollow: 0.63,
-    bloomThreshold: 0.61, bloomRange: 0.18, bloomStrength: 0.4, grain: 0.005
-  };
-
-  var LIGHT_CONSTELLATION = { lineColor: "rgba(60, 100, 160,", dotColor: "rgba(60, 100, 160,", lineOpacity: 0.1, dotOpacity: 0.2, round: true };
-  var DARK_CONSTELLATION = { lineColor: "rgba(255, 255, 255,", dotColor: "rgba(255, 255, 255,", lineOpacity: 0.08, dotOpacity: 0.16, round: false };
-
-  var state = { dark: detectDark() };
-  function currentAuroraConfig() { return state.dark ? DARK_AURORA : LIGHT_AURORA; }
-  function currentConstellation() { return state.dark ? DARK_CONSTELLATION : LIGHT_CONSTELLATION; }
-
-  /* ===================================================================== *
-   * GPU 特效设置（设置页「背景特效」面板 + 运行时联动）
-   *   档位预设 → 独立开关（自动转自定义）→ 高级参数 → 低电量自动节能
-   *   全部即时生效、localStorage 持久化（dsh-bg-settings）
-   * ===================================================================== */
-  var SETTINGS_KEY = "dsh-bg-settings";
-  var PRESETS = {
-    // 全特效：极光分辨率与玻璃模糊全部拉满（滑杆上限 1.0x / 12px）
-    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 1, fps: 30, blur: 12, followMs: 20, lightFollow: 1 },
-    half: { label: "均衡", aurora: true, whale: false, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 24, blur: 8, followMs: 20, lightFollow: 1 },
-    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: false, mouse: false, auroraScale: 0.4, fps: 20, blur: 6, followMs: 20, lightFollow: 1 }
-  };
-  var wakeConstellationRef = null;
-  var shellGlassApplyRef = null; // 指向 makeShellTransparent 内部的玻璃应用函数（供设置切换即时重跑）
-  var batteryState = null;
-  var batteryLowApplied = false;
-  var lastManualMode = null;
-
-  function loadSettings() {
-    var d = { mode: "full", autoBattery: false };
-    var parsed = null;
-    try {
-      var raw = localStorage.getItem(SETTINGS_KEY);
-      if (raw) parsed = JSON.parse(raw);
-    } catch (e) {}
-    if (parsed && typeof parsed === "object") {
-      if (typeof parsed.mode === "string") d.mode = parsed.mode;
-      if (typeof parsed.autoBattery === "boolean") d.autoBattery = parsed.autoBattery;
-    }
-    if (PRESETS[d.mode]) {
-      // 档位模式：数值全部跟随预设（预设调整后自动生效，无需清理旧缓存）
-      var p = PRESETS[d.mode];
-      for (var k in p) if (k !== "label") d[k] = p[k];
-    } else {
-      // 自定义模式：全特效为底，叠加保存过的数值
-      d.mode = "custom";
-      var base = PRESETS.full;
-      for (var k2 in base) if (k2 !== "label") d[k2] = base[k2];
-      if (parsed && typeof parsed === "object") {
-        for (var k3 in parsed) if (Object.prototype.hasOwnProperty.call(parsed, k3)) d[k3] = parsed[k3];
-      }
-    }
-    return d;
-  }
-  var bgSettings = loadSettings();
-
-  function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(bgSettings)); } catch (e) {} }
-  function estimateGpu() {
-    var s = bgSettings, score = 0;
-    if (s.aurora) score += 52 * Math.min(1.2, (s.auroraScale || 0.75) / 0.75);
-    if (s.whale) score += 20;
-    if (s.constellation) score += 9;
-    if (s.mouse) score += 1; // 光标交互物理（极光漫游笔刷始终在跑，成本几乎无差）
-    if (s.beam) score += 8;
-    if (s.glass) score += 9 * Math.min(1.6, (s.blur || 8) / 8);
-    if (s.orbs) score += 2;
-    score *= ((s.fps || 30) / 30);
-    return Math.max(0, Math.min(100, Math.round(score)));
-  }
-  function snapshotSettings() {
-    return {
-      mode: bgSettings.mode,
-      aurora: !!bgSettings.aurora, whale: !!bgSettings.whale, constellation: !!bgSettings.constellation,
-      beam: !!bgSettings.beam, glass: !!bgSettings.glass, orbs: !!bgSettings.orbs, mouse: !!bgSettings.mouse,
-      auroraScale: bgSettings.auroraScale, fps: bgSettings.fps, blur: bgSettings.blur,
-      followMs: bgSettings.followMs != null ? bgSettings.followMs : 20,
-      lightFollow: bgSettings.lightFollow != null ? bgSettings.lightFollow : 1,
-      autoBattery: !!bgSettings.autoBattery,
-      gpu: estimateGpu(),
-      canvasW: auroraCanvas ? auroraCanvas.width : 0,
-      canvasH: auroraCanvas ? auroraCanvas.height : 0
-    };
-  }
-  var settingsListeners = [];
-  function notifySettings() { for (var i = 0; i < settingsListeners.length; i++) { try { settingsListeners[i](); } catch (e) {} } }
-  function subscribeSettings(fn) {
-    settingsListeners.push(fn);
-    return function () { var i = settingsListeners.indexOf(fn); if (i >= 0) settingsListeners.splice(i, 1); };
-  }
-  function applyPreset(mode) {
-    var p = PRESETS[mode]; if (!p) return;
-    for (var k in p) if (k !== "label") bgSettings[k] = p[k];
-    bgSettings.mode = mode;
-    commitSettings();
-  }
-  function updateSetting(key, value) { bgSettings[key] = value; bgSettings.mode = "custom"; commitSettings(); }
-  function resetSettings() { applyPreset("full"); bgSettings.autoBattery = false; commitSettings(); }
-  function commitSettings() { saveSettings(); applyBgSettings(); notifySettings(); }
-
-  /** 鲸鱼层显隐：深色主题 + 设置开关 双重条件 */
-  function updateWhaleDisplay() {
-    if (!whaleLayer) return;
-    whaleLayer.style.display = (state.dark && bgSettings.whale) ? "flex" : "none";
-  }
-
-  /** 把每个子系统立即切换到当前设置 */
-  function applyBgSettings() {
-    try { document.body.classList.toggle("dsh-bg-no-glass", !bgSettings.glass); } catch (e) {}
-    try { updateWhaleDisplay(); } catch (e) {}
-    try {
-      if (bgSettings.beam) watchBeamComposer();
-      else detachComposerBeam();
-    } catch (e) {}
-    try { if (shellGlassApplyRef) shellGlassApplyRef(); } catch (e) {} // 玻璃内联样式按开关重跑一次（轮询由 makeShellTransparent 持有）
-    try { syncThinkingOrb(); } catch (e) {}
-    try { if (bgSettings.constellation && wakeConstellationRef) wakeConstellationRef(); } catch (e) {}
-    if (bgSettings.autoBattery) { try { initBatteryAuto(); } catch (e) {} }
-    else { try { disableBatteryAuto(); } catch (e) {} }
-  }
-
-  /* ---- 低电量自动节能（Battery API，不支持则静默跳过） ---- */
-  function initBatteryAuto() {
-    if (batteryState || !navigator.getBattery) return;
-    navigator.getBattery().then(function (b) {
-      if (!bgSettings.autoBattery) return;
-      var onB = function () {
-        var low = !b.charging && b.level <= 0.2;
-        if (low && !batteryLowApplied) {
-          if (bgSettings.mode !== "eco") lastManualMode = bgSettings.mode;
-          batteryLowApplied = true;
-          applyPreset("eco");
-        } else if (!low && batteryLowApplied) {
-          batteryLowApplied = false;
-          if (lastManualMode && PRESETS[lastManualMode]) { applyPreset(lastManualMode); lastManualMode = null; }
-        }
-      };
-      batteryState = { b: b, onB: onB };
-      try {
-        b.addEventListener("levelchange", onB);
-        b.addEventListener("chargingchange", onB);
-      } catch (e) {}
-      onB();
-    }).catch(function () {});
-  }
-  function disableBatteryAuto() {
-    if (!batteryState) return;
-    try {
-      batteryState.b.removeEventListener("levelchange", batteryState.onB);
-      batteryState.b.removeEventListener("chargingchange", batteryState.onB);
-    } catch (e) {}
-    batteryState = null;
-  }
-
-  /* ---- 设置页「背景特效」面板 ---- */
-  var SETTINGS_UI_CSS = [
-    ".dsh-bg-settings{display:flex;flex-direction:column;gap:12px;max-width:560px;padding-bottom:28px;}",
-    ".dsh-bg-card{border:1px solid rgba(128,128,128,.22);border-radius:12px;padding:14px 16px;background:rgba(128,128,128,.06);}",
-    ".dsh-bg-sec-title{font-size:13px;font-weight:600;opacity:.9;margin-bottom:8px;}",
-    ".dsh-bg-div{border-top:1px solid rgba(128,128,128,.14);margin:12px 0;}",
-    /* 档位：一行三键分段控件 */
-    ".dsh-bg-presets{display:flex;gap:6px;}",
-    ".dsh-bg-preset{flex:1;cursor:pointer;border:1px solid rgba(128,128,128,.25);background:transparent;color:inherit;border-radius:8px;padding:7px 6px;font-size:13px;font-weight:500;font-family:inherit;text-align:center;transition:border-color .15s,background .15s,color .15s;}",
-    ".dsh-bg-preset:hover{background:rgba(128,128,128,.1);}",
-    ".dsh-bg-preset[data-active=\"true\"]{border-color:#4d8bf5;color:#6ea8ff;background:rgba(77,139,245,.12);}",
-    ".dsh-bg-preset-caption{font-size:11px;opacity:.6;margin-top:7px;line-height:1.5;}",
-    /* GPU 仪表 */
-    ".dsh-bg-meter-label{display:flex;justify-content:space-between;align-items:center;font-size:12px;opacity:.8;margin-bottom:6px;}",
-    ".dsh-bg-meter{height:8px;border-radius:4px;background:rgba(128,128,128,.18);overflow:hidden;}",
-    ".dsh-bg-meter>div{height:100%;border-radius:4px;transition:width .25s ease,background .25s ease;}",
-    ".dsh-bg-meta{font-size:11px;opacity:.55;line-height:1.6;margin-top:7px;}",
-    /* 开关行：细分隔线 + 紧凑内边距 */
-    ".dsh-bg-row{display:flex;align-items:center;gap:12px;padding:9px 2px;}",
-    ".dsh-bg-row+.dsh-bg-row{border-top:1px solid rgba(128,128,128,.08);}",
-    ".dsh-bg-row-info{flex:1;min-width:0;}",
-    ".dsh-bg-row-title{font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;}",
-    ".dsh-bg-row-desc{font-size:11px;opacity:.6;margin-top:2px;}",
-    ".dsh-bg-chip{font-size:10px;line-height:16px;padding:0 6px;border-radius:999px;border:1px solid rgba(128,128,128,.3);opacity:.85;white-space:nowrap;flex:none;}",
-    ".dsh-bg-chip[data-level=\"high\"]{color:#ff9d6b;border-color:rgba(255,140,80,.4);}",
-    ".dsh-bg-chip[data-level=\"mid\"]{color:#ffd166;border-color:rgba(255,200,90,.4);}",
-    ".dsh-bg-chip[data-level=\"low\"]{color:#7ee2a8;border-color:rgba(110,220,160,.4);}",
-    ".dsh-bg-switch{position:relative;width:36px;height:20px;flex:none;cursor:pointer;border-radius:999px;border:none;background:rgba(128,128,128,.3);transition:background .15s;padding:0;}",
-    ".dsh-bg-switch[aria-checked=\"true\"]{background:#4d8bf5;}",
-    ".dsh-bg-switch::after{content:\"\";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s ease;}",
-    ".dsh-bg-switch[aria-checked=\"true\"]::after{transform:translateX(16px);}",
-    /* 高级区 */
-    ".dsh-bg-slider{width:100%;accent-color:#4d8bf5;min-width:80px;}",
-    ".dsh-bg-select{background:transparent;color:inherit;border:1px solid rgba(128,128,128,.3);border-radius:8px;padding:4px 8px;font-size:12px;font-family:inherit;flex:none;}",
-    ".dsh-bg-adv summary{cursor:pointer;font-size:13px;font-weight:500;opacity:.9;user-select:none;padding:2px 0;}",
-    ".dsh-bg-adv-row{display:flex;align-items:center;gap:12px;padding:7px 0;font-size:13px;}",
-    ".dsh-bg-adv-row>span{flex:1;min-width:0;}",
-    ".dsh-bg-adv-value{width:56px;text-align:right;font-size:12px;opacity:.75;flex:none;font-variant-numeric:tabular-nums;}",
-    /* 底部 */
-    ".dsh-bg-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;}",
-    ".dsh-bg-reset{cursor:pointer;border:1px solid rgba(128,128,128,.3);background:transparent;color:inherit;border-radius:10px;padding:7px 16px;font-size:13px;font-family:inherit;}",
-    ".dsh-bg-reset:hover{background:rgba(128,128,128,.1);}",
-    ".dsh-bg-note{font-size:11px;opacity:.55;line-height:1.5;}",
-    "@media (prefers-reduced-motion: reduce){.dsh-bg-meter>div{transition:none;}}"
-  ].join("\n");
-
-  function injectSettingsCss() {
-    try {
-      if (document.getElementById("dsh-bg-settings-css")) return;
-      var tag = document.createElement("style");
-      tag.id = "dsh-bg-settings-css";
-      tag.textContent = SETTINGS_UI_CSS;
-      document.head.appendChild(tag);
-    } catch (e) {}
-  }
-
-  function BgSettingsSection() {
-    var h = react.createElement;
-    var snapState = react.useState(snapshotSettings());
-    var snap = snapState[0];
-    var setSnap = snapState[1];
-    react.useEffect(function () {
-      return subscribeSettings(function () { setSnap(snapshotSettings()); });
-    }, []);
-    var gpu = snap.gpu;
-    var meterColor = gpu < 35 ? "#4ade80" : (gpu < 60 ? "#facc15" : "#fb7185");
-    var presetIds = ["full", "half", "eco"];
-    var presetNames = { full: "全特效", half: "均衡", eco: "节能" };
-    var presetDescs = {
-      full: "所有特效拉满：极光 1.0x、玻璃 12px、30fps",
-      half: "保留极光/星座/玻璃与鼠标跟随，关闭鲸鱼和 Orbs（0.55x / 24fps）",
-      eco: "仅保留玻璃拟态与静态深色背景（20fps / blur 6px）"
-    };
-    var modeName = presetNames[snap.mode] || "自定义";
-    var modeCaption = presetDescs[snap.mode] || "手动调整的特效组合，可随时切回预设档位";
-    var rows = [
-      { key: "aurora", title: "极光背景", desc: "WebGL2 流体渐变，本插件最大 GPU 开销", level: "high" },
-      { key: "whale", title: "粒子鲸鱼", desc: "全屏 WebGL2 点阵粒子，光线跟随鼠标", level: "mid" },
-      { key: "constellation", title: "星座网格", desc: "2D 网格，鼠标斥力弹簧物理", level: "low" },
-      { key: "mouse", title: "鼠标跟随交互", desc: "极光/鲸鱼/星座跟随光标互动；关闭后极光改为自主缓慢漂移，画面保持流动", level: "low" },
-      { key: "beam", title: "Border Beam 光效", desc: "输入框边界旋转光晕与打字呼吸", level: "mid" },
-      { key: "glass", title: "玻璃拟态", desc: "侧边栏/气泡/代码块的 backdrop blur", level: "mid" },
-      { key: "orbs", title: "Thinking Orbs", desc: "状态栏 3D 点阵活动指示器", level: "low" }
-    ];
-    var levelText = { high: "高", mid: "中", low: "低" };
-    function presetButtons() {
-      return presetIds.map(function (id) {
-        return h("button", {
-          key: id,
-          type: "button",
-          className: "dsh-bg-preset",
-          "data-active": snap.mode === id,
-          onClick: function () { applyPreset(id); }
-        }, presetNames[id]);
-      });
-    }
-    function switchBtn(key) {
-      return h("button", {
-        type: "button",
-        className: "dsh-bg-switch",
-        role: "switch",
-        "aria-checked": snap[key] ? "true" : "false",
-        "aria-label": "开关",
-        onClick: function () { updateSetting(key, !snap[key]); }
-      });
-    }
-    function rowEl(row) {
-      return h("div", { key: row.key, className: "dsh-bg-row" },
-        h("div", { className: "dsh-bg-row-info" },
-          h("div", { className: "dsh-bg-row-title" }, row.title,
-            h("span", { className: "dsh-bg-chip", "data-level": row.level }, levelText[row.level] + "负载")),
-          h("div", { className: "dsh-bg-row-desc" }, row.desc)),
-        switchBtn(row.key));
-    }
-    return h("div", { className: "dsh-bg-settings" },
-      h("div", { className: "dsh-bg-card" },
-        h("div", { className: "dsh-bg-sec-title" }, "性能档位"),
-        h("div", { className: "dsh-bg-presets" }, presetButtons()),
-        h("div", { className: "dsh-bg-preset-caption" }, modeName + " · " + modeCaption),
-        h("div", { className: "dsh-bg-div" }),
-        h("div", { className: "dsh-bg-meter-label" },
-          h("span", null, "估算 GPU 负载"),
-          h("span", { style: { color: meterColor, fontWeight: 600 } }, gpu + "%")),
-        h("div", { className: "dsh-bg-meter" }, h("div", { style: { width: gpu + "%", background: meterColor } })),
-        h("div", { className: "dsh-bg-meta" },
-          "按 分辨率 × 帧率 × 模糊半径 估算，仅供参考；切换即时生效并自动保存。" +
-          (snap.canvasW ? " 当前极光画布 " + snap.canvasW + "×" + snap.canvasH + "（×" + snap.auroraScale.toFixed(2) + "）" : "")),
-        h("div", { className: "dsh-bg-div" }),
-        h("div", { className: "dsh-bg-sec-title" }, "特效开关"),
-        rows.map(rowEl)),
-      h("details", { className: "dsh-bg-adv dsh-bg-card" },
-        h("summary", null, "渲染质量（高级）"),
-        h("div", { className: "dsh-bg-adv-row" },
-          h("span", null, "极光分辨率"),
-          h("input", { type: "range", className: "dsh-bg-slider", min: 0.4, max: 1, step: 0.05, value: snap.auroraScale,
-            onChange: function (e) { updateSetting("auroraScale", parseFloat(e.target.value)); } }),
-          h("span", { className: "dsh-bg-adv-value" }, "×" + snap.auroraScale.toFixed(2))),
-        h("div", { className: "dsh-bg-adv-row" },
-          h("span", null, "动画帧率上限"),
-          h("select", { className: "dsh-bg-select", value: snap.fps,
-            onChange: function (e) { updateSetting("fps", parseInt(e.target.value, 10)); } },
-            h("option", { value: 20 }, "20 fps（最省）"),
-            h("option", { value: 24 }, "24 fps"),
-            h("option", { value: 30 }, "30 fps（流畅）"))),
-        h("div", { className: "dsh-bg-adv-row" },
-          h("span", null, "玻璃模糊强度"),
-          h("select", { className: "dsh-bg-select", value: snap.blur,
-            onChange: function (e) { updateSetting("blur", parseInt(e.target.value, 10)); } },
-            h("option", { value: 6 }, "6 px（最省）"),
-            h("option", { value: 8 }, "8 px"),
-            h("option", { value: 10 }, "10 px"),
-            h("option", { value: 12 }, "12 px（最通透）"))),
-        h("div", { className: "dsh-bg-adv-row" },
-          h("span", null, "跟手灵敏度",
-            h("div", { style: { fontSize: 11, opacity: 0.6 } }, "越小越贴手，越大越绵柔（建议 5–40ms）")),
-          h("input", { type: "range", className: "dsh-bg-slider", min: 5, max: 120, step: 5, value: snap.followMs,
-            onChange: function (e) { updateSetting("followMs", parseInt(e.target.value, 10)); } }),
-          h("span", { className: "dsh-bg-adv-value" }, snap.followMs + "ms")),
-        h("div", { className: "dsh-bg-adv-row" },
-          h("span", null, "光线跟随强度",
-            h("div", { style: { fontSize: 11, opacity: 0.6 } }, "0% 固定不动，100% 完全贴住光标")),
-          h("input", { type: "range", className: "dsh-bg-slider", min: 0, max: 100, step: 5, value: Math.round(snap.lightFollow * 100),
-            onChange: function (e) { updateSetting("lightFollow", parseInt(e.target.value, 10) / 100); } }),
-          h("span", { className: "dsh-bg-adv-value" }, Math.round(snap.lightFollow * 100) + "%")),
-        h("div", { className: "dsh-bg-adv-row" },
-          h("div", { style: { flex: 1 } },
-            h("div", { style: { fontSize: 13 } }, "低电量自动节能"),
-            h("div", { style: { fontSize: 11, opacity: 0.6 } }, "电量 ≤20% 且未充电时切到节能档，恢复后还原")),
-          switchBtn("autoBattery"))),
-      h("div", { className: "dsh-bg-foot" },
-        h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
-        h("span", { className: "dsh-bg-note" }, "v1.7.0 · 即时生效")));
-  }
-
-  /** 注册设置页条目（需要 slots 服务；缺 ctx/slots 时静默跳过） */
-  function setupSettingsUi(ctx) {
-    if (!react) return;
-    try {
-      var slots = ctx && ctx.get ? ctx.get("slots") : null;
-      if (!slots) return;
-      injectSettingsCss();
-      slots.inject("settings.section", function () {
-        return slots.register({
-          name: "settings.section",
-          id: "dsh-bg-effects",
-          order: 5,
-          label: function () { return "背景特效"; }
-        }, BgSettingsSection);
-      });
-    } catch (e) {}
-  }
-
-
+/* ===================== beam-css.js ===================== */
+/* ===================================================================== *
+ * src/beam-css.js — 工厂级片段（无副作用：纯常量与纯函数）
+ *   Border Beam 调色板 / BEAM_* 参数 / CSS 生成函数（buildBeamCSS 等），
+ *   被 src/beam.js（initBeam）直接调用。拼接时置于工厂闭包顶层。
+ * ===================================================================== */
 /* ===================================================================== *
  * Border Beam (beam.jakubantalik.com) — ported for DSH composer
  * Copyright (c) Jakub Antalik, MIT — https://github.com/Jakubantalik/Libraries
@@ -1267,542 +1298,14 @@ function apply(ctx) {
   }
 
   
-/* ------------------------------------------------------------------ *
-   * DOM 骨架
-   * ------------------------------------------------------------------ */
-  var container = document.createElement("div");
-  container.id = "dsh-ds-bg";
-  container.dataset.version = "26"; // 部署版本标记：页面控制台可查 document.getElementById('dsh-ds-bg')?.dataset.version
-  // 关键样式内联兜底：即使外部 CSS 未加载，背景层也保持 fixed + 底层
-  container.style.cssText = "position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;" +
-    "background:linear-gradient(180deg,#9cc1e7 0%,rgba(250,250,250,0) 100%),#f9f8f8;" +
-    "animation:dsh-ds-enter 1.8s ease-out backwards;will-change:opacity,filter;";
-  var MASK = "linear-gradient(#000000fc 0%,#000000e8 8.98%,transparent 100%)";
-  var auroraCanvas = document.createElement("canvas");
-  auroraCanvas.id = "dsh-ds-aurora";
-  auroraCanvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;display:block;" +
-    "mask:" + MASK + ";-webkit-mask:" + MASK + ";";
-  var constellationCanvas = document.createElement("canvas");
-  constellationCanvas.id = "dsh-ds-constellation";
-  constellationCanvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;display:block;background:transparent;" +
-    "mask:" + MASK + ";-webkit-mask:" + MASK + ";";
-  container.appendChild(auroraCanvas);
-  // 官方 hero 鲸鱼层（仅暗色主题显示）：粒子化鲸鱼，光线跟随鼠标互动
-  // （官网用 R3F DigitileR3F 懒加载实现，未被缓存抓取；此处用官方鲸鱼路径
-  //   重建粒子引擎，交互原理一致：lightParams 的 followX/range/shadeMin/shadeMax）
-  var whaleLayer = document.createElement("div");
-  whaleLayer.className = "dsh-ds-whale";
-  whaleLayer.setAttribute("aria-hidden", "true");
-  whaleLayer.style.cssText = "position:absolute;inset:0;display:none;align-items:center;justify-content:center;" +
-    "pointer-events:none;mix-blend-mode:screen;z-index:2;";
-  var whaleCanvas = document.createElement("canvas");
-  whaleCanvas.className = "dsh-ds-whale-canvas";
-  whaleCanvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;display:block;";
-  whaleLayer.appendChild(whaleCanvas);
-  container.appendChild(whaleLayer);
-  container.appendChild(constellationCanvas);
-
-  /* 诊断信息（?dshtest=1 时输出到页面面板） */
-  var diag = { theme: "?", bodyBg: "?", htmlBg: "?", containerPos: "?", containerZ: "?", containerBg: "?", frameFound: false, frameBg: "?", auroraGL: false, auroraProgs: "", constellation: false, canvasW: 0, canvasH: 0 };
-
-  function applyThemeClass() {
-    container.classList.toggle("dsh-ds-dark", state.dark);
-    // 内联兜底：暗色时容器底色也一并切换；鲸鱼仅暗色显示（官网深色 hero 元素）
-    container.style.setProperty("background", state.dark ? "#0a0a0a" :
-      "linear-gradient(180deg,#9cc1e7 0%,rgba(250,250,250,0) 100%),#f9f8f8", "important");
-    updateWhaleDisplay(); // 深色主题 + 特效设置开关 共同决定鲸鱼显隐
-    // 玻璃开关：body 类名由 CSS 接管（关闭时移除 backdrop blur、垫实底色）
-    try { document.body.classList.toggle("dsh-bg-no-glass", !bgSettings.glass); } catch (e) {}
-    // 深色主题：body 透明让背景透出；浅色主题：移除覆盖，恢复官方原版
-    if (document.body) {
-      if (state.dark) document.body.style.setProperty("background", "transparent", "important");
-      else document.body.style.removeProperty("background");
-    }
-  }
-  applyThemeClass();
-
-  function boot() {
-    if (!document.body) { document.addEventListener("DOMContentLoaded", boot); return; }
-    // body 背景透明化由 applyThemeClass 按主题管理（浅色主题保持官方原版）
-    applyThemeClass();
-    document.body.appendChild(container);
-    startAurora();
-    if (typeof location === "undefined" || location.search.indexOf("nowhale") === -1) startWhale();
-    if (!coarse || reducedMotion) startConstellation();
-    observeTheme();
-    makeShellTransparent();
-    try{ watchBeamComposer(); }catch(e){}
-    if (typeof location !== "undefined" && (location.search.indexOf("dshtest") !== -1)) startDiagPanel();
-    // 调试钩子：?opencv=1 时展开侧边栏并打开第一个会话（检查真实消息 DOM 的代码块类名）
-    if (typeof location !== "undefined" && location.search.indexOf("opencv") !== -1) {
-      setTimeout(function () {
-        var toggle = document.querySelector(".hHd-Xa_toggle, [aria-label*=\"sidebar\"], [aria-label*=\"侧边栏\"]");
-        if (toggle) toggle.click();
-        setTimeout(function () {
-          var first = document.querySelector('.qDHVXG_listArea [role="button"], .qDHVXG_listArea button, [data-slot="sidebar.workspaces"] [role="button"]');
-          if (first) first.click();
-          setTimeout(function () {
-            var codes = document.querySelectorAll("pre, [class*=\"_block_\"], [class*=\"_banner\"], [class*=\"_body\"], code");
-            var dump = document.createElement("div");
-            dump.id = "dsh-dbg-codes";
-            dump.style.display = "none";
-            var cls = [];
-            for (var i = 0; i < codes.length; i++) {
-              var c = codes[i].className;
-              if (typeof c === "string" && c) cls.push(c.split(" ")[0]);
-            }
-            dump.setAttribute("data-classes", cls.join(","));
-            document.body.appendChild(dump);
-          }, 3000);
-        }, 2500);
-      }, 3500);
-    }
-    // 调试钩子：?opendbg=1 时自动打开设置页（用于无头浏览器检查设置页布局）
-    if (typeof location !== "undefined" && location.search.indexOf("opendbg") !== -1) {
-      setTimeout(function () {
-        var triggers = document.querySelectorAll('button, [role="button"]');
-        for (var i = 0; i < triggers.length; i++) {
-          var t = triggers[i];
-          var label = (t.getAttribute("aria-label") || t.textContent || "").toLowerCase();
-          if (label.indexOf("settings") !== -1 || label.indexOf("设置") !== -1) { t.click(); break; }
-        }
-        setTimeout(function () {
-          var panel = document.querySelector(".VOzbGW_panel");
-          var dump = document.createElement("div");
-          dump.id = "dsh-dbg-settings";
-          dump.style.display = "none";
-          dump.setAttribute("data-opened", panel ? "yes" : "no");
-          if (panel) dump.setAttribute("data-html", panel.outerHTML.slice(0, 20000));
-          document.body.appendChild(dump);
-        }, 2500);
-      }, 4000);
-    }
-  }
-
-  /* ------------------------------------------------------------------ *
-   * 诊断面板（?dshtest=1）：把计算样式与引擎状态渲染到页面
-   * ------------------------------------------------------------------ */
-  function startDiagPanel() {
-    function collect() {
-      var cs = function (el) { try { return window.getComputedStyle(el); } catch (e) { return null; } };
-      var bcs = cs(document.body);
-      var hcs = cs(document.documentElement);
-      var ccs = cs(container);
-      var frame = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
-        document.querySelector('[data-slot="root"] > div');
-      var fcs = frame ? cs(frame) : null;
-      diag.theme = state.dark ? "dark" : "light";
-      diag.bodyBg = bcs ? bcs.backgroundColor : "?";
-      diag.htmlBg = hcs ? hcs.backgroundColor : "?";
-      diag.containerPos = ccs ? ccs.position : "?";
-      diag.containerZ = ccs ? ccs.zIndex : "?";
-      diag.containerBg = ccs ? (ccs.backgroundImage + " / " + ccs.backgroundColor) : "?";
-      diag.frameFound = !!frame;
-      diag.frameBg = fcs ? fcs.backgroundColor : "?";
-      diag.canvasW = auroraCanvas.width;
-      diag.canvasH = auroraCanvas.height;
-    }
-    collect();
-    var panel = document.createElement("pre");
-    panel.id = "dsh-ds-diag";
-    panel.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:2147483000;background:#fff;color:#000;" +
-      "font:11px/1.5 monospace;padding:10px 12px;border:2px solid #f00;max-width:520px;white-space:pre-wrap;";
-    document.body.appendChild(panel);
-    function render() {
-      collect();
-      panel.textContent = [
-        "dsh-deepseek-bg v3 diagnostics",
-        "theme: " + diag.theme,
-        "body bg: " + diag.bodyBg,
-        "html bg: " + diag.htmlBg,
-        "container: pos=" + diag.containerPos + " z=" + diag.containerZ + " bg=" + diag.containerBg,
-        "frame found: " + diag.frameFound + " bg=" + diag.frameBg,
-        "aurora: gl=" + diag.auroraGL + " progs=[" + diag.auroraProgs + "]",
-        "constellation: " + diag.constellation,
-        "canvas: " + diag.canvasW + "x" + diag.canvasH
-      ].join("\n");
-    }
-    render();
-    setInterval(render, 1000);
-  }
-
-  /* ------------------------------------------------------------------ *
-   * 外壳透明化（内联样式，最强优先级；轮询等待应用外壳挂载）
-   * ------------------------------------------------------------------ */
-  function makeShellTransparent() {
-    // 深色主题要设置/撤销的内联样式属性集合
-    var GLASS_PROPS = ["background", "background-color", "backdrop-filter", "-webkit-backdrop-filter",
-      "box-shadow", "border-right-color", "border-color"];
-    function clearInline(el) {
-      if (!el || !el.style) return;
-      for (var i = 0; i < GLASS_PROPS.length; i++) el.style.removeProperty(GLASS_PROPS[i]);
-    }
-    function applyShellGlass() {
-      // 玻璃开关关闭：走与浅色主题相同的清理路径（CSS 侧由 body.dsh-bg-no-glass 接管）
-      if (!state.dark || !bgSettings.glass) {
-        // 浅色主题：撤销所有覆盖，恢复官方原版
-        var frame0 = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
-          document.querySelector('[data-slot="root"] > div');
-        clearInline(frame0);
-        clearInline(document.querySelector("#root ._boot_9gj4p_6"));
-        var views0 = document.querySelectorAll('[data-slot="conversation"] > div, .pI_x6G_detailsCol > div');
-        for (var i0 = 0; i0 < views0.length; i0++) clearInline(views0[i0]);
-        clearInline(document.querySelector(".pI_x6G_sidebarCol"));
-        clearInline(document.querySelector(".hHd-Xa_root, [data-slot=\"sidebar\"] > div"));
-        clearInline(document.querySelector(".uV2eYG_card, [data-composer-card=\"true\"]"));
-        clearInline(document.querySelector(".wSkVaW_composerSeat, [data-composer-seat]"));
-        clearInline(document.querySelector(".qDHVXG_fade"));
-        var glassEls0 = document.querySelectorAll(".gdEzaW_bubble, ._block_10eou_7, ._block_biesw_7, ._block_srovd_7, ._block_s66q0_7, ._block_178r4_4, ._block_d4nqi_7, ._body_1ye18_20, ._copyButton_10eou_142, ._bannerWrap_178r4_21, .LVzXQa_card, .Mbwy4a_card, ._7yHdaG_panel, .VOzbGW_panel, .CY-8Ka_ioCard, .o3BgMG_ioCard, [class$=\"_bubble\"], [class*=\"_block_\"], [class$=\"_bannerWrap\"], [class$=\"_copyButton\"]");
-        for (var g0 = 0; g0 < glassEls0.length; g0++) clearInline(glassEls0[g0]);
-        return;
-      }
-      // 玻璃模糊强度由设置面板实时控制（CSS 全部走 blur(var(--dsh-bg-blur))）
-      try { document.body.style.setProperty("--dsh-bg-blur", (bgSettings.blur || 8) + "px"); } catch (e) {}
-      var frame = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
-        document.querySelector('[data-slot="root"] > div');
-      if (frame && frame.style) {
-        diag.frameFound = true;
-        diag.frameBg = window.getComputedStyle ? window.getComputedStyle(frame).backgroundColor : "?";
-        frame.style.setProperty("background", "transparent", "important");
-      }
-      var bootEl = document.querySelector("#root ._boot_9gj4p_6");
-      if (bootEl && bootEl.style) {
-        bootEl.style.setProperty("background", "transparent", "important");
-      }
-      // 视图根容器（会话视图等全高不透明层）同样透明化
-      var views = document.querySelectorAll('[data-slot="conversation"] > div, .pI_x6G_detailsCol > div');
-      for (var i = 0; i < views.length; i++) {
-        var v = views[i];
-        if (v && v.style) v.style.setProperty("background", "transparent", "important");
-      }
-      // 官方玻璃拟态（ds-glass 令牌：blur 12px + 深色半透明表面色 + 官方边框/阴影）
-      var glassBg = "rgba(13,15,19,.55)";
-      var glassBorder = "hsla(0,0%,100%,.08)";
-      var glassShadow = "0 0 1px 0 rgba(0,0,0,.2), 0 0 4px 0 rgba(0,0,0,.02), 0 12px 32px 0 rgba(0,0,0,.08)";
-      var side = document.querySelector(".pI_x6G_sidebarCol");
-      if (side && side.style) {
-        // 注意：backdrop-filter 会让侧边栏成为 fixed 后代的包含块（设置弹窗错乱），
-        // 所以列本身不设 backdrop-filter，模糊由 CSS 的 ::before 伪元素承担
-        side.style.setProperty("background", glassBg, "important");
-        side.style.setProperty("border-right-color", glassBorder, "important");
-      }
-      var sideRoot = document.querySelector(".hHd-Xa_root, [data-slot=\"sidebar\"] > div");
-      if (sideRoot && sideRoot.style) {
-        // 注意：不能给侧边栏内容根加 z-index/堆叠上下文——设置弹窗（fixed z-1000）
-        // 挂载在侧边栏内部，被困在侧边栏堆叠上下文里会被输入框（z-7）盖住；
-        // 模糊由 CSS 的 ::before z-index:-1 承担，内容自然在模糊层之上
-        sideRoot.style.setProperty("background", "transparent", "important");
-      }
-      var card = document.querySelector(".uV2eYG_card, [data-composer-card=\"true\"]");
-      if (card && card.style) {
-        card.style.setProperty("background", glassBg, "important");
-        card.style.setProperty("backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
-        card.style.setProperty("-webkit-backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
-        card.style.setProperty("border-color", glassBorder, "important");
-        card.style.setProperty("box-shadow", glassShadow, "important");
-      }
-      var seat = document.querySelector(".wSkVaW_composerSeat, [data-composer-seat]");
-      if (seat && seat.style) seat.style.setProperty("background", "transparent", "important");
-      // 会话列表底部渐隐条（qDHVXG_fade）：玻璃侧边栏下会露出浅色白条，透明化
-      var fade = document.querySelector(".qDHVXG_fade");
-      if (fade && fade.style) fade.style.setProperty("background", "transparent", "important");
-      // 消息气泡与代码块玻璃化（与侧边栏/输入框同款材质）
-      var glassRing = "inset 0 0 0 1px hsla(0,0%,100%,.08)";
-      var glassEls = document.querySelectorAll(".gdEzaW_bubble, ._block_10eou_7, ._block_biesw_7, ._block_srovd_7, ._block_s66q0_7, ._block_178r4_4, ._block_d4nqi_7, ._body_1ye18_20, ._copyButton_10eou_142, ._bannerWrap_178r4_21, .LVzXQa_card, .Mbwy4a_card, ._7yHdaG_panel, .VOzbGW_panel, .CY-8Ka_ioCard, .o3BgMG_ioCard, [class$=\"_bubble\"], [class*=\"_block_\"], [class$=\"_bannerWrap\"], [class$=\"_copyButton\"]");
-      for (var gi = 0; gi < glassEls.length; gi++) {
-        var ge = glassEls[gi];
-        if (ge && ge.style) {
-          ge.style.setProperty("background", glassBg, "important");
-          ge.style.setProperty("backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
-          ge.style.setProperty("-webkit-backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
-          ge.style.setProperty("box-shadow", glassRing, "important");
-        }
-      }
-    }
-    applyShellGlass();
-    shellGlassApplyRef = applyShellGlass; // 暴露给设置开关：切换玻璃时立即重跑
-    var tries = 0;
-    var timer = setInterval(function () {
-      applyShellGlass();
-      if (++tries > 75) clearInterval(timer); // 最多约 60s
-    }, 800);
-    if (window.MutationObserver) {
-      var mo = new MutationObserver(applyShellGlass);
-      var rootEl = document.querySelector("#root") || document.documentElement;
-      mo.observe(rootEl, { childList: true, subtree: true });
-    }
-  }
 
 
-  /* ------------------------------------------------------------------ *
-   * Border Beam — composer integration (D S H)
-   * ------------------------------------------------------------------ */
-  var beamStyleTag = null;
-  var beamAttachedCard = null;
-  var beamResizeObs = null;
-  var beamMutObs = null;
-  var pendingExecuting = false;
-  var pendingTimer = null;
-  var beamPollTimer = null;
-  var beamTypingHandler = null;
-  var beamKeydownHandler = null;
-  var typingActive = false;
-  var typingTimer = null;
-  var currentBeamMode = "hairline";
-  var pulseTimer = null;
-  var beamState = { mode: "hairline", idleStrength: 0.65, focusStrength: 1.0, disabled: false };
-
-  function isBeamDisabled() {
-    // 设置面板的 Beam 开关优先；URL/localStorage 逃生舱保留
-    if (bgSettings && bgSettings.beam === false) return true;
-    try {
-      if (typeof location !== "undefined" && (location.search.indexOf("beam=0") !== -1 || location.search.indexOf("nobeam") !== -1 || location.search.indexOf("beam=false") !== -1)) return true;
-      if (typeof localStorage !== "undefined" && localStorage.getItem("dsh-beam-disabled") === "1") return true;
-    } catch(e) {}
-    return false;
-  }
-  function getBeamThemeIsDark() { return state.dark; }
-  function getBeamIdleStrength() { return getBeamThemeIsDark() ? 0.65 : 0.5; }
-  function resolveBorderRadius(el) {
-    try {
-      var cs = window.getComputedStyle(el);
-      var v = parseFloat(cs.borderTopLeftRadius);
-      if (!isNaN(v) && v > 0) return Math.round(v);
-    } catch(e) {}
-    return 16;
-  }
-
-  function ensureBeamStyles(borderRadius, variant) {
-    var isDark = getBeamThemeIsDark();
-    var r = typeof borderRadius === "number" ? borderRadius : 16;
-    var v = variant || "colorful";
-    var css = buildBeamCSS(BEAM_ID, r, isDark, v);
-    if (!beamStyleTag) {
-      beamStyleTag = document.getElementById("dsh-beam-css");
-      if (!beamStyleTag) {
-        beamStyleTag = document.createElement("style");
-        beamStyleTag.id = "dsh-beam-css";
-        document.head.appendChild(beamStyleTag);
-      }
-    }
-    if (beamStyleTag.textContent !== css) beamStyleTag.textContent = css;
-  }
-
-  function setBeamStrength(v, opts) {
-    var card = beamAttachedCard;
-    if (!card) return;
-    var strength = Math.max(0, Math.min(1, v));
-    card.style.setProperty("--beam-strength", strength);
-    if (opts && opts.persist) { try { localStorage.setItem("dsh-beam-strength", String(strength)); } catch(e) {} }
-  }
-
-  function findComposerInput(card) {
-    if (!card) return null;
-    return card.querySelector('textarea, [contenteditable="true"], [data-composer-input], .uV2eYG_input');
-  }
-
-  function isTyping() {
-    return typingActive;
-  }
-
-  function triggerTypingBreathe() {
-    var card = beamAttachedCard || document.querySelector('[data-composer-card="true"], .uV2eYG_card');
-    if (!card || isExecuting()) return;
-    typingActive = true;
-    if (currentBeamMode !== "typing" && !isExecuting()) {
-      applyBeamMode("typing");
-    }
-    // Refresh breathing animation by toggling data-typing
-    card.removeAttribute("data-typing");
-    void card.offsetWidth;
-    card.setAttribute("data-typing", "");
-
-    if (typingTimer) clearTimeout(typingTimer);
-    typingTimer = setTimeout(function() {
-      typingActive = false;
-      if (!isExecuting()) {
-        updateBeamState();
-      }
-    }, 700);
-  }
-
-  function isPlanMode() {
-    try {
-      if (document.querySelector('[aria-label*="plan mode 已开启"], [aria-label*="Plan mode on"], [aria-label*="plan mode is on"], [aria-label*="Plan Mode on"]')) return true;
-      if (document.querySelector('[data-slot="plan"]')) return true;
-      if (document.documentElement.dataset && document.documentElement.dataset.planMode === "1") return true;
-    } catch(e) {}
-    return false;
-  }
-
-  function isRealExecuting() {
-    try {
-      var stopBtn = document.querySelector('button[aria-label*="停止生成"], button[aria-label*="Stop generating"], button[aria-label*="Stop generating message"], [data-composer-card] button[aria-label*="停止"], [data-composer-card] button[aria-label*="Stop"]');
-      if (stopBtn && !stopBtn.disabled) return true;
-      var statusEl = document.querySelector('[data-state="running"], .Md3f7G_turnStatus');
-      if (statusEl && statusEl.offsetParent !== null) return true;
-    } catch(e) {}
-    return false;
-  }
-
-  function isExecuting() {
-    try {
-      if (pendingExecuting) return true;
-      return isRealExecuting();
-    } catch(e) { return false; }
-  }
-
-  function applyBeamMode(mode) {
-    var card = beamAttachedCard;
-    if (!card) return;
-
-    currentBeamMode = mode;
-
-    if (pulseTimer) {
-      clearTimeout(pulseTimer);
-      pulseTimer = null;
-    }
-    if (mode === "pulse") {
-      pendingExecuting = false;
-      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
-    }
-
-    var isDark = getBeamThemeIsDark();
-    var r = resolveBorderRadius(card);
-    var variant = mode === "typing" ? "mono" : (mode === "planning" ? "sunset" : "colorful");
-    ensureBeamStyles(r, variant);
-
-    // Clean state attributes and inline style overrides
-    card.removeAttribute("data-active");
-    card.removeAttribute("data-fading");
-    card.removeAttribute("data-typing");
-    card.removeAttribute("data-planning");
-    card.removeAttribute("data-pulse");
-    card.removeAttribute("data-paused");
-    card.style.removeProperty("filter");
-    card.style.removeProperty("--beam-hue-base");
-
-    if (mode === "hairline") {
-      card.setAttribute("data-beam", BEAM_ID);
-      card.style.removeProperty("--beam-strength");
-      card.style.setProperty("--beam-strength", "0.08");
-      return;
-    }
-
-    if (mode === "typing") {
-      card.setAttribute("data-beam", BEAM_ID);
-      card.setAttribute("data-typing", "");
-      card.removeAttribute("data-active");
-      card.style.setProperty("--beam-strength", "0.85");
-      card.style.setProperty("--beam-hue-base", "0deg");
-      return;
-    }
-
-    if (mode === "planning") {
-      card.setAttribute("data-beam", BEAM_ID);
-      card.setAttribute("data-planning", "");
-      card.setAttribute("data-active", "");
-      card.style.setProperty("--beam-strength", "1");
-      card.style.setProperty("--beam-hue-base", "15deg");
-      return;
-    }
-
-    if (mode === "executing") {
-      card.setAttribute("data-beam", BEAM_ID);
-      card.setAttribute("data-active", "");
-      card.style.setProperty("--beam-strength", "1");
-      return;
-    }
-
-    if (mode === "pulse") {
-      card.setAttribute("data-beam", BEAM_ID);
-      card.setAttribute("data-pulse", "");
-      card.style.setProperty("--beam-strength", "1");
-      pulseTimer = setTimeout(function() {
-        if (currentBeamMode === "pulse") {
-          applyBeamMode("hairline");
-        }
-      }, 800);
-      return;
-    }
-  }
-
-  function resolveBeamMode() {
-    if (isBeamDisabled()) return "hairline";
-    if (pendingExecuting || isExecuting()) {
-      if (isPlanMode()) return "planning";
-      return "executing";
-    }
-    if (currentBeamMode === "pulse") return "pulse";
-    if (typingActive) return "typing";
-    return "hairline";
-  }
-
-  function updateBeamState() {
-    if (!beamAttachedCard || !document.contains(beamAttachedCard) || !beamAttachedCard.isConnected) {
-      var freshCard = document.querySelector('[data-composer-card="true"], .uV2eYG_card');
-      if (freshCard && freshCard !== beamAttachedCard) {
-        try { if (beamAttachedCard && beamAttachedCard._dshBeamCleanup) beamAttachedCard._dshBeamCleanup(); } catch(e) {}
-        beamAttachedCard = null;
-        attachComposerBeam();
-        return;
-      }
-    }
-
-    if (beamAttachedCard) {
-      var freshInput = findComposerInput(beamAttachedCard);
-      var boundInput = beamAttachedCard._dshBeamInput;
-      if (freshInput && freshInput !== boundInput) {
-        if (boundInput) {
-          try {
-            if (beamTypingHandler) {
-              boundInput.removeEventListener("input", beamTypingHandler);
-              boundInput.removeEventListener("change", beamTypingHandler);
-            }
-            if (beamKeydownHandler) {
-              boundInput.removeEventListener("keydown", beamKeydownHandler);
-            }
-          } catch(e) {}
-        }
-        if (beamTypingHandler && beamKeydownHandler) {
-          try {
-            freshInput.addEventListener("input", beamTypingHandler);
-            freshInput.addEventListener("change", beamTypingHandler);
-            freshInput.addEventListener("keydown", beamKeydownHandler);
-            freshInput.addEventListener("compositionstart", function() { triggerTypingBreathe(); });
-            freshInput.addEventListener("compositionupdate", function() { triggerTypingBreathe(); });
-            freshInput.addEventListener("compositionend", function() { triggerTypingBreathe(); });
-            beamAttachedCard._dshBeamInput = freshInput;
-          } catch(e) {}
-        }
-      }
-    }
-
-    if (pendingExecuting && isRealExecuting()) {
-      pendingExecuting = false;
-      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
-    }
-
-    var next = resolveBeamMode();
-
-    if ((currentBeamMode === "executing" || currentBeamMode === "planning") &&
-        next !== "executing" && next !== "planning" && next !== "pulse") {
-      applyBeamMode("pulse");
-      try { syncThinkingOrb(); } catch(e) {}
-      return;
-    }
-
-    if (currentBeamMode === "pulse" && next === "pulse") {
-      try { syncThinkingOrb(); } catch(e) {}
-      return;
-    }
-
-    if (currentBeamMode !== next) {
-      applyBeamMode(next);
-    }
-    try { syncThinkingOrb(); } catch(e) {}
-  }
-
+/* ===================== orbs-math.js ===================== */
+/* ===================================================================== *
+ * src/orbs-math.js — 工厂级片段（无副作用：纯函数）
+ *   Thinking Orbs 几何数学（orbs.jakubantalik.com 移植）：Jl..up、
+ *   drawOrb 系列与 getOrbPreset，被 src/orbs.js（initOrbs）直接调用。
+ * ===================================================================== */
   /* ------------------------------------------------------------------ *
    * Thinking Orbs (orbs.jakubantalik.com) — agent activity indicator
    * Copyright (c) Jakub Antalik, MIT
@@ -2431,482 +1934,17 @@ function apply(ctx) {
 
   /* ------------------------------------------------------------------ *
    * 工具调用状态映射 (Tool Call → Thinking Orb Style & Status Text)
-   * 兜底: Working… (orbits)
+   * 9 种几何动效: searching / listening / composing / solving /
+   *               connecting / shaping / weaving / breathing / working
    * ------------------------------------------------------------------ */
-  var TOOL_STATE_MAP = {
-    // 1. Searching (globe)
-    "grep": { state: "searching", text: "Searching files…" },
-    "glob": { state: "searching", text: "Finding files…" },
-    "web_search": { state: "searching", text: "Searching web…" },
-    "find_dsh_plugin": { state: "searching", text: "Searching plugins…" },
 
-    // 2. Listening / Reading (wave)
-    "read": { state: "listening", text: "Reading file…" },
-    "read_image": { state: "listening", text: "Inspecting image…" },
-    "skill": { state: "listening", text: "Loading skill…" },
-    "get_goal": { state: "listening", text: "Reading goal…" },
 
-    // 3. Composing / Writing (ribbon)
-    "write": { state: "composing", text: "Writing file…" },
-    "edit": { state: "composing", text: "Editing file…" },
-
-    // 4. Solving / Commands (rubik)
-    "bash": { state: "solving", text: "Running command…" },
-
-    // 5. Connecting / Subagents (web)
-    "subagent": { state: "connecting", text: "Connecting subagent…" },
-    "subagent_fork": { state: "connecting", text: "Delegating task…" },
-    "workflow": { state: "connecting", text: "Running workflow…" },
-    "ralph": { state: "connecting", text: "Running Ralph…" },
-    "send_message": { state: "connecting", text: "Sending message…" },
-    "interrupt_agent": { state: "connecting", text: "Interrupting agent…" },
-    "list_agents": { state: "connecting", text: "Listing agents…" },
-    "job_output": { state: "connecting", text: "Checking job output…" },
-    "job_list": { state: "connecting", text: "Listing jobs…" },
-    "job_kill": { state: "connecting", text: "Stopping job…" },
-
-    // 6. Shaping / Tasks & Goals (morph)
-    "todo_write": { state: "shaping", text: "Updating tasks…" },
-    "create_goal": { state: "shaping", text: "Creating goal…" },
-    "update_goal": { state: "shaping", text: "Updating goal…" },
-    "exit_plan_mode": { state: "shaping", text: "Finalizing plan…" },
-
-    // 7. Weaving / Cordis plugins (braid)
-    "cordis_define": { state: "weaving", text: "Weaving plugin…" },
-    "cordis_run": { state: "weaving", text: "Activating plugin…" },
-    "cordis_stop": { state: "weaving", text: "Stopping plugin…" },
-    "cordis_undefine": { state: "weaving", text: "Removing plugin…" },
-    "cordis_inspect_list": { state: "weaving", text: "Inspecting runtime…" },
-    "cordis_inspect_query": { state: "weaving", text: "Querying runtime…" },
-    "cordis_inspect_self": { state: "weaving", text: "Inspecting plugin…" },
-
-    // 8. Breathing / Interactive questions (ring)
-    "ask_user_question": { state: "breathing", text: "Asking question…" }
-  };
-
-  function extractSummaryDetail(el, toolName) {
-    try {
-      if (!el) return null;
-      var fileBtn = el.querySelector(".o3BgMG_fileLink");
-      if (fileBtn && fileBtn.textContent) {
-        var fn = fileBtn.textContent.trim().split("/").pop();
-        if (fn && fn.length <= 25) {
-          if (toolName === "read") return "Reading " + fn + "…";
-          if (toolName === "write") return "Writing " + fn + "…";
-          if (toolName === "edit") return "Editing " + fn + "…";
-        }
-      }
-      var sumEl = el.querySelector(".o3BgMG_summary, .CY-8Ka_summary");
-      if (sumEl && sumEl.textContent) {
-        var txt = sumEl.textContent.trim();
-        if (txt && txt.length > 0 && txt.length <= 25) {
-          if (toolName === "grep") return "Searching: " + txt + "…";
-          if (toolName === "bash") return "Running: " + txt + "…";
-          if (toolName === "skill") return "Skill: " + txt + "…";
-        }
-      }
-    } catch(e) {}
-    return null;
-  }
-
-  function resolveActiveToolState() {
-    try {
-      // 1. 优先检测当前处于 running 状态的工具调用行（从后向前取最新活跃调用）
-      var runningRows = document.querySelectorAll('[data-state="running"], [data-tool][data-state="running"], .CY-8Ka_root[data-state="running"], .o3BgMG_root[data-state="running"]');
-      if (runningRows && runningRows.length > 0) {
-        for (var i = runningRows.length - 1; i >= 0; i--) {
-          var row = runningRows[i];
-          var tool = row.getAttribute("data-tool");
-          if (!tool && (row.classList.contains("CY-8Ka_root") || row.closest(".CY-8Ka_card"))) {
-            tool = "bash";
-          }
-          if (!tool) {
-            var parent = row.closest("[data-tool]");
-            if (parent) tool = parent.getAttribute("data-tool");
-          }
-          if (tool) {
-            var mapped = TOOL_STATE_MAP[tool];
-            if (mapped) {
-              var customDetail = extractSummaryDetail(row, tool);
-              return {
-                state: mapped.state,
-                text: customDetail || mapped.text,
-                tool: tool
-              };
-            }
-            if (tool.indexOf("cordis_") === 0) {
-              return { state: "weaving", text: "Weaving plugin…", tool: tool };
-            }
-            if (tool.indexOf("subagent") === 0) {
-              return { state: "connecting", text: "Connecting subagent…", tool: tool };
-            }
-            if (tool.indexOf("read") === 0) {
-              return { state: "listening", text: "Reading…", tool: tool };
-            }
-            return { state: "working", text: "Working…", tool: tool };
-          }
-        }
-      }
-
-      // 2. 检测用户提问卡片
-      var questionEl = document.querySelector('[data-slot="user-questions"], .Mbwy4a_card');
-      if (questionEl && questionEl.offsetParent !== null) {
-        return { state: "breathing", text: "Asking question…", tool: "ask_user_question" };
-      }
-
-      // 3. 检测计划待审卡片
-      var planReviewEl = document.querySelector('[data-slot="plan-review"], .LVzXQa_card');
-      if (planReviewEl && planReviewEl.offsetParent !== null) {
-        return { state: "shaping", text: "Reviewing plan…", tool: "exit_plan_mode" };
-      }
-
-      // 4. Plan mode 模式（无特定工具活跃）
-      if (isPlanMode()) {
-        return { state: "breathing", text: "Planning…", tool: "plan" };
-      }
-
-      // 5. 兜底默认状态: Working…
-      return { state: "working", text: "Working…", tool: "fallback" };
-    } catch(e) {
-      return { state: "working", text: "Working…", tool: "fallback" };
-    }
-  }
-
-  var orbCanvas = null;
-  var orbCtx = null;
-  var orbRaf = 0;
-  var orbMountedStatusEl = null;
-  var orbActive = false;
-  var orbCurrentState = "working";
-  var orbStartTime = 0;
-  var orbTextSpan = null;
-
-  function syncTurnStatusText(statusEl, text) {
-    if (!statusEl || !document.contains(statusEl)) return;
-    try {
-      if (!orbTextSpan || !statusEl.contains(orbTextSpan)) {
-        var existing = statusEl.querySelector(".dsh-turn-status-text");
-        if (existing) {
-          orbTextSpan = existing;
-        } else {
-          orbTextSpan = document.createElement("span");
-          orbTextSpan.className = "dsh-turn-status-text";
-          var clockEl = statusEl.querySelector(".Md3f7G_turnStatusClock");
-          if (clockEl) {
-            statusEl.insertBefore(orbTextSpan, clockEl);
-          } else {
-            statusEl.appendChild(orbTextSpan);
-          }
-        }
-      }
-      if (orbTextSpan && orbTextSpan.textContent !== text) {
-        orbTextSpan.textContent = text;
-      }
-      // 保持 React reconciler 正常运行的同时清理裸露文本节点（如原版的 "Deep diving..."）
-      var childNodes = statusEl.childNodes;
-      for (var i = 0; i < childNodes.length; i++) {
-        var node = childNodes[i];
-        if (node.nodeType === 3 /* Node.TEXT_NODE */) {
-          if (node.nodeValue && node.nodeValue.trim().length > 0) {
-            node.nodeValue = "";
-          }
-        }
-      }
-    } catch(e) {}
-  }
-
-  function createThinkingOrbCanvas() {
-    var wrap = document.createElement("span");
-    wrap.className = "dsh-thinking-orb-wrap";
-    wrap.setAttribute("aria-hidden", "true");
-    var cvs = document.createElement("canvas");
-    cvs.className = "dsh-thinking-orb-canvas";
-    var size = 20;
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cvs.width = size * dpr;
-    cvs.height = size * dpr;
-    cvs.style.width = size + "px";
-    cvs.style.height = size + "px";
-    wrap.appendChild(cvs);
-    return { wrap: wrap, canvas: cvs };
-  }
-
-  function startThinkingOrb(targetEl) {
-    if (!targetEl || !document.contains(targetEl)) return;
-    if (orbMountedStatusEl === targetEl && orbCanvas && targetEl.contains(orbCanvas.parentNode)) {
-      return;
-    }
-    stopThinkingOrb();
-
-    var orb = createThinkingOrbCanvas();
-    orbCanvas = orb.canvas;
-    orbCtx = orbCanvas.getContext("2d");
-    orbMountedStatusEl = targetEl;
-    targetEl.insertBefore(orb.wrap, targetEl.firstChild);
-    orbActive = true;
-    orbStartTime = performance.now();
-    // GPU/CPU 优化：resolveActiveToolState 每帧做多次全 DOM querySelectorAll，
-    // 改为每 300ms 一次（Orb 形态切换延迟最多 300ms，观感无差）
-    var orbLastScan = 0;
-    var orbLastInfo = null;
-
-    function renderOrb(now) {
-      if (!orbActive || !orbCtx || !orbMountedStatusEl || !document.contains(orbMountedStatusEl)) {
-        stopThinkingOrb();
-        return;
-      }
-      orbRaf = requestAnimationFrame(renderOrb);
-
-      if (document.visibilityState === "hidden") return;
-
-      if (now - orbLastScan >= 300 || !orbLastInfo) {
-        orbLastScan = now;
-        orbLastInfo = resolveActiveToolState();
-      }
-      var activeInfo = orbLastInfo;
-      orbCurrentState = activeInfo.state;
-
-      if (orb.wrap && orb.wrap.getAttribute("data-state") !== activeInfo.state) {
-        orb.wrap.setAttribute("data-state", activeInfo.state);
-      }
-
-      syncTurnStatusText(orbMountedStatusEl, activeInfo.text);
-
-      var size = 20;
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
-      var preset = getOrbPreset(activeInfo.state, 20);
-      var renderFn = cp[preset.mode] || cp.orbits;
-
-      var elapsed = (now - orbStartTime) * 0.001 * preset.speed;
-      var res = renderFn(size, elapsed, preset.opts);
-
-      var isDark = getBeamThemeIsDark();
-      orbCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      orbCtx.clearRect(0, 0, size, size);
-      Xd(orbCtx, res, isDark);
-    }
-
-    orbRaf = requestAnimationFrame(renderOrb);
-  }
-
-  function stopThinkingOrb() {
-    orbActive = false;
-    if (orbRaf) {
-      cancelAnimationFrame(orbRaf);
-      orbRaf = 0;
-    }
-    if (orbCanvas && orbCanvas.parentNode) {
-      try { orbCanvas.parentNode.remove(); } catch(e) {}
-    }
-    orbCanvas = null;
-    orbCtx = null;
-    orbMountedStatusEl = null;
-    orbTextSpan = null;
-  }
-
-  function syncThinkingOrb() {
-    if (!bgSettings || bgSettings.orbs === false) {
-      if (orbActive) stopThinkingOrb();
-      return;
-    }
-    var statusEl = document.querySelector(".Md3f7G_turnStatus, [role=\"status\"][aria-live=\"polite\"]");
-    if (statusEl && isExecuting()) {
-      startThinkingOrb(statusEl);
-    } else {
-      if (orbActive) stopThinkingOrb();
-    }
-  }
-
-  function attachComposerBeam() {
-    if (isBeamDisabled()) return;
-    if (beamAttachedCard && document.contains(beamAttachedCard)) return;
-    var card = document.querySelector('[data-composer-card="true"], .uV2eYG_card');
-    if (!card) return;
-    card.setAttribute("data-beam", BEAM_ID);
-    if (!card.querySelector("[data-beam-bloom]")) {
-      var bloom = document.createElement("div");
-      bloom.setAttribute("data-beam-bloom", "");
-      card.appendChild(bloom);
-    }
-    var radius = resolveBorderRadius(card);
-    ensureBeamStyles(radius, "colorful");
-    card.style.setProperty("overflow", "visible");
-    card.style.setProperty("isolation", "isolate");
-    if (window.getComputedStyle(card).position === "static") card.style.position = "relative";
-    beamAttachedCard = card;
-    currentBeamMode = "hairline";
-    updateBeamState();
-
-    var input = findComposerInput(card);
-    if (input) {
-      beamTypingHandler = function() {
-        triggerTypingBreathe();
-      };
-      beamKeydownHandler = function(e) {
-        if (e.isComposing || e.keyCode === 229) {
-          triggerTypingBreathe();
-          return;
-        }
-        if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-          var val = input.value !== undefined ? input.value : input.textContent;
-          if (val && String(val).trim().length > 0) {
-            typingActive = false;
-            if (typingTimer) clearTimeout(typingTimer);
-            pendingExecuting = true;
-            if (pendingTimer) clearTimeout(pendingTimer);
-            pendingTimer = setTimeout(function() { pendingExecuting = false; updateBeamState(); }, 5000);
-            updateBeamState();
-            return;
-          }
-        }
-        if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key && (e.key.length === 1 || e.key === "Backspace" || e.key === "Delete")) {
-          triggerTypingBreathe();
-        }
-      };
-
-      input.addEventListener("input", beamTypingHandler);
-      input.addEventListener("change", beamTypingHandler);
-      input.addEventListener("keydown", beamKeydownHandler);
-      input.addEventListener("compositionstart", function() { triggerTypingBreathe(); });
-      input.addEventListener("compositionupdate", function() { triggerTypingBreathe(); });
-      input.addEventListener("compositionend", function() { triggerTypingBreathe(); });
-      card._dshBeamInput = input;
-    }
-
-    var sendBtn = card.querySelector('button[aria-label="Send message"], button[aria-label="发送消息"], button[aria-label*="Send"], button[aria-label*="发送"], .uV2eYG_primary');
-    if (sendBtn) {
-      var sendHandler = function() {
-        typingActive = false;
-        if (typingTimer) clearTimeout(typingTimer);
-        pendingExecuting = true;
-        if (pendingTimer) clearTimeout(pendingTimer);
-        pendingTimer = setTimeout(function() { pendingExecuting = false; updateBeamState(); }, 5000);
-        updateBeamState();
-      };
-      sendBtn.addEventListener("click", sendHandler);
-      card._dshBeamSendBtn = sendBtn;
-      card._dshBeamSendHandler = sendHandler;
-    }
-
-    if (window.ResizeObserver) {
-      if (beamResizeObs) try { beamResizeObs.disconnect(); } catch(e) {}
-      beamResizeObs = new ResizeObserver(function() {
-        if (!beamAttachedCard) return;
-        var nr = resolveBorderRadius(beamAttachedCard);
-        ensureBeamStyles(nr, currentBeamMode === "typing" ? "mono" : (currentBeamMode === "planning" ? "sunset" : "colorful"));
-      });
-      try { beamResizeObs.observe(card); } catch(e) {}
-    }
-
-    if (beamPollTimer) clearInterval(beamPollTimer);
-    beamPollTimer = setInterval(updateBeamState, 200);
-
-    if (!beamMutObs && window.MutationObserver) {
-      beamMutObs = new MutationObserver(function() { updateBeamState(); });
-      var rootEl = document.querySelector("#root") || document.documentElement;
-      try { beamMutObs.observe(rootEl, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "class", "data-plan-mode", "data-state"] }); } catch(e) {}
-    }
-
-    card._dshBeamCleanup = function() {
-      if (input) {
-        try {
-          if (beamTypingHandler) {
-            input.removeEventListener("input", beamTypingHandler);
-            input.removeEventListener("change", beamTypingHandler);
-          }
-          if (beamKeydownHandler) {
-            input.removeEventListener("keydown", beamKeydownHandler);
-          }
-        } catch(e) {}
-      }
-      if (card._dshBeamSendBtn && card._dshBeamSendHandler) {
-        try { card._dshBeamSendBtn.removeEventListener("click", card._dshBeamSendHandler); } catch(e) {}
-      }
-      if (beamPollTimer) { clearInterval(beamPollTimer); beamPollTimer = null; }
-      if (beamMutObs) { try { beamMutObs.disconnect(); beamMutObs = null; } catch(e) {} }
-      if (beamResizeObs) { try { beamResizeObs.disconnect(); beamResizeObs = null; } catch(e) {} }
-      if (pulseTimer) { clearTimeout(pulseTimer); pulseTimer = null; }
-      if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; }
-      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
-      try { stopThinkingOrb(); } catch(e) {}
-    };
-  }
-
-  function detachComposerBeam() {
-    var card = beamAttachedCard;
-    if (!card) return;
-    try { if (card._dshBeamCleanup) card._dshBeamCleanup(); } catch(e) {}
-    try { stopThinkingOrb(); } catch(e) {}
-    card.removeAttribute("data-beam");
-    card.removeAttribute("data-active");
-    card.removeAttribute("data-fading");
-    card.removeAttribute("data-typing");
-    card.removeAttribute("data-planning");
-    card.removeAttribute("data-pulse");
-    card.removeAttribute("data-paused");
-    card.style.removeProperty("--beam-strength");
-    card.style.removeProperty("--beam-hue-base");
-    card.style.removeProperty("filter");
-    card.style.removeProperty("isolation");
-    var bloom = card.querySelector("[data-beam-bloom]");
-    if (bloom) try { bloom.remove(); } catch(e) {}
-    if (beamResizeObs) try { beamResizeObs.disconnect(); beamResizeObs = null; } catch(e) {}
-    beamAttachedCard = null;
-    currentBeamMode = "hairline";
-  }
-
-  function refreshBeamTheme() {
-    if (!beamAttachedCard) return;
-    var r = resolveBorderRadius(beamAttachedCard);
-    var v = currentBeamMode === "typing" ? "mono" : (currentBeamMode === "planning" ? "sunset" : "colorful");
-    ensureBeamStyles(r, v);
-    updateBeamState();
-  }
-
-  function watchBeamComposer() {
-    if (isBeamDisabled()) { detachComposerBeam(); return; }
-    attachComposerBeam();
-    if (!beamMutObs && window.MutationObserver) {
-      beamMutObs = new MutationObserver(function() {
-        if (!beamAttachedCard) attachComposerBeam();
-        else updateBeamState();
-      });
-      var rootEl = document.querySelector("#root") || document.documentElement;
-      try { beamMutObs.observe(rootEl, { childList: true, subtree: true }); } catch(e) {}
-    }
-  }
-
-  try {
-    if (typeof window.__dshDeepSeekBg !== "object" || window.__dshDeepSeekBg === null) window.__dshDeepSeekBg = {};
-    window.__dshDeepSeekBg.beam = {
-      attach: attachComposerBeam,
-      detach: detachComposerBeam,
-      setStrength: function(v) { setBeamStrength(v, { persist: false }); },
-      setIdleStrength: function(v) { beamState.idleStrength = Math.max(0, Math.min(1, v)); refreshBeamTheme(); },
-      setFocusStrength: function(v) { beamState.focusStrength = Math.max(0, Math.min(1, v)); refreshBeamTheme(); },
-      disable: function() { try { localStorage.setItem("dsh-beam-disabled", "1"); } catch(e) {} detachComposerBeam(); },
-      enable: function() { try { localStorage.removeItem("dsh-beam-disabled"); } catch(e) {} watchBeamComposer(); },
-      refresh: refreshBeamTheme,
-      get state() { return currentBeamMode; },
-      get isExecuting() { return isExecuting(); },
-      get isTyping() { return isTyping(); },
-      update: updateBeamState,
-      get id() { return BEAM_ID; },
-      get card() { return beamAttachedCard; }
-    };
-    window.__dshDeepSeekBg.orbs = {
-      start: startThinkingOrb,
-      stop: stopThinkingOrb,
-      sync: syncThinkingOrb,
-      get active() { return orbActive; },
-      get canvas() { return orbCanvas; },
-      get state() { return orbCurrentState; },
-      resolveState: resolveActiveToolState,
-      getPreset: getOrbPreset
-    };
-  } catch(e) {}
-
-  
+/* ===================== aurora-shaders.js ===================== */
+/* ===================================================================== *
+ * src/aurora-shaders.js — 工厂级片段（无副作用：字符串常量）
+ *   极光引擎 GLSL 着色器（与 DeepSeek 打包产物逐字一致），
+ *   被 src/aurora.js（initAurora）直接引用。
+ * ===================================================================== */
 /* ------------------------------------------------------------------ *
    * 着色器（与 DeepSeek 打包产物逐字一致）
    * ------------------------------------------------------------------ */
@@ -3209,363 +2247,13 @@ function apply(ctx) {
     "  fragColor=vec4(col,1.);\n" +
     "}\n";
 
-  /* ------------------------------------------------------------------ *
-   * 极光引擎（WebGL2）
-   * ------------------------------------------------------------------ */
-  function startAurora() {
-    var canvas = auroraCanvas;
-    var gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false, powerPreference: "low-power" });
-    if (!gl) return;
-    diag.auroraGL = true;
 
-    function compile(type, src) {
-      var s = gl.createShader(type);
-      gl.shaderSource(s, src);
-      gl.compileShader(s);
-      return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
-    }
-    function link(vs, fs) {
-      var p = gl.createProgram();
-      gl.attachShader(p, vs);
-      gl.attachShader(p, fs);
-      gl.linkProgram(p);
-      return gl.getProgramParameter(p, gl.LINK_STATUS) ? p : null;
-    }
-    var vs = compile(gl.VERTEX_SHADER, VERT);
-    var progFlow = link(vs, compile(gl.FRAGMENT_SHADER, FLOWMAP_FS));
-    var progPart = link(vs, compile(gl.FRAGMENT_SHADER, PARTICLE_FS));
-    var progFluid = link(vs, compile(gl.FRAGMENT_SHADER, FLUID_FS));
-    diag.auroraProgs = [progFlow ? "flow" : "", progPart ? "particle" : "", progFluid ? "fluid" : ""].filter(Boolean).join(",");
-    if (!progFlow || !progPart || !progFluid) return;
-
-    var uFlow = {
-      prev: gl.getUniformLocation(progFlow, "u_prev"),
-      mouse: gl.getUniformLocation(progFlow, "u_mouse"),
-      velocity: gl.getUniformLocation(progFlow, "u_velocity"),
-      brushRadius: gl.getUniformLocation(progFlow, "u_brushRadius"),
-      brushStrength: gl.getUniformLocation(progFlow, "u_brushStrength"),
-      decay: gl.getUniformLocation(progFlow, "u_decay")
-    };
-    var uPart = {
-      time: gl.getUniformLocation(progPart, "u_time"),
-      pixelRatio: gl.getUniformLocation(progPart, "u_pixelRatio"),
-      resolution: gl.getUniformLocation(progPart, "u_resolution"),
-      scale: gl.getUniformLocation(progPart, "u_scale"),
-      rotation: gl.getUniformLocation(progPart, "u_rotation"),
-      offset: gl.getUniformLocation(progPart, "u_offset"),
-      color1: gl.getUniformLocation(progPart, "u_color1"),
-      color2: gl.getUniformLocation(progPart, "u_color2"),
-      color3: gl.getUniformLocation(progPart, "u_color3"),
-      color4: gl.getUniformLocation(progPart, "u_color4"),
-      color5: gl.getUniformLocation(progPart, "u_color5"),
-      colorCount: gl.getUniformLocation(progPart, "u_colorCount"),
-      proportion: gl.getUniformLocation(progPart, "u_proportion"),
-      softness: gl.getUniformLocation(progPart, "u_softness"),
-      shape: gl.getUniformLocation(progPart, "u_shape"),
-      shapeScale: gl.getUniformLocation(progPart, "u_shapeScale"),
-      distortion: gl.getUniformLocation(progPart, "u_distortion"),
-      swirl: gl.getUniformLocation(progPart, "u_swirl"),
-      swirlIterations: gl.getUniformLocation(progPart, "u_swirlIterations"),
-      flowmap: gl.getUniformLocation(progPart, "u_flowmap"),
-      distortBoost: gl.getUniformLocation(progPart, "u_distortBoost"),
-      noiseBoost: gl.getUniformLocation(progPart, "u_noiseBoost"),
-      swirlBoost: gl.getUniformLocation(progPart, "u_swirlBoost"),
-      glowIntensity: gl.getUniformLocation(progPart, "u_glowIntensity"),
-      glowColor1: gl.getUniformLocation(progPart, "u_glowColor1"),
-      glowColor2: gl.getUniformLocation(progPart, "u_glowColor2"),
-      glowColor3: gl.getUniformLocation(progPart, "u_glowColor3")
-    };
-    var uFluid = {
-      time: gl.getUniformLocation(progFluid, "u_time"),
-      resolution: gl.getUniformLocation(progFluid, "u_resolution"),
-      scale: gl.getUniformLocation(progFluid, "u_scale"),
-      offset: gl.getUniformLocation(progFluid, "u_offset"),
-      grain: gl.getUniformLocation(progFluid, "u_grain"),
-      speed: gl.getUniformLocation(progFluid, "u_speed"),
-      flowmap: gl.getUniformLocation(progFluid, "u_flowmap"),
-      distortBoost: gl.getUniformLocation(progFluid, "u_distortBoost"),
-      swirlBoost: gl.getUniformLocation(progFluid, "u_swirlBoost"),
-      glowIntensity: gl.getUniformLocation(progFluid, "u_glowIntensity"),
-      glowColor1: gl.getUniformLocation(progFluid, "u_glowColor1"),
-      glowColor2: gl.getUniformLocation(progFluid, "u_glowColor2"),
-      glowColor3: gl.getUniformLocation(progFluid, "u_glowColor3"),
-      c1: gl.getUniformLocation(progFluid, "u_c1"),
-      c2: gl.getUniformLocation(progFluid, "u_c2"),
-      c3: gl.getUniformLocation(progFluid, "u_c3"),
-      c4: gl.getUniformLocation(progFluid, "u_c4"),
-      c5: gl.getUniformLocation(progFluid, "u_c5"),
-      lightPos: gl.getUniformLocation(progFluid, "u_lightPos"),
-      lightCore: gl.getUniformLocation(progFluid, "u_lightCore"),
-      lightHalo: gl.getUniformLocation(progFluid, "u_lightHalo"),
-      vignette: gl.getUniformLocation(progFluid, "u_vignette"),
-      bloomThreshold: gl.getUniformLocation(progFluid, "u_bloomThreshold"),
-      bloomRange: gl.getUniformLocation(progFluid, "u_bloomRange"),
-      bloomStrength: gl.getUniformLocation(progFluid, "u_bloomStrength")
-    };
-
-    var buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    function bindAttrib(prog) {
-      var loc = gl.getAttribLocation(prog, "a_position");
-      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      gl.enableVertexAttribArray(loc);
-      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    }
-    function makeTarget(w, h, data) {
-      var tex = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, tex);
-      if (data) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-      else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      var fbo = gl.createFramebuffer();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      return { fbo: fbo, tex: tex };
-    }
-
-    var W = 0, H = 0, wQ = 0, hQ = 0;
-    var flip = false;
-    // GPU 优化：极光是柔和渐变背景，内部分辨率按 DPR 上限 1.5 再乘 0.75 渲染，
-    // 由 CSS 放大到全屏。像素量约为原 1.5x 的 1/4（1x 屏幕）~ 56%（retina），
-    // 对流动渐变背景肉眼几乎无差，fragment 负载（本插件最大 GPU 开销）大幅下降。
-    var AURORA_SCALE = 0.75;
-    // 分辨率由设置面板的「极光分辨率」滑杆实时控制（0.4–1.0）
-    function auroraScale() { return Math.min(window.devicePixelRatio || 1, 1.5) * (bgSettings.auroraScale || AURORA_SCALE); }
-    var k = auroraScale();
-    function resizeAll() {
-      k = auroraScale(); // DPR 变化时保持 resize 判定与渲染一致，避免每帧重建纹理
-      W = Math.round(canvas.clientWidth * k);
-      H = Math.round(canvas.clientHeight * k);
-      canvas.width = W; canvas.height = H;
-      wQ = Math.round(W / 4); hQ = Math.round(H / 4);
-      var init = new Uint8Array(wQ * hQ * 4);
-      for (var i = 0; i < wQ * hQ; i++) { init[4 * i] = 0; init[4 * i + 1] = 128; init[4 * i + 2] = 128; init[4 * i + 3] = 255; }
-      targetA = makeTarget(wQ, hQ, init);
-      targetB = makeTarget(wQ, hQ, init);
-    }
-    var targetA = null, targetB = null;
-    resizeAll();
-
-    var mouse = { x: 0.5, y: 0.5, smoothX: 0.5, smoothY: 0.5, vx: 0, vy: 0, svx: 0, svy: 0, rawVX: 0, rawVY: 0, lastT: 0, lastMove: 0 };
-    // 鼠标笔刷/光线跟随：由设置面板「鼠标跟随交互」开关实时控制（每帧判定）
-    function auroraMouseEnabled() { return !reducedMotion && !coarse && !isWindows && bgSettings.mouse; }
-    function onMove(e) {
-      var r = canvas.getBoundingClientRect();
-      var nx = (e.clientX - r.left) / r.width;
-      var ny = 1 - (e.clientY - r.top) / r.height;
-      var t = performance.now();
-      var dt = Math.max(1, t - (mouse.lastT || t));
-      // 用事件时间戳求真实速度（归一化坐标/秒），驱动流场拖尾方向；限幅防异常事件
-      var vx = (nx - mouse.x) / (dt / 1000);
-      var vy = (ny - mouse.y) / (dt / 1000);
-      var sp = Math.sqrt(vx * vx + vy * vy);
-      if (sp > 6) { vx = vx / sp * 6; vy = vy / sp * 6; }
-      mouse.rawVX = vx; mouse.rawVY = vy;
-      mouse.x = nx; mouse.y = ny;
-      mouse.lastT = t; mouse.lastMove = t;
-    }
-    // 监听常驻（一个 passive listener 成本可忽略），是否生效由 auroraMouseEnabled 逐帧决定
-    window.addEventListener("mousemove", onMove, { passive: true });
-
-    var start = performance.now();
-    var raf = 0;
-    var running = true;
-    // flowmap 与渲染解耦为两个独立节奏：交互活跃期均 60Hz，静止回落低频
-    var lastFlow = 0, lastRender = 0;
-    var latestTex = null;
-    var auroraBlanked = false;
-
-    function hex2rgb(hex) {
-      var h = hex.replace("#", "");
-      return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255];
-    }
-
-    function frame(now) {
-      raf = requestAnimationFrame(frame);
-      if (!running || !state.dark) return;
-      if (!bgSettings.aurora) {
-        // 关闭：清空画布一次（透明）后跳过渲染，rAF 空转成本可忽略
-        if (!auroraBlanked) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); auroraBlanked = true; }
-        return;
-      }
-      var cfg = currentAuroraConfig();
-
-      var kk = auroraScale();
-      var w = Math.round(canvas.clientWidth * kk);
-      var h = Math.round(canvas.clientHeight * kk);
-      if (w !== W || h !== H) resizeAll();
-
-      var useM = auroraMouseEnabled();
-      // 交互活跃期（最近 200ms 内有鼠标移动）：flowmap 与渲染同步提到 60fps，
-      // 笔刷轨迹/光线跟手无感；静止后自动回落设置帧率，不白烧 GPU
-      var active = useM && (now - (mouse.lastMove || 0) < 200);
-      var flowHz = active ? 60 : 30;
-      var renderHz = active ? Math.max(60, bgSettings.fps || 30) : (bgSettings.fps || 30);
-
-      // 漫游笔刷目标（鼠标跟随关闭时）：Lissajous 轨迹 + 解析速度
-      var driftX = 0.5, driftY = 0.5, driftVX = 0, driftVY = 0;
-      if (!useM) {
-        var driftT = (now - start) * 0.001;
-        var a1 = driftT * 0.09, b1 = driftT * 0.13;
-        driftX = 0.5 + 0.38 * Math.sin(a1);
-        driftY = 0.5 + 0.3 * Math.cos(b1);
-        var e1 = 0.1;
-        driftVX = (0.38 * (Math.sin(a1 + e1) - Math.sin(a1))) / e1;
-        driftVY = (0.3 * (Math.cos(b1 + e1) - Math.cos(b1))) / e1;
-      }
-
-      // ---- flowmap 更新（独立节奏：交互期 60Hz，静止 30Hz；与渲染解耦保证笔刷实时性） ----
-      if (now - lastFlow >= 1000 / flowHz) {
-        var fdt = Math.min(0.25, (now - lastFlow) / 1000);
-        lastFlow = now - (now - lastFlow) % (1000 / flowHz);
-        // 帧率无关临界阻尼平滑：时间常数由「跟手灵敏度」控制（默认 20ms）
-        // —— 越小越贴手、滤掉事件抖动，越大越绵柔
-        var followTau = (bgSettings.followMs != null ? bgSettings.followMs : 20) / 1000;
-        var kp = 1 - Math.exp(-fdt / followTau);
-        mouse.smoothX += ((useM ? mouse.x : driftX) - mouse.smoothX) * kp;
-        mouse.smoothY += ((useM ? mouse.y : driftY) - mouse.smoothY) * kp;
-        // 速度平滑：时间常数为跟手灵敏度的 4 倍（默认 80ms），拖尾方向稳定不抖
-        var kv = 1 - Math.exp(-fdt / (followTau * 4));
-        mouse.svx += (mouse.rawVX - mouse.svx) * kv;
-        mouse.svy += (mouse.rawVY - mouse.svy) * kv;
-
-        var brushX = mouse.smoothX, brushY = mouse.smoothY;
-        var brushVX = useM ? mouse.svx : driftVX;
-        var brushVY = useM ? mouse.svy : driftVY;
-        var brushStrength = useM ? cfg.mouseStrength : cfg.mouseStrength * 0.28;
-
-        // --- flowmap pass（低分辨率流场，双缓冲乒乓；鼠标或漫游笔刷持续喂入） ---
-        var src = flip ? targetA : targetB;
-        var dst = flip ? targetB : targetA;
-        flip = !flip;
-        latestTex = dst.tex;
-        gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
-        gl.viewport(0, 0, wQ, hQ);
-        gl.useProgram(progFlow);
-        bindAttrib(progFlow);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, src.tex);
-        gl.uniform1i(uFlow.prev, 0);
-        gl.uniform2f(uFlow.mouse, brushX, brushY);
-        gl.uniform2f(uFlow.velocity, brushVX, brushVY);
-        gl.uniform1f(uFlow.brushRadius, cfg.mouseRadius);
-        gl.uniform1f(uFlow.brushStrength, brushStrength);
-        // 衰减按实际帧间隔归一化（基准 30fps）：任何更新频率下拖尾淡出速度一致
-        gl.uniform1f(uFlow.decay, Math.pow(cfg.decay, fdt * 30));
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, W, H);
-      }
-
-      // ---- 渲染（帧率跟随设置；交互活跃期提到 60fps） ----
-      if (now - lastRender < 1000 / renderHz) return;
-      lastRender = now - (now - lastRender) % (1000 / renderHz);
-      auroraBlanked = false;
-
-      // --- 渲染 ---
-      var t = (performance.now() - start) * 0.001 * (cfg.speed / 100);
-      if (cfg.type === "fluid") {
-        gl.useProgram(progFluid);
-        bindAttrib(progFluid);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, latestTex);
-        gl.uniform1i(uFluid.flowmap, 0);
-        gl.uniform1f(uFluid.time, t);
-        gl.uniform2f(uFluid.resolution, W, H);
-        gl.uniform1f(uFluid.scale, cfg.scale);
-        gl.uniform2f(uFluid.offset, cfg.offsetX / 100, cfg.offsetY / 100);
-        gl.uniform1f(uFluid.grain, cfg.grain);
-        gl.uniform1f(uFluid.distortBoost, cfg.distortBoost);
-        gl.uniform1f(uFluid.swirlBoost, cfg.swirlBoost);
-        var lx = cfg.lightX != null ? cfg.lightX : 0.89;
-        // 光线跟随：官方 lightFollow 系数 × 设置面板「光线跟随强度」（默认 100%）
-        var lf = cfg.lightFollow != null ? cfg.lightFollow * (bgSettings.lightFollow != null ? bgSettings.lightFollow : 1) * (useM ? 1 : 0.85) : 0;
-        gl.uniform2f(uFluid.lightPos, lx + (mouse.smoothX - lx) * lf, cfg.lightY != null ? cfg.lightY : 0.46);
-        gl.uniform1f(uFluid.lightCore, coarse ? 0 : (cfg.lightCore != null ? cfg.lightCore : 0.14));
-        gl.uniform1f(uFluid.lightHalo, coarse ? 0 : (cfg.lightHalo != null ? cfg.lightHalo : 0.2));
-        gl.uniform1f(uFluid.vignette, cfg.vignette != null ? cfg.vignette : 0.38);
-        gl.uniform1f(uFluid.bloomThreshold, cfg.bloomThreshold != null ? cfg.bloomThreshold : 0.61);
-        gl.uniform1f(uFluid.bloomRange, cfg.bloomRange != null ? cfg.bloomRange : 0.18);
-        gl.uniform1f(uFluid.bloomStrength, cfg.bloomStrength != null ? cfg.bloomStrength : 0.4);
-        gl.uniform1f(uFluid.glowIntensity, cfg.glowIntensity);
-        var gc1 = hex2rgb(cfg.glowColors[0] || "#ffffff");
-        var gc2 = hex2rgb(cfg.glowColors[1] || cfg.glowColors[0] || "#ffffff");
-        var gc3 = hex2rgb(cfg.glowColors[2] || cfg.glowColors[0] || "#ffffff");
-        gl.uniform3f(uFluid.glowColor1, gc1[0], gc1[1], gc1[2]);
-        gl.uniform3f(uFluid.glowColor2, gc2[0], gc2[1], gc2[2]);
-        gl.uniform3f(uFluid.glowColor3, gc3[0], gc3[1], gc3[2]);
-        var cs = cfg.colors || [];
-        for (var ci = 0; ci < 5; ci++) {
-          var c = hex2rgb(cs[ci] || cs[cs.length - 1] || "#000000");
-          gl.uniform3f([uFluid.c1, uFluid.c2, uFluid.c3, uFluid.c4, uFluid.c5][ci], c[0], c[1], c[2]);
-        }
-      } else {
-        gl.useProgram(progPart);
-        bindAttrib(progPart);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, latestTex);
-        gl.uniform1i(uPart.flowmap, 0);
-        gl.uniform1f(uPart.time, t);
-        gl.uniform1f(uPart.pixelRatio, window.devicePixelRatio || 1);
-        gl.uniform2f(uPart.resolution, W, H);
-        gl.uniform1f(uPart.scale, cfg.scale);
-        gl.uniform1f(uPart.rotation, cfg.rotation / 90);
-        gl.uniform2f(uPart.offset, cfg.offsetX / 100, cfg.offsetY / 100);
-        var cols = cfg.colors || ["#2E58A4", "#D2E2EE", "#FFFFFF"];
-        for (var pi = 0; pi < 5; pi++) {
-          var pc = hex2rgb(cols[pi] || cols[cols.length - 1] || "#000000");
-          gl.uniform4f([uPart.color1, uPart.color2, uPart.color3, uPart.color4, uPart.color5][pi], pc[0], pc[1], pc[2], 1);
-        }
-        gl.uniform1f(uPart.colorCount, cols.length);
-        gl.uniform1f(uPart.proportion, cfg.proportion / 100);
-        gl.uniform1f(uPart.softness, cfg.softness / 100);
-        gl.uniform1f(uPart.shape, 0);
-        gl.uniform1f(uPart.shapeScale, cfg.shapeScale / 100);
-        gl.uniform1f(uPart.distortion, cfg.distortion / 100);
-        gl.uniform1f(uPart.swirl, cfg.swirl / 50);
-        gl.uniform1f(uPart.swirlIterations, cfg.swirlIterations);
-        gl.uniform1f(uPart.distortBoost, cfg.distortBoost);
-        gl.uniform1f(uPart.noiseBoost, cfg.noiseBoost);
-        gl.uniform1f(uPart.swirlBoost, cfg.swirlBoost);
-        gl.uniform1f(uPart.glowIntensity, cfg.glowIntensity);
-        var pc1 = hex2rgb(cfg.glowColors[0] || "#ffffff");
-        var pc2 = hex2rgb(cfg.glowColors[1] || cfg.glowColors[0] || "#ffffff");
-        var pc3 = hex2rgb(cfg.glowColors[2] || cfg.glowColors[0] || "#ffffff");
-        gl.uniform3f(uPart.glowColor1, pc1[0], pc1[1], pc1[2]);
-        gl.uniform3f(uPart.glowColor2, pc2[0], pc2[1], pc2[2]);
-        gl.uniform3f(uPart.glowColor3, pc3[0], pc3[1], pc3[2]);
-      }
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    }
-
-    if (reducedMotion) {
-      // 单帧静态
-      last = 0;
-      running = true;
-      frame(performance.now());
-      cancelAnimationFrame(raf);
-      raf = 0;
-      running = false;
-    } else {
-      raf = requestAnimationFrame(frame);
-    }
-
-    document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "visible") {
-        if (!raf) raf = requestAnimationFrame(frame);
-      } else if (raf) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-    });
-    window.addEventListener("resize", function () { resizeAll(); }, { passive: true });
-  }
-
+/* ===================== whale-shaders.js ===================== */
+/* ===================================================================== *
+ * src/whale-shaders.js — 工厂级片段（无副作用：常量/工具函数）
+ *   鲸鱼 SVG 纹理 / 默认参数 / GLSL 着色器 / 4x4 矩阵工具 / 像素采样，
+ *   被 src/whale.js（initWhale）直接调用。
+ * ===================================================================== */
   /* ------------------------------------------------------------------ *
    * 粒子化鲸鱼引擎（官方移植：HeroDigitileR3F → 原生 WebGL2）
    * 源码取自官网 harness 页懒加载 chunk 776（未进缓存，已从官网抓取）：
@@ -3578,8 +2266,8 @@ function apply(ctx) {
   // 官方鲸鱼纹理（hero-whale.svg，抓自 https://www.deepseek.com/harness/images/hero-whale.svg）
   var WHALE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M22.9168 1.43018C22.6713 1.31018 22.5658 1.53918 22.4223 1.65519C22.3733 1.69269 22.3318 1.74169 22.2903 1.78669C21.9317 2.1697 21.5127 2.42121 20.9657 2.39121C20.1657 2.34621 19.4827 2.59771 18.8787 3.20973C18.7502 2.45521 18.3236 2.0047 17.6746 1.71569C17.3351 1.56568 16.9916 1.41518 16.7536 1.08867C16.5876 0.856163 16.5421 0.597155 16.4591 0.341647C16.4061 0.187643 16.3536 0.0301382 16.1761 0.00363739C15.9836 -0.0263635 15.9081 0.135141 15.8326 0.270145C15.5306 0.822162 15.4136 1.43018 15.4251 2.0462C15.4516 3.43174 16.0366 4.53527 17.1991 5.3203C17.3311 5.4103 17.3651 5.5003 17.3236 5.63181C17.2441 5.90231 17.1501 6.16482 17.0671 6.43533C17.0141 6.60784 16.9351 6.64584 16.7501 6.57033C16.1121 6.30383 15.5611 5.90931 15.074 5.4328C14.2475 4.63328 13.5 3.75075 12.568 3.05973C12.349 2.89822 12.13 2.74822 11.9034 2.60522C10.9524 1.68169 12.028 0.923165 12.277 0.833162C12.5375 0.739159 12.3675 0.41615 11.5259 0.42015C10.6844 0.42365 9.91439 0.705658 8.93286 1.08117C8.78935 1.13767 8.63835 1.17867 8.48384 1.21267C7.59332 1.04367 6.66829 1.00617 5.70226 1.11517C3.88321 1.31768 2.43016 2.1777 1.36213 3.64575C0.0790928 5.4103 -0.222916 7.41536 0.146595 9.50642C0.535106 11.7105 1.66014 13.535 3.38869 14.9616C5.18125 16.4406 7.24581 17.1657 9.60138 17.0266C11.0319 16.9441 12.6245 16.7526 14.421 15.2321C14.874 15.4576 15.3496 15.5476 16.1381 15.6151C16.7456 15.6716 17.3306 15.5851 17.7836 15.4911C18.4931 15.3411 18.4441 14.6841 18.1876 14.5636C16.1081 13.595 16.5646 13.9891 16.1496 13.67C17.2061 12.42 18.8202 10.1979 19.3182 7.17235C19.3672 6.83834 19.4297 6.36783 19.4222 6.09732C19.4182 5.93231 19.4562 5.86831 19.6447 5.84931C20.1657 5.78931 20.6712 5.64681 21.1357 5.3913C22.4833 4.65528 23.0268 3.44624 23.1548 1.9972C23.1738 1.77569 23.1508 1.54668 22.9168 1.43018ZM11.1749 14.4736C9.15936 12.889 8.18184 12.3675 7.77832 12.39C7.40081 12.4125 7.46881 12.8445 7.55182 13.126C7.63882 13.404 7.75182 13.5955 7.91033 13.8396C8.01983 14.0011 8.09533 14.2411 7.80083 14.4216C7.15181 14.8231 6.02327 14.2866 5.97027 14.2601C4.65673 13.4865 3.5587 12.4655 2.78467 11.069C2.03715 9.72493 1.60314 8.28289 1.53164 6.74384C1.51264 6.37233 1.62214 6.24082 1.99215 6.17332C2.47916 6.08332 2.98118 6.06432 3.46769 6.13582C5.52476 6.43633 7.27581 7.35586 8.74385 8.8129C9.58188 9.64243 10.2159 10.634 10.8689 11.6025C11.5634 12.631 12.3105 13.611 13.262 14.4146C13.598 14.6961 13.866 14.9101 14.1225 15.0681C13.349 15.1546 12.058 15.1731 11.1749 14.4746V14.4736ZM12.141 8.25988C12.141 8.09488 12.273 7.96338 12.439 7.96338C12.4765 7.96338 12.5105 7.97088 12.541 7.98188C12.5825 7.99688 12.6205 8.01938 12.6505 8.05338C12.7035 8.10588 12.7335 8.18088 12.7335 8.25988C12.7335 8.42489 12.6015 8.55639 12.4355 8.55639C12.2695 8.55639 12.141 8.42489 12.141 8.25988ZM15.1415 9.79893C14.949 9.87793 14.7565 9.94544 14.5715 9.95294C14.2845 9.96794 13.9715 9.85143 13.8015 9.70893C13.5375 9.48742 13.3485 9.36342 13.2695 8.97691C13.2355 8.8119 13.2545 8.55639 13.2845 8.40989C13.3525 8.09438 13.277 7.89187 13.0545 7.70787C12.8735 7.55786 12.643 7.51636 12.39 7.51636C12.2955 7.51636 12.209 7.47486 12.1445 7.44136C12.039 7.38886 11.9519 7.25735 12.035 7.09585C12.0615 7.04335 12.19 6.91584 12.22 6.89334C12.5635 6.69784 12.9595 6.76184 13.326 6.90834C13.6655 7.04735 13.9225 7.30236 14.292 7.66287C14.6695 8.09838 14.7375 8.21838 14.9525 8.54539C15.1225 8.8009 15.277 9.06341 15.3831 9.36392C15.4471 9.55142 15.3641 9.70493 15.1415 9.79893Z" fill="#FFFFFF"/></svg>';
   var WHALE_SRC = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(WHALE_SVG);
-  // 官方参数（chunk 776 源码常量，fish 变体：shadeMin .2 / shadeMax .4*2.79）——原值，未调参
-  var LIGHT_DEFAULTS = { x: 4.5, y: 5.5, z: 3, range: 14, shadeMin: 0.2, shadeMax: 1.116, followX: 1.05 };
+  // 官方参数（chunk 776 源码常量，fish 变体，提升基础亮度与光照对比度）
+  var LIGHT_DEFAULTS = { x: 4.5, y: 5.5, z: 3, range: 14, shadeMin: 0.42, shadeMax: 1.35, followX: 1.05 };
   var MOUSE_DEFAULTS = { radius: 4.9, strength: 0.8, decay: 0.2, distort: 5 };
   var WAVE_DEFAULTS = { speed: 1.5, amount: 0.06 };
 
@@ -3744,13 +2432,13 @@ function apply(ctx) {
     "out vec4 fragColor;\n" +
     "void main() {\n" +
     "  float dist = length(vWorldPos.xy);\n" +
-    "  float glow = smoothstep(8.0, 0.0, dist) * 0.3 * vAssembly;\n" +
-    "  float baseAlpha = mix(0.45, 0.75, vAssembly);\n" +
+    "  float glow = smoothstep(8.0, 0.0, dist) * 0.35 * vAssembly;\n" +
+    "  float baseAlpha = mix(0.65, 0.95, vAssembly);\n" +
     "  float alpha = vOpacity * (baseAlpha + glow);\n" +
-    "  float shimmer = sin(uTime * 1.5 + vWorldPos.x * 5.0 + vWorldPos.y * 3.0) * 0.1 + 0.9;\n" +
-    "  alpha *= shimmer * min(vLight, 1.0);\n" +
-    "  vec3 color = (uColor + glow * vec3(0.2, 0.3, 0.5)) * vLight;\n" +
-    "  color = mix(color, color * vec3(1.07, 1.02, 0.94), clamp(vLight - 1.0, 0.0, 1.0));\n" +
+    "  float shimmer = sin(uTime * 1.5 + vWorldPos.x * 5.0 + vWorldPos.y * 3.0) * 0.08 + 0.92;\n" +
+    "  alpha *= shimmer * clamp(vLight * 0.85 + 0.25, 0.3, 1.0);\n" +
+    "  vec3 color = (uColor + glow * vec3(0.15, 0.25, 0.45)) * vLight;\n" +
+    "  color = mix(color, vec3(1.0), clamp(vLight - 0.85, 0.0, 1.0) * 0.45);\n" +
     "  fragColor = vec4(color, alpha);\n" +
     "}\n";
 
@@ -3775,40 +2463,2288 @@ function apply(ctx) {
     return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
   }
   function m4Inverse(m) {
-    var o = new Float32Array(16);
-    var i = new Float32Array([m[0],m[4],m[8],m[12], m[1],m[5],m[9],m[13], m[2],m[6],m[10],m[14], m[3],m[7],m[11],m[15]]);
-    var d = 1 / (i[0]*i[5]*i[10]*i[15] - i[0]*i[5]*i[11]*i[14] - i[0]*i[9]*i[6]*i[15] + i[0]*i[9]*i[7]*i[14] +
-                i[0]*i[13]*i[6]*i[11] - i[0]*i[13]*i[7]*i[10] - i[4]*i[1]*i[10]*i[15] + i[4]*i[1]*i[11]*i[14] +
-                i[4]*i[9]*i[2]*i[15] - i[4]*i[9]*i[3]*i[14] - i[4]*i[13]*i[2]*i[11] + i[4]*i[13]*i[3]*i[10] +
-                i[8]*i[1]*i[6]*i[15] - i[8]*i[1]*i[7]*i[14] - i[8]*i[5]*i[2]*i[15] + i[8]*i[5]*i[3]*i[14] +
-                i[8]*i[13]*i[2]*i[7] - i[8]*i[13]*i[3]*i[6] - i[12]*i[1]*i[6]*i[11] + i[12]*i[1]*i[7]*i[10] +
-                i[12]*i[5]*i[2]*i[11] - i[12]*i[5]*i[3]*i[10] - i[12]*i[9]*i[2]*i[7] + i[12]*i[9]*i[3]*i[6]);
-    o[0] = (i[5]*i[10]*i[15] - i[5]*i[11]*i[14] - i[9]*i[6]*i[15] + i[9]*i[7]*i[14] + i[13]*i[6]*i[11] - i[13]*i[7]*i[10]) * d;
-    o[4] = (-i[4]*i[10]*i[15] + i[4]*i[11]*i[14] + i[8]*i[6]*i[15] - i[8]*i[7]*i[14] - i[12]*i[6]*i[11] + i[12]*i[7]*i[10]) * d;
-    o[8] = (i[4]*i[9]*i[15] - i[4]*i[11]*i[13] - i[8]*i[5]*i[15] + i[8]*i[7]*i[13] + i[12]*i[5]*i[11] - i[12]*i[9]*i[7]) * d;
-    o[12] = (-i[4]*i[9]*i[14] + i[4]*i[10]*i[13] + i[8]*i[5]*i[14] - i[8]*i[6]*i[13] - i[12]*i[5]*i[10] + i[12]*i[9]*i[6]) * d;
-    o[1] = (-i[1]*i[10]*i[15] + i[1]*i[11]*i[14] + i[9]*i[2]*i[15] - i[9]*i[3]*i[14] - i[13]*i[2]*i[11] + i[13]*i[3]*i[10]) * d;
-    o[5] = (i[0]*i[10]*i[15] - i[0]*i[11]*i[14] - i[8]*i[2]*i[15] + i[8]*i[3]*i[14] + i[12]*i[2]*i[11] - i[12]*i[3]*i[10]) * d;
-    o[9] = (-i[0]*i[9]*i[15] + i[0]*i[11]*i[13] + i[8]*i[1]*i[15] - i[8]*i[3]*i[13] - i[12]*i[1]*i[11] + i[12]*i[9]*i[3]) * d;
-    o[13] = (i[0]*i[9]*i[14] - i[0]*i[10]*i[13] - i[8]*i[1]*i[14] + i[8]*i[2]*i[13] + i[12]*i[1]*i[10] - i[12]*i[9]*i[2]) * d;
-    o[2] = (i[1]*i[6]*i[15] - i[1]*i[7]*i[14] - i[5]*i[2]*i[15] + i[5]*i[3]*i[14] + i[13]*i[2]*i[7] - i[13]*i[3]*i[6]) * d;
-    o[6] = (-i[0]*i[6]*i[15] + i[0]*i[7]*i[14] + i[4]*i[2]*i[15] - i[4]*i[3]*i[14] - i[12]*i[2]*i[7] + i[12]*i[3]*i[6]) * d;
-    o[10] = (i[0]*i[5]*i[15] - i[0]*i[7]*i[13] - i[4]*i[1]*i[15] + i[4]*i[3]*i[13] + i[12]*i[1]*i[7] - i[12]*i[5]*i[3]) * d;
-    o[14] = (-i[0]*i[5]*i[14] + i[0]*i[6]*i[13] + i[4]*i[1]*i[14] - i[4]*i[2]*i[13] - i[12]*i[1]*i[6] + i[12]*i[5]*i[2]) * d;
-    o[3] = (-i[1]*i[6]*i[11] + i[1]*i[7]*i[10] + i[5]*i[2]*i[11] - i[5]*i[3]*i[10] - i[9]*i[2]*i[7] + i[9]*i[3]*i[6]) * d;
-    o[7] = (i[0]*i[6]*i[11] - i[0]*i[7]*i[10] - i[4]*i[2]*i[11] + i[4]*i[3]*i[10] + i[8]*i[2]*i[7] - i[8]*i[3]*i[6]) * d;
-    o[11] = (-i[0]*i[5]*i[11] + i[0]*i[7]*i[9] + i[4]*i[1]*i[11] - i[4]*i[3]*i[9] - i[8]*i[1]*i[7] + i[8]*i[5]*i[3]) * d;
-    o[15] = (i[0]*i[5]*i[10] - i[0]*i[6]*i[9] - i[4]*i[1]*i[10] + i[4]*i[2]*i[9] + i[8]*i[1]*i[6] - i[8]*i[5]*i[2]) * d;
-    return o;
+    var m00 = m[0], m01 = m[1], m02 = m[2], m03 = m[3];
+    var m10 = m[4], m11 = m[5], m12 = m[6], m13 = m[7];
+    var m20 = m[8], m21 = m[9], m22 = m[10], m23 = m[11];
+    var m30 = m[12], m31 = m[13], m32 = m[14], m33 = m[15];
+
+    var b00 = m00 * m11 - m01 * m10;
+    var b01 = m00 * m12 - m02 * m10;
+    var b02 = m00 * m13 - m03 * m10;
+    var b03 = m01 * m12 - m02 * m11;
+    var b04 = m01 * m13 - m03 * m11;
+    var b05 = m02 * m13 - m03 * m12;
+    var b06 = m20 * m31 - m21 * m30;
+    var b07 = m20 * m32 - m22 * m30;
+    var b08 = m20 * m33 - m23 * m30;
+    var b09 = m21 * m32 - m22 * m31;
+    var b10 = m21 * m33 - m23 * m31;
+    var b11 = m22 * m33 - m23 * m32;
+
+    var det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+    if (!det) return m4Identity();
+    var invDet = 1.0 / det;
+
+    var out = new Float32Array(16);
+    out[0] = (m11 * b11 - m12 * b10 + m13 * b09) * invDet;
+    out[1] = (-m01 * b11 + m02 * b10 - m03 * b09) * invDet;
+    out[2] = (m31 * b05 - m32 * b04 + m33 * b03) * invDet;
+    out[3] = (-m21 * b05 + m22 * b04 - m23 * b03) * invDet;
+    out[4] = (-m10 * b11 + m12 * b08 - m13 * b07) * invDet;
+    out[5] = (m00 * b11 - m02 * b08 + m03 * b07) * invDet;
+    out[6] = (-m30 * b05 + m32 * b02 - m33 * b01) * invDet;
+    out[7] = (m20 * b05 - m22 * b02 + m23 * b01) * invDet;
+    out[8] = (m10 * b10 - m11 * b08 + m13 * b06) * invDet;
+    out[9] = (-m00 * b10 + m01 * b08 - m03 * b06) * invDet;
+    out[10] = (m30 * b04 - m31 * b02 + m33 * b00) * invDet;
+    out[11] = (-m20 * b04 + m21 * b02 - m23 * b00) * invDet;
+    out[12] = (-m10 * b09 + m11 * b07 - m12 * b06) * invDet;
+    out[13] = (m00 * b09 - m01 * b07 + m02 * b06) * invDet;
+    out[14] = (-m30 * b03 + m31 * b01 - m32 * b00) * invDet;
+    out[15] = (m20 * b03 - m21 * b01 + m22 * b00) * invDet;
+
+    return out;
   }
 
+
+/* ===================== theme.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/theme.js — 主题检测与官方参数配置（initTheme）
+ *   全主题统一深色：state.dark 恒为 true，浅色/深色均使用 harness 深色配置。
+ *   保留 LIGHT_* 仅作参考，不再参与运行时分支。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initTheme(shared) {
+  var state = shared.state;
+
+  function detectDark() {
+    return true; // 全主题统一深色，不再区分浅色
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 官方参数配置
+   *   浅色：www.deepseek.com 首页 hero（particle 渲染）— 保留仅作参考
+   *   深色：www.deepseek.com/harness hero（fluid 渲染）— 全主题统一使用
+   * ------------------------------------------------------------------ */
+  var LIGHT_AURORA = {
+    type: "particle",
+    mouseRadius: 0.22, mouseStrength: 1.1, mouseSmoothing: 0.12, mouseVelocity: 0.15,
+    decay: 0.96, distortBoost: 1.35, noiseBoost: 0, swirlBoost: 0.45,
+    glowIntensity: 0, glowColors: ["#ffffff", "#ffffff", "#ffffff"],
+    speed: 14, distortion: 20, swirl: 12, swirlIterations: 8,
+    scale: 0.5, rotation: -5, proportion: 50, softness: 100, shapeScale: 10,
+    offsetX: 0, offsetY: 65,
+    colors: ["#8AA3D6", "#FFFFFF", "#FFFFFF"],
+    lightX: 0.89, lightY: 0.46, lightCore: 0, lightHalo: 0, vignette: 0, lightFollow: 0,
+    bloomThreshold: 0.61, bloomRange: 0.18, bloomStrength: 0, grain: 0
+  };
+
+  /* 官方深色 hero（www.deepseek.com/harness）参数，逐项取自缓存
+     page-07f506a1408ad0e8.js 中的 k 配置（fluid 渲染） */
+  var DARK_AURORA = {
+    type: "fluid",
+    mouseRadius: 0.09, mouseStrength: 1.8, mouseSmoothing: 0.1, mouseVelocity: 0.2,
+    decay: 0.925, distortBoost: 2.2, noiseBoost: 0.3, swirlBoost: 0.8,
+    glowIntensity: 0.13, glowColors: ["#fff7d1", "#538dca", "#2d448b"],
+    speed: 28, distortion: 18, swirl: 20, swirlIterations: 12,
+    scale: 1.77, rotation: 15, proportion: 60, softness: 80, shapeScale: 0,
+    offsetX: -124, offsetY: -48,
+    colors: ["#000000", "#1A3870", "#204a7e", "#eed8aa", "#000000"],
+    lightX: 0.89, lightY: 0.46, lightCore: 0.14, lightHalo: 0.2, vignette: 0.38, lightFollow: 0.63,
+    bloomThreshold: 0.61, bloomRange: 0.18, bloomStrength: 0.4, grain: 0.005
+  };
+
+  var LIGHT_CONSTELLATION = { lineColor: "rgba(60, 100, 160,", dotColor: "rgba(60, 100, 160,", lineOpacity: 0.1, dotOpacity: 0.2, round: true };
+  var DARK_CONSTELLATION = { lineColor: "rgba(255, 255, 255,", dotColor: "rgba(255, 255, 255,", lineOpacity: 0.08, dotOpacity: 0.16, round: false };
+
+  function currentAuroraConfig() { return DARK_AURORA; }
+  function currentConstellation() { return DARK_CONSTELLATION; }
+
+  state.dark = true;
+
+  shared.refs.detectDark = detectDark;
+  shared.refs.currentAuroraConfig = currentAuroraConfig;
+  shared.refs.currentConstellation = currentConstellation;
+}
+
+
+/* ===================== settings.js ===================== */
+/* ===================================================================== *
+ * src/settings.js — GPU 特效设置（initSettings）
+ *   档位/开关/高级参数/低电量自动节能 + 设置页「背景特效」面板（React）。
+ *   创建 shared.settings（loadSettings 结果，各模块经 shared.settings 只读）；
+ *   跨模块回调一律走 shared.refs.*（beam watch/detach、orbs sync、shell 玻璃、星座唤醒、鲸鱼显隐）。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ===================================================================== */
+function initSettings(shared) {
+  var ctx = shared.ctx;
+
+  /* ===================================================================== *
+   * GPU 特效设置（设置页「背景特效」面板 + 运行时联动）
+   *   档位预设 → 独立开关（自动转自定义）→ 高级参数 → 低电量自动节能
+   *   全部即时生效、localStorage 持久化（dsh-bg-settings）
+   * ===================================================================== */
+  var SETTINGS_KEY = "dsh-bg-settings";
+  var PRESETS = {
+    // 全特效：极光分辨率与玻璃模糊全部拉满（滑杆上限 1.0x / 12px）
+    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 1, fps: 30, blur: 12, followMs: 120, lightFollow: 1 },
+    half: { label: "均衡", aurora: false, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 30, blur: 8, followMs: 20, lightFollow: 1 },
+    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: true, mouse: false, auroraScale: 0.4, fps: 20, blur: 6, followMs: 20, lightFollow: 1 }
+  };
+  var batteryState = null;
+  var batteryPending = false; // getBattery 异步期间的并发守卫
+  var batteryLowApplied = false;
+  var lastManualMode = null;
+
+  function loadSettings() {
+    var d = { mode: "full", autoBattery: false };
+    var parsed = null;
+    try {
+      var raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) parsed = JSON.parse(raw);
+    } catch (e) {}
+    if (parsed && typeof parsed === "object") {
+      if (typeof parsed.mode === "string") d.mode = parsed.mode;
+      if (typeof parsed.autoBattery === "boolean") d.autoBattery = parsed.autoBattery;
+    }
+    if (PRESETS[d.mode]) {
+      // 档位模式：数值全部跟随预设（预设调整后自动生效，无需清理旧缓存）
+      var p = PRESETS[d.mode];
+      for (var k in p) if (k !== "label") d[k] = p[k];
+    } else {
+      // 自定义模式：全特效为底，白名单叠加已存数值（防原型污染）
+      d.mode = "custom";
+      var base = PRESETS.full;
+      for (var k2 in base) if (k2 !== "label") d[k2] = base[k2];
+      if (parsed && typeof parsed === "object") {
+        var allowed = { aurora:1, whale:1, constellation:1, beam:1, glass:1, mouse:1, auroraScale:1, fps:1, blur:1, followMs:1, lightFollow:1, autoBattery:1 };
+        for (var k3 in parsed) if (Object.prototype.hasOwnProperty.call(parsed, k3) && allowed[k3]) d[k3] = parsed[k3];
+      }
+      d.mode = "custom"; // 非法/过期 mode 值不得覆盖自定义档位
+    }
+    d.orbs = true; // Thinking Orbs 核心交互特性，始终保持开启
+    return d;
+  }
+  shared.settings = loadSettings();
+  var bgSettings = shared.settings;
+
+  function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(bgSettings)); } catch (e) { try { if (e && e.name === "QuotaExceededError") console.warn("[dsh-bg] localStorage quota exceeded", e); } catch(_){} } }
+  function estimateGpu() {
+    var s = bgSettings, score = 0;
+    if (s.aurora) score += 52 * Math.min(1.2, (s.auroraScale || 0.75) / 0.75);
+    if (s.whale) score += 20;
+    if (s.constellation) score += 9;
+    if (s.mouse) score += 1; // 光标交互物理（极光漫游笔刷始终在跑，成本几乎无差）
+    if (s.beam) score += 8;
+    if (s.glass) score += 9 * Math.min(1.6, (s.blur || 8) / 8);
+    if (s.orbs) score += 2;
+    score *= ((s.fps || 30) / 30);
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+  function snapshotSettings() {
+    return {
+      mode: bgSettings.mode,
+      aurora: !!bgSettings.aurora, whale: !!bgSettings.whale, constellation: !!bgSettings.constellation,
+      beam: !!bgSettings.beam, glass: !!bgSettings.glass, orbs: true, mouse: !!bgSettings.mouse,
+      auroraScale: Number(bgSettings.auroraScale) || 1, fps: Number(bgSettings.fps) || 30, blur: Number(bgSettings.blur) || 8,
+      followMs: bgSettings.followMs != null ? Number(bgSettings.followMs) : 20,
+      lightFollow: bgSettings.lightFollow != null ? Number(bgSettings.lightFollow) : 1,
+      autoBattery: !!bgSettings.autoBattery,
+      gpu: estimateGpu(),
+      canvasW: (shared.dom && shared.dom.auroraCanvas) ? shared.dom.auroraCanvas.width : 0,
+      canvasH: (shared.dom && shared.dom.auroraCanvas) ? shared.dom.auroraCanvas.height : 0
+    };
+  }
+  var settingsListeners = [];
+  function notifySettings() { for (var i = 0; i < settingsListeners.length; i++) { try { settingsListeners[i](); } catch (e) {} } }
+  function subscribeSettings(fn) {
+    settingsListeners.push(fn);
+    return function () { var i = settingsListeners.indexOf(fn); if (i >= 0) settingsListeners.splice(i, 1); };
+  }
+  function applyPreset(mode) {
+    var p = PRESETS[mode]; if (!p) return;
+    for (var k in p) if (k !== "label") bgSettings[k] = p[k];
+    bgSettings.orbs = true;
+    bgSettings.mode = mode;
+    commitSettings();
+  }
+  function updateSetting(key, value) {
+    if (key === "orbs") return;
+    bgSettings[key] = value;
+    bgSettings.mode = "custom";
+    commitSettings();
+  }
+  function resetSettings() { applyPreset("full"); bgSettings.autoBattery = false; commitSettings(); }
+  function commitSettings() { saveSettings(); applyBgSettings(); notifySettings(); }
+
+
+  /** 把每个子系统立即切换到当前设置 */
+  function applyBgSettings() {
+    try { document.body.classList.toggle("dsh-bg-no-glass", !bgSettings.glass); } catch (e) {}
+    try { if (shared.refs.updateWhaleDisplay) shared.refs.updateWhaleDisplay(); } catch (e) {}
+    try {
+      if (bgSettings.beam) {
+        if (shared.refs.watchBeamComposer) shared.refs.watchBeamComposer();
+        if (shared.refs.watchBeamTodo) shared.refs.watchBeamTodo();
+      } else {
+        if (shared.refs.detachComposerBeam) shared.refs.detachComposerBeam();
+        if (shared.refs.detachTodoBeam) shared.refs.detachTodoBeam();
+      }
+    } catch (e) {}
+    try { if (shared.refs.shellGlassApply) shared.refs.shellGlassApply(); } catch (e) {} // 玻璃内联样式按开关重跑一次（轮询由 makeShellTransparent 持有）
+    try { if (shared.refs.syncThinkingOrb) shared.refs.syncThinkingOrb(); } catch (e) {}
+    try { if (bgSettings.constellation && shared.refs.wakeConstellation) shared.refs.wakeConstellation(); } catch (e) {}
+    if (bgSettings.autoBattery) { try { initBatteryAuto(); } catch (e) {} }
+    else { try { disableBatteryAuto(); } catch (e) {} }
+  }
+
+  /* ---- 低电量自动节能（Battery API，不支持则静默跳过） ---- */
+  function initBatteryAuto() {
+    if (batteryState || batteryPending || !navigator.getBattery) return;
+    batteryPending = true;
+    navigator.getBattery().then(function (b) {
+      batteryPending = false;
+      if (!bgSettings.autoBattery) { batteryState = null; return; }
+      var onB = function () {
+        var low = !b.charging && b.level <= 0.2;
+        if (low && !batteryLowApplied) {
+          if (bgSettings.mode !== "eco") lastManualMode = bgSettings.mode;
+          batteryLowApplied = true;
+          applyPreset("eco");
+        } else if (!low && batteryLowApplied) {
+          // 若用户在低电 eco 期间已手动改档（mode !== "eco"），尊重用户选择，不覆盖
+          if (bgSettings.mode !== "eco") { lastManualMode = null; batteryLowApplied = false; return; }
+          batteryLowApplied = false;
+          if (lastManualMode && PRESETS[lastManualMode]) { applyPreset(lastManualMode); lastManualMode = null; }
+        }
+      };
+      batteryState = { b: b, onB: onB };
+      try {
+        b.addEventListener("levelchange", onB);
+        b.addEventListener("chargingchange", onB);
+      } catch (e) {}
+      onB();
+    }).catch(function () {});
+  }
+  function disableBatteryAuto() {
+    batteryPending = false;
+    if (!batteryState) { batteryLowApplied = false; return; }
+    try {
+      batteryState.b.removeEventListener("levelchange", batteryState.onB);
+      batteryState.b.removeEventListener("chargingchange", batteryState.onB);
+    } catch (e) {}
+    batteryState = null;
+    batteryLowApplied = false;
+    // 关闭开关时不再自动回档 custom（避免覆盖用户在 eco 期间的手动调整），仅清理状态
+    lastManualMode = null;
+  }
+
+  /* ---- 设置页「背景特效」面板 ---- */
+  var SETTINGS_UI_CSS = [
+    ".dsh-bg-settings{display:flex;flex-direction:column;gap:14px;max-width:560px;padding-bottom:28px;}",
+    ".dsh-bg-card{border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:14px 16px;background:rgba(128,128,128,.05);}",
+    ".dsh-bg-sec-title{font-size:13px;font-weight:600;opacity:.9;margin-bottom:10px;letter-spacing:0.2px;}",
+    ".dsh-bg-div{border-top:1px solid rgba(128,128,128,.12);margin:14px 0;}",
+    /* 档位：一行三键分段控件 */
+    ".dsh-bg-presets{display:flex;gap:6px;}",
+    ".dsh-bg-preset{flex:1;cursor:pointer;border:1px solid rgba(128,128,128,.2);background:rgba(128,128,128,.04);color:inherit;border-radius:8px;padding:7px 6px;font-size:13px;font-weight:500;font-family:inherit;text-align:center;transition:all .15s ease;}",
+    ".dsh-bg-preset:hover{background:rgba(128,128,128,.1);border-color:rgba(128,128,128,.35);}",
+    ".dsh-bg-preset[data-active=\"true\"]{border-color:#4d8bf5;color:#6ea8ff;background:rgba(77,139,245,.14);font-weight:600;}",
+    ".dsh-bg-preset-caption{font-size:11px;opacity:.65;margin-top:8px;line-height:1.5;}",
+    /* GPU 仪表 */
+    ".dsh-bg-meter-label{display:flex;justify-content:space-between;align-items:center;font-size:12px;opacity:.85;margin-bottom:6px;}",
+    ".dsh-bg-meter{height:8px;border-radius:999px;background:rgba(128,128,128,.16);overflow:hidden;}",
+    ".dsh-bg-meter>div{height:100%;border-radius:999px;transition:width .25s ease,background .25s ease;}",
+    ".dsh-bg-meta{font-size:11px;opacity:.55;line-height:1.6;margin-top:8px;}",
+    /* 开关行：细分隔线 + 紧凑内边距 */
+    ".dsh-bg-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 2px;}",
+    ".dsh-bg-row+.dsh-bg-row{border-top:1px solid rgba(128,128,128,.08);}",
+    ".dsh-bg-row-info{flex:1;min-width:0;}",
+    ".dsh-bg-row-title{font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;}",
+    ".dsh-bg-row-desc{font-size:11px;opacity:.6;margin-top:2px;line-height:1.4;}",
+    ".dsh-bg-chip{font-size:10px;line-height:16px;padding:0 6px;border-radius:999px;border:1px solid rgba(128,128,128,.3);opacity:.85;white-space:nowrap;flex:none;}",
+    ".dsh-bg-chip[data-level=\"high\"]{color:#ff9d6b;border-color:rgba(255,140,80,.4);}",
+    ".dsh-bg-chip[data-level=\"mid\"]{color:#ffd166;border-color:rgba(255,200,90,.4);}",
+    ".dsh-bg-chip[data-level=\"low\"]{color:#7ee2a8;border-color:rgba(110,220,160,.4);}",
+    ".dsh-bg-switch{position:relative;width:36px;height:20px;flex:none;cursor:pointer;border-radius:999px;border:none;background:rgba(128,128,128,.3);transition:background .15s;padding:0;}",
+    ".dsh-bg-switch[aria-checked=\"true\"]{background:#4d8bf5;}",
+    ".dsh-bg-switch::after{content:\"\";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s ease;box-shadow:0 1px 2px rgba(0,0,0,.2);}",
+    ".dsh-bg-switch[aria-checked=\"true\"]::after{transform:translateX(16px);}",
+    /* 高级折叠面板 */
+    ".dsh-bg-adv summary{cursor:pointer;font-size:13px;font-weight:600;opacity:.9;user-select:none;padding:2px 0;outline:none;display:flex;align-items:center;gap:6px;}",
+    ".dsh-bg-adv summary::-webkit-details-marker{display:none;}",
+    ".dsh-bg-adv summary::before{content:\"▶\";font-size:9px;display:inline-block;transition:transform .2s ease;opacity:.7;}",
+    ".dsh-bg-adv[open] summary::before{transform:rotate(90deg);}",
+    ".dsh-bg-adv[open] summary{margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(128,128,128,.12);}",
+    ".dsh-bg-adv summary:hover{opacity:1;}",
+    /* 高级区条目 */
+    ".dsh-bg-slider-item,.dsh-bg-adv-row{padding:10px 2px;}",
+    ".dsh-bg-slider-item+.dsh-bg-slider-item,.dsh-bg-slider-item+.dsh-bg-adv-row,.dsh-bg-adv-row+.dsh-bg-slider-item,.dsh-bg-adv-row+.dsh-bg-adv-row{border-top:1px solid rgba(128,128,128,.08);}",
+    ".dsh-bg-item-title{font-size:13px;font-weight:500;}",
+    ".dsh-bg-item-desc{font-size:11px;opacity:.6;line-height:1.45;margin-top:2px;}",
+    ".dsh-bg-slider-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}",
+    ".dsh-bg-val-badge{font-size:11px;font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-variant-numeric:tabular-nums;color:#6ea8ff;background:rgba(77,139,245,.12);border:1px solid rgba(77,139,245,.25);border-radius:6px;padding:1px 7px;line-height:16px;flex:none;}",
+    ".dsh-bg-range{display:block;width:100%;height:6px;border-radius:3px;background:rgba(128,128,128,.2);outline:none;margin:10px 0 4px;cursor:pointer;-webkit-appearance:none;appearance:none;transition:background .15s;}",
+    ".dsh-bg-range:hover{background:rgba(128,128,128,.28);}",
+    ".dsh-bg-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:#4d8bf5;cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);transition:transform .12s ease;}",
+    ".dsh-bg-range::-webkit-slider-thumb:hover{transform:scale(1.15);}",
+    ".dsh-bg-range::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#4d8bf5;cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);}",
+    ".dsh-bg-range-labels{display:flex;justify-content:space-between;font-size:10px;opacity:.45;user-select:none;margin-top:2px;}",
+    ".dsh-bg-adv-row{display:flex;align-items:center;justify-content:space-between;gap:16px;}",
+    ".dsh-bg-adv-info{flex:1;min-width:0;}",
+    ".dsh-bg-select{background:rgba(128,128,128,.1);color:inherit;border:1px solid rgba(128,128,128,.28);border-radius:8px;padding:5px 10px;font-size:12px;font-family:inherit;flex:none;cursor:pointer;outline:none;transition:border-color .15s,background .15s;}",
+    ".dsh-bg-select:hover{background:rgba(128,128,128,.16);border-color:rgba(128,128,128,.4);}",
+    ".dsh-bg-select:focus{border-color:#4d8bf5;}",
+    ".dsh-bg-select option{background:#1c1d22;color:#e5e5e5;}",
+    /* 底部 */
+    ".dsh-bg-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:4px;}",
+    ".dsh-bg-reset{cursor:pointer;border:1px solid rgba(128,128,128,.25);background:transparent;color:inherit;border-radius:8px;padding:6px 14px;font-size:12px;font-family:inherit;transition:background .15s,border-color .15s;}",
+    ".dsh-bg-reset:hover{background:rgba(128,128,128,.1);border-color:rgba(128,128,128,.4);}",
+    ".dsh-bg-note{font-size:11px;opacity:.55;line-height:1.5;}",
+    "@media (prefers-reduced-motion: reduce){.dsh-bg-meter>div{transition:none;}}"
+  ].join("\n");
+
+  function injectSettingsCss() {
+    try {
+      var tag = document.getElementById("dsh-bg-settings-css");
+      if (!tag) {
+        tag = document.createElement("style");
+        tag.id = "dsh-bg-settings-css";
+        document.head.appendChild(tag);
+      }
+      tag.textContent = SETTINGS_UI_CSS;
+    } catch (e) {}
+  }
+
+  function BgSettingsSection() {
+    var h = react.createElement;
+    var snapState = react.useState(function () { return snapshotSettings(); });
+    var snap = snapState[0];
+    var setSnap = snapState[1];
+    react.useEffect(function () {
+      return subscribeSettings(function () { setSnap(snapshotSettings()); });
+    }, []);
+    var gpu = snap.gpu;
+    var meterColor = gpu < 35 ? "#4ade80" : (gpu < 60 ? "#facc15" : "#fb7185");
+    var presetIds = ["full", "half", "eco"];
+    var presetNames = { full: "全特效", half: "均衡", eco: "节能" };
+    var presetDescs = {
+      full: "所有特效拉满：极光 1.0x、玻璃 12px、30fps、跟手 120ms",
+      half: "保留粒子鲸鱼/星座/玻璃与鼠标跟随，关闭高开销极光流体（30fps / blur 8px）",
+      eco: "仅保留玻璃拟态与静态深色背景（20fps / blur 6px）"
+    };
+    var modeName = presetNames[snap.mode] || "自定义";
+    var modeCaption = presetDescs[snap.mode] || "手动调整的特效组合，可随时切回预设档位";
+    var rows = [
+      { key: "aurora", title: "极光背景", desc: "WebGL2 流体渐变，本插件最大 GPU 开销", level: "high" },
+      { key: "whale", title: "粒子鲸鱼", desc: "全屏 WebGL2 点阵粒子，光线跟随鼠标", level: "mid" },
+      { key: "constellation", title: "星座网格", desc: "2D 网格，鼠标斥力弹簧物理", level: "low" },
+      { key: "mouse", title: "鼠标跟随交互", desc: "极光/鲸鱼/星座跟随光标互动；关闭后极光改为自主缓慢漂移，画面保持流动", level: "low" },
+      { key: "beam", title: "Border Beam 光效", desc: "输入框边界旋转光晕与打字呼吸", level: "mid" },
+      { key: "glass", title: "玻璃拟态", desc: "侧边栏/气泡/代码块的 backdrop blur", level: "mid" }
+    ];
+    var levelText = { high: "高", mid: "中", low: "低" };
+    function presetButtons() {
+      return presetIds.map(function (id) {
+        return h("button", {
+          key: id,
+          type: "button",
+          className: "dsh-bg-preset",
+          "data-active": snap.mode === id,
+          onClick: function () { applyPreset(id); }
+        }, presetNames[id]);
+      });
+    }
+    function switchBtn(key) {
+      return h("button", {
+        type: "button",
+        className: "dsh-bg-switch",
+        role: "switch",
+        "aria-checked": snap[key] ? "true" : "false",
+        "aria-label": "开关",
+        onClick: function () { updateSetting(key, !snap[key]); }
+      });
+    }
+    function rowEl(row) {
+      return h("div", { key: row.key, className: "dsh-bg-row" },
+        h("div", { className: "dsh-bg-row-info" },
+          h("div", { className: "dsh-bg-row-title" }, row.title,
+            h("span", { className: "dsh-bg-chip", "data-level": row.level }, levelText[row.level] + "负载")),
+          h("div", { className: "dsh-bg-row-desc" }, row.desc)),
+        switchBtn(row.key));
+    }
+    function sliderItem(title, desc, valText, min, max, step, val, minLabel, maxLabel, onValChange) {
+      return h("div", { className: "dsh-bg-slider-item" },
+        h("div", { className: "dsh-bg-slider-head" },
+          h("span", { className: "dsh-bg-item-title" }, title),
+          h("span", { className: "dsh-bg-val-badge" }, valText)),
+        desc ? h("div", { className: "dsh-bg-item-desc" }, desc) : null,
+        h("input", {
+          type: "range",
+          className: "dsh-bg-range",
+          min: min,
+          max: max,
+          step: step,
+          value: val,
+          onChange: function (e) { onValChange(e.target.value); }
+        }),
+        (minLabel || maxLabel) ? h("div", { className: "dsh-bg-range-labels" },
+          h("span", null, minLabel || ""),
+          h("span", null, maxLabel || "")) : null
+      );
+    }
+    function selectItem(title, desc, value, options, onValChange) {
+      return h("div", { className: "dsh-bg-adv-row" },
+        h("div", { className: "dsh-bg-adv-info" },
+          h("div", { className: "dsh-bg-item-title" }, title),
+          desc ? h("div", { className: "dsh-bg-item-desc" }, desc) : null),
+        h("select", {
+          className: "dsh-bg-select",
+          value: value,
+          onChange: function (e) { onValChange(e.target.value); }
+        }, options.map(function (opt) {
+          return h("option", { key: opt.value, value: opt.value }, opt.label);
+        }))
+      );
+    }
+    function switchRow(title, desc, key) {
+      return h("div", { className: "dsh-bg-adv-row" },
+        h("div", { className: "dsh-bg-adv-info" },
+          h("div", { className: "dsh-bg-item-title" }, title),
+          desc ? h("div", { className: "dsh-bg-item-desc" }, desc) : null),
+        switchBtn(key)
+      );
+    }
+    return h("div", { className: "dsh-bg-settings" },
+      h("div", { className: "dsh-bg-card" },
+        h("div", { className: "dsh-bg-sec-title" }, "性能档位"),
+        h("div", { className: "dsh-bg-presets" }, presetButtons()),
+        h("div", { className: "dsh-bg-preset-caption" }, modeName + " · " + modeCaption),
+        h("div", { className: "dsh-bg-div" }),
+        h("div", { className: "dsh-bg-meter-label" },
+          h("span", null, "估算 GPU 负载"),
+          h("span", { style: { color: meterColor, fontWeight: 600 } }, gpu + "%")),
+        h("div", { className: "dsh-bg-meter" }, h("div", { style: { width: gpu + "%", background: meterColor } })),
+        h("div", { className: "dsh-bg-meta" },
+          "按 分辨率 × 帧率 × 模糊半径 估算，仅供参考；切换即时生效并自动保存。" +
+          (snap.canvasW ? " 当前极光画布 " + snap.canvasW + "×" + snap.canvasH + "（×" + snap.auroraScale.toFixed(2) + "）" : "")),
+        h("div", { className: "dsh-bg-div" }),
+        h("div", { className: "dsh-bg-sec-title" }, "特效开关"),
+        rows.map(rowEl)),
+      h("details", { className: "dsh-bg-adv dsh-bg-card" },
+        h("summary", null, "渲染质量（高级）"),
+        sliderItem("极光分辨率", "降低画布内部分辨率可显著减轻 GPU 渲染与显存开销", "×" + snap.auroraScale.toFixed(2), 0.4, 1, 0.05, snap.auroraScale, "0.40× (节能)", "1.00× (高清)", function (v) { updateSetting("auroraScale", parseFloat(v)); }),
+        selectItem("动画帧率上限", "鼠标交互期间自动提升至 60fps 保证操作跟手，停止 200ms 后回落", snap.fps, [
+          { value: 20, label: "20 fps（最省）" },
+          { value: 24, label: "24 fps（均衡）" },
+          { value: 30, label: "30 fps（流畅）" }
+        ], function (v) { updateSetting("fps", parseInt(v, 10)); }),
+        selectItem("玻璃模糊强度", "侧边栏、对话气泡与代码块的背景模糊半径（数值越大磨砂越重、越小越轻透）", snap.blur, [
+          { value: 6, label: "6 px（轻透磨砂 · 最省）" },
+          { value: 8, label: "8 px（标准磨砂）" },
+          { value: 10, label: "10 px（柔和毛玻璃）" },
+          { value: 12, label: "12 px（深度毛玻璃）" }
+        ], function (v) { updateSetting("blur", parseInt(v, 10)); }),
+        sliderItem("跟手灵敏度", "鼠标跟随平滑时间常数（越小越贴手响应越快，越大越绵柔滞后）", snap.followMs + " ms", 5, 120, 5, snap.followMs, "5 ms (极速贴手)", "120 ms (绵柔)", function (v) { updateSetting("followMs", parseInt(v, 10)); }),
+        sliderItem("光线跟随强度", "粒子鲸鱼与高光聚焦点随光标移动的响应幅度", Math.round(snap.lightFollow * 100) + "%", 0, 100, 5, Math.round(snap.lightFollow * 100), "0% (固定不动)", "100% (完全跟随)", function (v) { updateSetting("lightFollow", parseInt(v, 10) / 100); }),
+        switchRow("低电量自动节能", "设备电量 ≤20% 且未接通电源时自动切至节能档，充电后还原", "autoBattery")),
+      h("div", { className: "dsh-bg-foot" },
+        h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
+        h("span", { className: "dsh-bg-note" }, "v1.9.0 · 即时生效并自动保存")));
+  }
+
+  /** 注册设置页条目（需要 slots 服务；缺 ctx/slots 时静默跳过） */
+  function setupSettingsUi(ctx) {
+    if (!react) return;
+    try {
+      var slots = ctx && ctx.get ? ctx.get("slots") : null;
+      if (!slots) return;
+      injectSettingsCss();
+      slots.inject("settings.section", function () {
+        return slots.register({
+          name: "settings.section",
+          id: "dsh-bg-effects",
+          order: 5,
+          label: function () { return "背景特效"; }
+        }, BgSettingsSection);
+      });
+    } catch (e) {}
+  }
+
+  shared.refs.setupSettingsUi = setupSettingsUi;
+}
+
+
+/* ===================== dom.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/dom.js — DOM 骨架（initDom）
+ *   创建背景容器 / 极光画布 / 星座画布 / 鲸鱼层 / 诊断对象，填入 shared.dom；
+ *   定义 applyThemeClass（全主题统一深色）。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initDom(shared) {
+  var state = shared.state;
+  var bgSettings = shared.settings;
+
+/* ------------------------------------------------------------------ *
+   * DOM 骨架
+   * ------------------------------------------------------------------ */
+  shared.dom.container = document.createElement("div");
+  shared.dom.container.id = "dsh-ds-bg";
+  shared.dom.container.dataset.version = "1.9.0"; // 部署版本标记：由 build.mjs 从 package.json 注入，页面可查 document.getElementById('dsh-ds-bg')?.dataset.version
+  // 关键样式内联兜底：全主题统一深色背景
+  shared.dom.container.style.cssText = "position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;" +
+    "background:#0a0a0a;" +
+    "animation:dsh-ds-enter 1.8s ease-out backwards;will-change:opacity,filter;";
+  var MASK = "linear-gradient(#000000fc 0%,#000000e8 8.98%,transparent 100%)";
+  shared.dom.auroraCanvas = document.createElement("canvas");
+  shared.dom.auroraCanvas.id = "dsh-ds-aurora";
+  shared.dom.auroraCanvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;display:block;" +
+    "mask:" + MASK + ";-webkit-mask:" + MASK + ";";
+  shared.dom.constellationCanvas = document.createElement("canvas");
+  shared.dom.constellationCanvas.id = "dsh-ds-constellation";
+  shared.dom.constellationCanvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;display:block;background:transparent;" +
+    "mask:" + MASK + ";-webkit-mask:" + MASK + ";";
+  shared.dom.container.appendChild(shared.dom.auroraCanvas);
+  // 鲸鱼层：全主题显示（原仅深色，现有需求浅色亦用深色主题）
+  shared.dom.whaleLayer = document.createElement("div");
+  shared.dom.whaleLayer.className = "dsh-ds-whale";
+  shared.dom.whaleLayer.setAttribute("aria-hidden", "true");
+  shared.dom.whaleLayer.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;" +
+    "pointer-events:none;mix-blend-mode:screen;z-index:2;";
+  shared.dom.whaleCanvas = document.createElement("canvas");
+  shared.dom.whaleCanvas.className = "dsh-ds-whale-canvas";
+  shared.dom.whaleCanvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;display:block;";
+  shared.dom.whaleLayer.appendChild(shared.dom.whaleCanvas);
+  shared.dom.container.appendChild(shared.dom.whaleLayer);
+  shared.dom.container.appendChild(shared.dom.constellationCanvas);
+
+  /* 诊断信息（?dshtest=1 时输出到页面面板） */
+  shared.dom.diag = { theme: "?", bodyBg: "?", htmlBg: "?", containerPos: "?", containerZ: "?", containerBg: "?", frameFound: false, frameBg: "?", auroraGL: false, auroraProgs: "", whaleGL: false, whaleProgs: "", constellation: false, canvasW: 0, canvasH: 0 };
+
+  function setDarkThemeMarkers() {
+    // 幂等：仅在目标态未满足时才改写。监听方（themeObserver）观察的正是这些属性，
+    // 无条件回写会形成「观察 → 改写 → 再观察」的无限变异死循环。
+    try {
+      if (!document.body.hasAttribute("data-ds-dark-theme")) document.body.setAttribute("data-ds-dark-theme", "");
+      if (document.body.hasAttribute("data-ds-light-theme")) document.body.removeAttribute("data-ds-light-theme");
+    } catch(e){}
+    try {
+      if (!document.documentElement.hasAttribute("data-ds-dark-theme")) document.documentElement.setAttribute("data-ds-dark-theme", "");
+      if (document.documentElement.hasAttribute("data-ds-light-theme")) document.documentElement.removeAttribute("data-ds-light-theme");
+    } catch(e){}
+  }
+
+  function applyThemeClass() {
+    shared.dom.container.classList.add("dsh-ds-dark");
+    shared.dom.container.style.setProperty("background", "#0a0a0a", "important");
+    if (shared.refs.updateWhaleDisplay) shared.refs.updateWhaleDisplay();
+    try { document.body.classList.toggle("dsh-bg-no-glass", !bgSettings.glass); } catch (e) {}
+    if (document.body) {
+      document.body.style.setProperty("background", "transparent", "important");
+    }
+    // 全主题统一深色，强制 body 保持深色语义（便于第三方样式以 dark 为准）
+    setDarkThemeMarkers();
+  }
+
+  shared.refs.applyThemeClass = applyThemeClass;
+  shared.refs.setDarkThemeMarkers = setDarkThemeMarkers;
+}
+
+
+/* ===================== coalesce.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/coalesce.js — 合批 MutationObserver（initCoalesce）
+ *   单例 + rAF 合批，将 #root 全树突变分发给 shell/beam/orbs/todo；
+ *   与主题观察器（observer.js）职责分离。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initCoalesce(shared) {
+  var cbs = [];
+  var scheduled = false;
+  var mo = null;
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    var raf = window.requestAnimationFrame || function(fn){ return setTimeout(fn, 16); };
+    raf(function(){
+      scheduled = false;
+      var list = cbs.slice();
+      for (var i=0;i<list.length;i++) { try{ list[i].fn(); }catch(e){} }
+    });
+  }
+  function ensure() {
+    if (mo) return;
+    if (!window.MutationObserver) return;
+    mo = new MutationObserver(function(){ schedule(); });
+    var rootEl = document.querySelector("#root") || document.documentElement;
+    try {
+      mo.observe(rootEl, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["data-ds-dark-theme","data-ds-light-theme","data-theme","class","data-state","data-tool","data-status","aria-label","role","data-plan-mode","data-beam"]
+      });
+    } catch(e){}
+    // 暴露给 diag/调试
+    try{ shared.refs.coalescedObserver = mo; }catch(_){}
+  }
+  function subscribe(fn) {
+    cbs.push({fn: fn});
+    ensure();
+    return function unsubscribe(){
+      for (var i=0;i<cbs.length;i++) if (cbs[i].fn===fn) { cbs.splice(i,1); break; }
+      if (cbs.length===0 && mo) { try{ mo.disconnect(); }catch(_){} mo=null; }
+    };
+  }
+  shared.refs.subscribeCoalesced = subscribe;
+  shared.refs.ensureCoalesced = ensure;
+  shared.refs.scheduleCoalesced = schedule;
+}
+
+
+/* ===================== beam.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/beam.js — Border Beam 状态机与 composer/todo 集成（initBeam）
+ *   含全部 beam 状态变量、attach/detach/watch 与调试句柄对象；
+ *   CSS 生成（buildBeamCSS 等）在 src/beam-css.js（工厂级片段）。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initBeam(shared) {
+  var state = shared.state;
+  var bgSettings = shared.settings;
+
+  /* ------------------------------------------------------------------ *
+   * Border Beam — composer integration (D S H)
+   * ------------------------------------------------------------------ */
+  var beamStyleTag = null;
+  var beamAttachedCard = null;
+  var beamResizeObs = null;
+  var beamMutObs = null;
+  var beamCoalesceUnsub = null;
+  var pendingExecuting = false;
+  var pendingTimer = null;
+  var beamPollTimer = null;
+  var beamTypingHandler = null;
+  var beamKeydownHandler = null;
+  var typingActive = false;
+  var typingTimer = null;
+  var currentBeamMode = "hairline";
+  // IME 组合输入锁：Enter 选词确认时 isComposing 可能已为 false，靠组合事件锁避免误判为发送
+  var beamIsComposing = false;
+  var beamComposingLockTimer = null;
+  var pulseTimer = null;
+  var beamState = { mode: "hairline", idleStrength: 0.65, focusStrength: 1.0, disabled: false };
+  // 命名 handler 供 attach/update 共用，cleanup 可成对移除，避免匿名监听泄漏；解锁窗口 150ms（原 350ms 会吞选词后快速真实 Enter）
+  var BEAM_COMPOSE_LOCK_MS = 150;
+  var beamCompStart = function() {
+    beamIsComposing = true;
+    if (beamComposingLockTimer) { clearTimeout(beamComposingLockTimer); beamComposingLockTimer = null; }
+    triggerTypingBreathe();
+  };
+  var beamCompUpdate = function() {
+    beamIsComposing = true;
+    triggerTypingBreathe();
+  };
+  var beamCompEnd = function() {
+    triggerTypingBreathe();
+    if (beamComposingLockTimer) clearTimeout(beamComposingLockTimer);
+    beamComposingLockTimer = setTimeout(function(){ beamIsComposing = false; beamComposingLockTimer = null; }, BEAM_COMPOSE_LOCK_MS);
+  };
+  var beamCompKeyUp = function(e){
+    if (e.keyCode === 229) {
+      beamIsComposing = true;
+      if (beamComposingLockTimer) clearTimeout(beamComposingLockTimer);
+      beamComposingLockTimer = setTimeout(function(){ beamIsComposing = false; beamComposingLockTimer = null; }, BEAM_COMPOSE_LOCK_MS);
+    }
+  };
+
+  function isBeamDisabled() {
+    // 设置面板的 Beam 开关优先；URL/localStorage 逃生舱保留
+    if (bgSettings && bgSettings.beam === false) return true;
+    try {
+      if (typeof location !== "undefined" && (location.search.indexOf("beam=0") !== -1 || location.search.indexOf("nobeam") !== -1 || location.search.indexOf("beam=false") !== -1)) return true;
+      if (typeof localStorage !== "undefined" && localStorage.getItem("dsh-beam-disabled") === "1") return true;
+    } catch(e) {}
+    return false;
+  }
+  function getBeamThemeIsDark() { return true; } // 全主题统一深色
+  function getBeamIdleStrength() { if (beamState && typeof beamState.idleStrength === "number") return beamState.idleStrength; return getBeamThemeIsDark() ? 0.65 : 0.5; }
+  function resolveBorderRadius(el) {
+    try {
+      var cs = window.getComputedStyle(el);
+      var v = parseFloat(cs.borderTopLeftRadius);
+      if (!isNaN(v) && v > 0) return Math.round(v);
+    } catch(e) {}
+    return 16;
+  }
+
+  function ensureBeamStyles(borderRadius, variant) {
+    var isDark = getBeamThemeIsDark();
+    var r = typeof borderRadius === "number" ? borderRadius : 16;
+    var v = variant || "colorful";
+    var css = buildBeamCSS(BEAM_ID, r, isDark, v);
+    if (!beamStyleTag) {
+      beamStyleTag = document.getElementById("dsh-beam-css");
+      if (!beamStyleTag) {
+        beamStyleTag = document.createElement("style");
+        beamStyleTag.id = "dsh-beam-css";
+        document.head.appendChild(beamStyleTag);
+      }
+    }
+    if (beamStyleTag.textContent !== css) beamStyleTag.textContent = css;
+  }
+
+  function setBeamStrength(v, opts) {
+    var card = beamAttachedCard;
+    if (!card) return;
+    var strength = Math.max(0, Math.min(1, v));
+    card.style.setProperty("--beam-strength", strength);
+    if (opts && opts.persist) { try { localStorage.setItem("dsh-beam-strength", String(strength)); } catch(e) {} }
+  }
+
+  function findComposerInput(card) {
+    if (!card) return null;
+    return card.querySelector('textarea, [contenteditable="true"], [data-composer-input], .uV2eYG_input');
+  }
+
+  function isTyping() {
+    return typingActive;
+  }
+
+  function triggerTypingBreathe() {
+    var card = beamAttachedCard || document.querySelector('[data-composer-card="true"], .uV2eYG_card');
+    if (!card || isExecuting()) return;
+    typingActive = true;
+    if (currentBeamMode !== "typing" && !isExecuting()) {
+      applyBeamMode("typing");
+    }
+    // Refresh breathing animation by toggling data-typing
+    card.removeAttribute("data-typing");
+    void card.offsetWidth;
+    card.setAttribute("data-typing", "");
+
+    if (typingTimer) clearTimeout(typingTimer);
+    typingTimer = setTimeout(function() {
+      typingActive = false;
+      if (!isExecuting()) {
+        updateBeamState();
+      }
+    }, 700);
+  }
+
+  function isPlanMode() {
+    try {
+      if (document.querySelector('[aria-label*="plan mode 已开启"], [aria-label*="Plan mode on"], [aria-label*="plan mode is on"], [aria-label*="Plan Mode on"]')) return true;
+      if (document.querySelector('[data-slot="plan"]')) return true;
+      if (document.documentElement.dataset && document.documentElement.dataset.planMode === "1") return true;
+    } catch(e) {}
+    return false;
+  }
+
+  function isRealExecuting() {
+    try {
+      var stopBtn = document.querySelector('button[aria-label*="停止生成"], button[aria-label*="Stop generating"], button[aria-label*="Stop generating message"], [data-composer-card] button[aria-label*="停止"], [data-composer-card] button[aria-label*="Stop"]');
+      if (stopBtn && !stopBtn.disabled && stopBtn.offsetParent !== null) return true;
+      var runningEl = document.querySelector('[data-state="running"]');
+      if (runningEl && runningEl.offsetParent !== null) {
+        if (runningEl.classList && (runningEl.classList.contains("dsh-thinking-orb-wrap") || runningEl.classList.contains("dsh-turn-status-text") || runningEl.classList.contains("dsh-thinking-orb-canvas"))) {
+        } else {
+          return true;
+        }
+      }
+    } catch(e) {}
+    return false;
+  }
+
+  function isExecuting() {
+    try {
+      if (pendingExecuting) return true;
+      return isRealExecuting();
+    } catch(e) { return false; }
+  }
+
+  function applyBeamMode(mode) {
+    var card = beamAttachedCard;
+    if (!card) return;
+
+    currentBeamMode = mode;
+
+    if (pulseTimer) {
+      clearTimeout(pulseTimer);
+      pulseTimer = null;
+    }
+    if (mode === "pulse") {
+      pendingExecuting = false;
+      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+    }
+
+    var isDark = getBeamThemeIsDark();
+    var r = resolveBorderRadius(card);
+    var variant = mode === "typing" ? "mono" : (mode === "planning" ? "sunset" : "colorful");
+    ensureBeamStyles(r, variant);
+
+    // Clean state attributes and inline style overrides
+    card.removeAttribute("data-active");
+    card.removeAttribute("data-fading");
+    card.removeAttribute("data-typing");
+    card.removeAttribute("data-planning");
+    card.removeAttribute("data-pulse");
+    card.removeAttribute("data-paused");
+    card.style.removeProperty("filter");
+    card.style.removeProperty("--beam-hue-base");
+
+    if (mode === "hairline") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.style.removeProperty("--beam-strength");
+      card.style.setProperty("--beam-strength", "0.08");
+      return;
+    }
+
+    if (mode === "typing") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.setAttribute("data-typing", "");
+      card.removeAttribute("data-active");
+      card.style.setProperty("--beam-strength", "0.85");
+      card.style.setProperty("--beam-hue-base", "0deg");
+      return;
+    }
+
+    if (mode === "planning") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.setAttribute("data-planning", "");
+      card.setAttribute("data-active", "");
+      card.style.setProperty("--beam-strength", "1");
+      card.style.setProperty("--beam-hue-base", "15deg");
+      return;
+    }
+
+    if (mode === "executing") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.setAttribute("data-active", "");
+      card.style.setProperty("--beam-strength", "1");
+      return;
+    }
+
+    if (mode === "pulse") {
+      card.setAttribute("data-beam", BEAM_ID);
+      card.setAttribute("data-pulse", "");
+      card.style.setProperty("--beam-strength", "1");
+      pulseTimer = setTimeout(function() {
+        if (currentBeamMode === "pulse") {
+          applyBeamMode("hairline");
+        }
+      }, 800);
+      return;
+    }
+  }
+
+  function resolveBeamMode() {
+    if (isBeamDisabled()) return "hairline";
+    if (pendingExecuting || isExecuting()) {
+      if (isPlanMode()) return "planning";
+      return "executing";
+    }
+    if (currentBeamMode === "pulse") return "pulse";
+    if (typingActive) return "typing";
+    return "hairline";
+  }
+
+  function updateBeamState() {
+    if (!beamAttachedCard || !document.contains(beamAttachedCard) || !beamAttachedCard.isConnected) {
+      var freshCard = document.querySelector('[data-composer-card="true"], .uV2eYG_card');
+      if (freshCard && freshCard !== beamAttachedCard) {
+        try { if (beamAttachedCard && beamAttachedCard._dshBeamCleanup) beamAttachedCard._dshBeamCleanup(); } catch(e) {}
+        beamAttachedCard = null;
+        attachComposerBeam();
+        return;
+      }
+    }
+
+    if (beamAttachedCard) {
+      var freshInput = findComposerInput(beamAttachedCard);
+      var boundInput = beamAttachedCard._dshBeamInput;
+      if (freshInput && freshInput !== boundInput) {
+        if (boundInput) {
+          try {
+            if (beamTypingHandler) {
+              boundInput.removeEventListener("input", beamTypingHandler);
+              boundInput.removeEventListener("change", beamTypingHandler);
+            }
+            if (beamKeydownHandler) {
+              boundInput.removeEventListener("keydown", beamKeydownHandler);
+            }
+            boundInput.removeEventListener("compositionstart", beamCompStart);
+            boundInput.removeEventListener("compositionupdate", beamCompUpdate);
+            boundInput.removeEventListener("compositionend", beamCompEnd);
+            boundInput.removeEventListener("keyup", beamCompKeyUp);
+          } catch(e) {}
+        }
+        if (beamTypingHandler && beamKeydownHandler) {
+          try {
+            freshInput.addEventListener("input", beamTypingHandler);
+            freshInput.addEventListener("change", beamTypingHandler);
+            freshInput.addEventListener("keydown", beamKeydownHandler);
+            freshInput.addEventListener("compositionstart", beamCompStart);
+            freshInput.addEventListener("compositionupdate", beamCompUpdate);
+            freshInput.addEventListener("compositionend", beamCompEnd);
+            freshInput.addEventListener("keyup", beamCompKeyUp);
+            beamAttachedCard._dshBeamInput = freshInput;
+          } catch(e) {}
+        }
+      }
+    }
+
+    if (pendingExecuting && isRealExecuting()) {
+      pendingExecuting = false;
+      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+    }
+
+    var next = resolveBeamMode();
+
+    if ((currentBeamMode === "executing" || currentBeamMode === "planning") &&
+        next !== "executing" && next !== "planning" && next !== "pulse") {
+      applyBeamMode("pulse");
+      try { if (shared.refs.syncThinkingOrb) shared.refs.syncThinkingOrb(); } catch(e) {}
+      return;
+    }
+
+    if (currentBeamMode === "pulse" && next === "pulse") {
+      try { if (shared.refs.syncThinkingOrb) shared.refs.syncThinkingOrb(); } catch(e) {}
+      return;
+    }
+
+    if (currentBeamMode !== next) {
+      applyBeamMode(next);
+    }
+    try { if (shared.refs.syncThinkingOrb) shared.refs.syncThinkingOrb(); } catch(e) {}
+  }
+
+  function ensureBeamMutObs() {
+    if (beamMutObs || beamCoalesceUnsub) return;
+    if (shared.refs.subscribeCoalesced) {
+      try {
+        beamCoalesceUnsub = shared.refs.subscribeCoalesced(function() {
+          if (!beamAttachedCard || !document.contains(beamAttachedCard)) {
+            try { attachComposerBeam(); } catch(e) {}
+          } else {
+            try { updateBeamState(); } catch(e) {}
+          }
+        });
+        return;
+      } catch(e){}
+    }
+    if (!window.MutationObserver) return;
+    beamMutObs = new MutationObserver(function() {
+      if (!beamAttachedCard || !document.contains(beamAttachedCard)) {
+        try { attachComposerBeam(); } catch(e) {}
+      } else {
+        try { updateBeamState(); } catch(e) {}
+      }
+    });
+    var rootEl = document.querySelector("#root") || document.documentElement;
+    try { beamMutObs.observe(rootEl, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label", "class", "data-plan-mode", "data-state", "data-status"] }); } catch(e) {}
+  }
+  function detachBeamMutObs() {
+    if (beamCoalesceUnsub) { try { beamCoalesceUnsub(); } catch(e) {} beamCoalesceUnsub = null; return; }
+    if (beamMutObs) { try { beamMutObs.disconnect(); } catch(e) {} beamMutObs = null; }
+  }
+
+    function attachComposerBeam() {
+    if (isBeamDisabled()) return;
+    if (beamAttachedCard && document.contains(beamAttachedCard)) return;
+    var card = document.querySelector('[data-composer-card="true"], .uV2eYG_card');
+    if (!card) return;
+    card.setAttribute("data-beam", BEAM_ID);
+    if (!card.querySelector("[data-beam-bloom]")) {
+      var bloom = document.createElement("div");
+      bloom.setAttribute("data-beam-bloom", "");
+      card.appendChild(bloom);
+    }
+    var radius = resolveBorderRadius(card);
+    ensureBeamStyles(radius, "colorful");
+    card.style.setProperty("overflow", "visible");
+    card.style.setProperty("isolation", "isolate");
+    if (window.getComputedStyle(card).position === "static") card.style.position = "relative";
+    beamAttachedCard = card;
+    currentBeamMode = "hairline";
+    updateBeamState();
+
+    var input = findComposerInput(card);
+    if (input) {
+      beamTypingHandler = function() {
+        triggerTypingBreathe();
+      };
+      beamKeydownHandler = function(e) {
+        // 输入法组合中：优先以浏览器原生 isComposing / keyCode 229 为准，beamIsComposing 仅兜底非 Enter 按键，避免 150ms 锁吞选词后真实 Enter
+        if (e.isComposing || e.keyCode === 229) {
+          triggerTypingBreathe();
+          return;
+        }
+        if (beamIsComposing) {
+          if (e.key !== "Enter") {
+            triggerTypingBreathe();
+            return;
+          }
+          // Enter 且处于锁窗口但浏览器已判定非 composing：视为真实发送，透传至下方发送逻辑
+        }
+        if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          var val = input.value !== undefined ? input.value : input.textContent;
+          if (val && String(val).trim().length > 0) {
+            // 回车发送：设置短时 pending（1.4s），桥接 DOM 尚未挂载 running 状态的空档，
+            // 让 Thinking Orbs 与 Border Beam 立即进入执行态，避免工具间隙误判为空闲
+            pendingExecuting = true;
+            if (pendingTimer) clearTimeout(pendingTimer);
+            pendingTimer = setTimeout(function(){ pendingExecuting = false; try{ updateBeamState(); }catch(e){} }, 1400);
+            try { if (shared.refs.syncThinkingOrb) shared.refs.syncThinkingOrb(); } catch(e) {}
+            setTimeout(function(){ try{ updateBeamState(); }catch(e){} }, 60);
+            setTimeout(function(){ try{ updateBeamState(); }catch(e){} }, 180);
+            if (!typingActive) triggerTypingBreathe();
+            return;
+          } else {
+            triggerTypingBreathe();
+            return;
+          }
+        }
+        if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key && (e.key.length === 1 || e.key === "Backspace" || e.key === "Delete")) {
+          triggerTypingBreathe();
+        }
+      };
+
+      input.addEventListener("input", beamTypingHandler);
+      input.addEventListener("change", beamTypingHandler);
+      input.addEventListener("keydown", beamKeydownHandler);
+      input.addEventListener("compositionstart", beamCompStart);
+      input.addEventListener("compositionupdate", beamCompUpdate);
+      input.addEventListener("compositionend", beamCompEnd);
+      input.addEventListener("keyup", beamCompKeyUp);
+      card._dshBeamInput = input;
+    }
+
+    var sendBtn = card.querySelector('button[aria-label="Send message"], button[aria-label="发送消息"], button[aria-label*="Send"], button[aria-label*="发送"], .uV2eYG_primary');
+    if (sendBtn) {
+      var sendHandler = function() {
+        typingActive = false;
+        if (typingTimer) clearTimeout(typingTimer);
+        pendingExecuting = true;
+        if (pendingTimer) clearTimeout(pendingTimer);
+        pendingTimer = setTimeout(function() { pendingExecuting = false; updateBeamState(); }, 2000);
+        updateBeamState();
+      };
+      sendBtn.addEventListener("click", sendHandler);
+      card._dshBeamSendBtn = sendBtn;
+      card._dshBeamSendHandler = sendHandler;
+    }
+
+    if (window.ResizeObserver) {
+      if (beamResizeObs) try { beamResizeObs.disconnect(); } catch(e) {}
+      beamResizeObs = new ResizeObserver(function() {
+        if (!beamAttachedCard) return;
+        var nr = resolveBorderRadius(beamAttachedCard);
+        ensureBeamStyles(nr, currentBeamMode === "typing" ? "mono" : (currentBeamMode === "planning" ? "sunset" : "colorful"));
+      });
+      try { beamResizeObs.observe(card); } catch(e) {}
+    }
+
+    if (beamPollTimer) clearInterval(beamPollTimer);
+    beamPollTimer = setInterval(updateBeamState, 450);
+
+    ensureBeamMutObs();
+
+    card._dshBeamCleanup = function() {
+      if (input) {
+        try {
+          if (beamTypingHandler) {
+            input.removeEventListener("input", beamTypingHandler);
+            input.removeEventListener("change", beamTypingHandler);
+          }
+          if (beamKeydownHandler) {
+            input.removeEventListener("keydown", beamKeydownHandler);
+          }
+          input.removeEventListener("compositionstart", beamCompStart);
+          input.removeEventListener("compositionupdate", beamCompUpdate);
+          input.removeEventListener("compositionend", beamCompEnd);
+          input.removeEventListener("keyup", beamCompKeyUp);
+        } catch(e) {}
+      }
+      if (card._dshBeamSendBtn && card._dshBeamSendHandler) {
+        try { card._dshBeamSendBtn.removeEventListener("click", card._dshBeamSendHandler); } catch(e) {}
+      }
+      if (beamPollTimer) { clearInterval(beamPollTimer); beamPollTimer = null; }
+      try { detachBeamMutObs(); } catch(e) {}
+      if (beamResizeObs) { try { beamResizeObs.disconnect(); beamResizeObs = null; } catch(e) {} }
+      if (pulseTimer) { clearTimeout(pulseTimer); pulseTimer = null; }
+      if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; }
+      if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+      if (beamComposingLockTimer) { clearTimeout(beamComposingLockTimer); beamComposingLockTimer = null; }
+      beamIsComposing = false;
+      try { if (shared.refs.stopThinkingOrb) shared.refs.stopThinkingOrb(); } catch(e) {}
+    };
+  }
+
+  function detachComposerBeam() {
+    var card = beamAttachedCard;
+    if (!card) return;
+    try { if (card._dshBeamCleanup) card._dshBeamCleanup(); } catch(e) {}
+    try { if (shared.refs.stopThinkingOrb) shared.refs.stopThinkingOrb(); } catch(e) {}
+    card.removeAttribute("data-beam");
+    card.removeAttribute("data-active");
+    card.removeAttribute("data-fading");
+    card.removeAttribute("data-typing");
+    card.removeAttribute("data-planning");
+    card.removeAttribute("data-pulse");
+    card.removeAttribute("data-paused");
+    card.style.removeProperty("--beam-strength");
+    card.style.removeProperty("--beam-hue-base");
+    card.style.removeProperty("filter");
+    card.style.removeProperty("isolation");
+    var bloom = card.querySelector("[data-beam-bloom]");
+    if (bloom) try { bloom.remove(); } catch(e) {}
+    if (beamResizeObs) try { beamResizeObs.disconnect(); beamResizeObs = null; } catch(e) {}
+    // 清理挂在 DOM 节点上的自定义属性，防止 React 节点复用池携带旧闭包
+    try { delete card._dshBeamCleanup; } catch(e) {}
+    try { delete card._dshBeamInput; } catch(e) {}
+    try { delete card._dshBeamSendBtn; } catch(e) {}
+    try { delete card._dshBeamSendHandler; } catch(e) {}
+    beamAttachedCard = null;
+    currentBeamMode = "hairline";
+  }
+
+  function refreshBeamTheme() {
+    if (!beamAttachedCard) return;
+    var r = resolveBorderRadius(beamAttachedCard);
+    var v = currentBeamMode === "typing" ? "mono" : (currentBeamMode === "planning" ? "sunset" : "colorful");
+    ensureBeamStyles(r, v);
+    updateBeamState();
+  }
+
+  function watchBeamComposer() {
+    if (isBeamDisabled()) { detachComposerBeam(); return; }
+    attachComposerBeam();
+    ensureBeamMutObs();
+  }
+
+  var todoAttachedPanel = null;
+  var todoPollTimer = null;
+  var todoMutObs = null;
+  var todoCoalesceUnsub = null;
+
+  function findTodoPanel() {
+    return document.querySelector('[data-testid="todo-panel"], [data-slot="conversation.input.dock"] section, .lXshSW_root, [data-slot="conversation.input.dock"] ._7yHdaG_panel');
+  }
+
+  function updateTodoBeamState() {
+    if (isBeamDisabled() || !bgSettings.beam) {
+      detachTodoBeam();
+      return;
+    }
+    var panel = findTodoPanel();
+    if (!panel) {
+      if (todoAttachedPanel) detachTodoBeam();
+      return;
+    }
+    if (panel !== todoAttachedPanel) {
+      attachTodoBeam(panel);
+    }
+    var hasActiveTask = panel.querySelector('[data-status="in_progress"]') !== null || isExecuting();
+    if (hasActiveTask) {
+      panel.setAttribute("data-pulse-active", "");
+      panel.setAttribute("data-active", "");
+    } else {
+      panel.removeAttribute("data-pulse-active");
+      panel.removeAttribute("data-active");
+    }
+  }
+
+  function attachTodoBeam(panel) {
+    if (!panel) panel = findTodoPanel();
+    if (!panel) return;
+    if (isBeamDisabled() || !bgSettings.beam) return;
+    if (todoAttachedPanel && todoAttachedPanel !== panel) {
+      detachTodoBeam();
+    }
+    todoAttachedPanel = panel;
+    panel.setAttribute("data-beam", "dsh-todo");
+    if (!panel.querySelector("[data-beam-bloom]")) {
+      var bloom = document.createElement("div");
+      bloom.setAttribute("data-beam-bloom", "");
+      bloom.setAttribute("aria-hidden", "true");
+      panel.appendChild(bloom);
+    }
+    updateTodoBeamState();
+  }
+
+  function detachTodoBeam() {
+    var panel = todoAttachedPanel || findTodoPanel();
+    if (panel) {
+      panel.removeAttribute("data-beam");
+      panel.removeAttribute("data-active");
+      panel.removeAttribute("data-pulse-active");
+      var bloom = panel.querySelector("[data-beam-bloom]");
+      if (bloom) try { bloom.remove(); } catch(e) {}
+    }
+    if (todoPollTimer) { clearInterval(todoPollTimer); todoPollTimer = null; }
+    if (todoCoalesceUnsub) { try { todoCoalesceUnsub(); } catch(e) {} todoCoalesceUnsub = null; }
+    if (todoMutObs) { try { todoMutObs.disconnect(); todoMutObs = null; } catch(e) {} }
+    todoAttachedPanel = null;
+  }
+
+  function watchBeamTodo() {
+    if (isBeamDisabled() || !bgSettings.beam) { detachTodoBeam(); return; }
+    attachTodoBeam();
+    if (!todoPollTimer) {
+      todoPollTimer = setInterval(updateTodoBeamState, 1000);
+    }
+    if (todoCoalesceUnsub || todoMutObs) return;
+    if (shared.refs.subscribeCoalesced) {
+      try { todoCoalesceUnsub = shared.refs.subscribeCoalesced(function(){ try{ updateTodoBeamState(); }catch(e){} }); return; } catch(e){}
+    }
+    if (window.MutationObserver) {
+      todoMutObs = new MutationObserver(function() { updateTodoBeamState(); });
+      var rootEl = document.querySelector("#root") || document.documentElement;
+      try { todoMutObs.observe(rootEl, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-status", "class", "aria-expanded"] }); } catch(e) {}
+    }
+  }
+
+  shared.refs.isExecuting = isExecuting;
+  shared.refs.isPlanMode = isPlanMode;
+  shared.refs.getBeamThemeIsDark = getBeamThemeIsDark;
+  shared.refs.watchBeamComposer = watchBeamComposer;
+  shared.refs.watchBeamTodo = watchBeamTodo;
+  shared.refs.detachComposerBeam = detachComposerBeam;
+  shared.refs.detachTodoBeam = detachTodoBeam;
+  shared.refs.refreshBeamTheme = refreshBeamTheme;
+  shared.refs.getBeamAttachedCard = function () { return beamAttachedCard; };
+  shared.refs.beamHandle = {
+    attach: attachComposerBeam,
+    detach: detachComposerBeam,
+    attachTodo: attachTodoBeam,
+    detachTodo: detachTodoBeam,
+    updateTodo: updateTodoBeamState,
+    get todoPanel() { return todoAttachedPanel; },
+    setStrength: function(v) { setBeamStrength(v, { persist: false }); },
+    setIdleStrength: function(v) { beamState.idleStrength = Math.max(0, Math.min(1, v)); if (beamAttachedCard) beamAttachedCard.style.setProperty("--beam-strength", String(beamState.idleStrength)); refreshBeamTheme(); },
+    setFocusStrength: function(v) { beamState.focusStrength = Math.max(0, Math.min(1, v)); if (beamAttachedCard) beamAttachedCard.style.setProperty("--beam-strength", String(beamState.focusStrength)); refreshBeamTheme(); },
+    disable: function() { try { localStorage.setItem("dsh-beam-disabled", "1"); } catch(e) {} detachComposerBeam(); detachTodoBeam(); },
+    enable: function() { try { localStorage.removeItem("dsh-beam-disabled"); } catch(e) {} watchBeamComposer(); watchBeamTodo(); },
+    refresh: function() { refreshBeamTheme(); updateTodoBeamState(); },
+    get state() { return currentBeamMode; },
+    get isExecuting() { return isExecuting(); },
+    get isTyping() { return isTyping(); },
+    update: updateBeamState,
+    get id() { return BEAM_ID; },
+    get card() { return beamAttachedCard; }
+  };
+}
+
+
+/* ===================== orbs.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/orbs.js — Thinking Orbs 运行时（initOrbs）
+ *   工具调用状态映射、DOM 扫描、Orb 画布启动/停止与状态栏文字联动；
+ *   几何数学（getOrbPreset 等）在 src/orbs-math.js（工厂级片段）。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initOrbs(shared) {
+  var bgSettings = shared.settings;
+
+  var TOOL_STATE_MAP = {
+    // 1. Searching (globe 经纬扫描网格球)
+    "grep": { state: "searching", text: "Searching files…" },
+    "glob": { state: "searching", text: "Finding files…" },
+    "web_search": { state: "searching", text: "Searching web…" },
+    "find_dsh_plugin": { state: "searching", text: "Searching plugins…" },
+    "lsp_symbols": { state: "searching", text: "Finding symbols…" },
+
+    // 2. Listening / Inspecting (wave 声波起伏球)
+    "read": { state: "listening", text: "Reading file…" },
+    "read_image": { state: "listening", text: "Inspecting image…" },
+    "skill": { state: "listening", text: "Loading skill…" },
+    "get_goal": { state: "listening", text: "Reading goal…" },
+    "web_fetch": { state: "listening", text: "Fetching web page…" },
+    "lsp_diagnostics": { state: "listening", text: "Diagnosing code…" },
+    "lsp_completion": { state: "listening", text: "Getting completions…" },
+    "lsp_signature": { state: "listening", text: "Inspecting signature…" },
+    "lsp_inlay_hints": { state: "listening", text: "Reading inlay hints…" },
+
+    // 3. Composing / Writing (ribbon 扭转流光缎带)
+    "write": { state: "composing", text: "Writing file…" },
+    "edit": { state: "composing", text: "Editing file…" },
+    "lsp_format": { state: "composing", text: "Formatting file…" },
+    "lsp_rename": { state: "composing", text: "Renaming symbol…" },
+    "lsp_code_action": { state: "composing", text: "Applying code action…" },
+
+    // 4. Solving / Commands (rubik 旋转魔方立方矩阵)
+    "bash": { state: "solving", text: "Running command…" },
+    "run_code": { state: "solving", text: "Running code…" },
+
+    // 5. Connecting / Subagents (web 动态网络拓扑 / 神经节点)
+    "subagent": { state: "connecting", text: "Connecting subagent…" },
+    "subagent_fork": { state: "connecting", text: "Delegating task…" },
+    "workflow": { state: "connecting", text: "Running workflow…" },
+    "ralph": { state: "connecting", text: "Running Ralph…" },
+    "send_message": { state: "connecting", text: "Sending message…" },
+    "interrupt_agent": { state: "connecting", text: "Interrupting agent…" },
+    "list_agents": { state: "connecting", text: "Listing agents…" },
+    "job_output": { state: "connecting", text: "Checking job output…" },
+    "job_list": { state: "connecting", text: "Listing jobs…" },
+    "job_kill": { state: "connecting", text: "Stopping job…" },
+
+    // 6. Shaping / Tasks & Goals (morph 几何变形多面体)
+    "todo_write": { state: "shaping", text: "Updating tasks…" },
+    "create_goal": { state: "shaping", text: "Creating goal…" },
+    "update_goal": { state: "shaping", text: "Updating goal…" },
+    "exit_plan_mode": { state: "shaping", text: "Finalizing plan…" },
+
+    // 7. Weaving / Cordis plugins (braid 编织双螺旋)
+    "cordis_define": { state: "weaving", text: "Weaving plugin…" },
+    "cordis_run": { state: "weaving", text: "Activating plugin…" },
+    "cordis_stop": { state: "weaving", text: "Stopping plugin…" },
+    "cordis_undefine": { state: "weaving", text: "Removing plugin…" },
+    "cordis_inspect_list": { state: "weaving", text: "Inspecting runtime…" },
+    "cordis_inspect_query": { state: "weaving", text: "Querying runtime…" },
+    "cordis_inspect_self": { state: "weaving", text: "Inspecting plugin…" },
+
+    // 8. Breathing / Interactive questions (ring 光晕呼吸环)
+    "ask_user_question": { state: "breathing", text: "Asking question…" }
+  };
+
+  function truncateStr(str, maxLen) {
+    if (!str || typeof str !== "string") return "";
+    str = str.trim();
+    if (str.length <= maxLen) return str;
+    return str.slice(0, maxLen - 1) + "…";
+  }
+
+  function extractSummaryDetail(el, toolName) {
+    try {
+      if (!el) return null;
+      // 1. 文件链接类（read, write, edit, lsp_*）
+      var fileBtn = el.querySelector('button[class*="fileLink"], .o3BgMG_fileLink, [data-file-link]');
+      if (fileBtn && fileBtn.textContent) {
+        var rawPath = fileBtn.textContent.trim();
+        var fn = rawPath.split(/[/\\]/).pop() || rawPath;
+        if (fn) {
+          var shortFn = truncateStr(fn, 26);
+          if (toolName === "read") return "Reading " + shortFn;
+          if (toolName === "write") return "Writing " + shortFn;
+          if (toolName === "edit") return "Editing " + shortFn;
+          if (toolName.indexOf("lsp_") === 0) return "LSP: " + shortFn;
+          return toolName + ": " + shortFn;
+        }
+      }
+
+      // 2. 通用摘要类（grep, glob, bash, skill, web_search, subagent, etc.）
+      var sumEl = el.querySelector('[class*="summary"]:not([class*="error"]), .o3BgMG_summary, .CY-8Ka_summary, .iWrAna_summary, ._Xvjua_summary, [class*="title"]');
+      if (sumEl && sumEl.textContent) {
+        var txt = sumEl.textContent.trim();
+        if (txt.length > 0) {
+          if (toolName === "grep") return "Searching: " + truncateStr(txt, 26);
+          if (toolName === "glob") return "Finding: " + truncateStr(txt, 26);
+          if (toolName === "bash") {
+            var cmd = txt.replace(/^bash\s*(-c\s*)?/i, "").replace(/^["']|["']$/g, "");
+            return "Running: " + truncateStr(cmd, 26);
+          }
+          if (toolName === "run_code") return "Running: " + truncateStr(txt, 26);
+          if (toolName === "skill") return "Skill: " + truncateStr(txt, 26);
+          if (toolName === "web_search") return "Web: " + truncateStr(txt, 26);
+          if (toolName === "web_fetch") return "Fetching: " + truncateStr(txt, 26);
+          if (toolName === "find_dsh_plugin") return "Plugin: " + truncateStr(txt, 26);
+          if (toolName === "subagent" || toolName === "subagent_fork") return "Subagent: " + truncateStr(txt, 24);
+          if (toolName === "workflow") return "Workflow: " + truncateStr(txt, 24);
+          if (toolName === "ralph") return "Ralph: " + truncateStr(txt, 24);
+          if (toolName === "todo_write") return "Tasks: " + truncateStr(txt, 24);
+          if (toolName.indexOf("cordis_") === 0) return "Plugin: " + truncateStr(txt, 24);
+          if (toolName.indexOf("lsp_") === 0) return "LSP: " + truncateStr(txt, 24);
+          if (toolName.indexOf("browser_") === 0) return "Browser: " + truncateStr(txt, 24);
+          return truncateStr(txt, 28);
+        }
+      }
+    } catch(e) {}
+    return null;
+  }
+
+  // —— 新调度：最小可视时长 + 等待态 + 队列，避免快工具被跳过 —— //
+  var lastActiveToolRecord = {
+    state: null,
+    text: null,
+    tool: null,
+    timestamp: 0
+  };
+  var MIN_TOOL_DWELL_MS = 600;
+  var WAITING_GRACE_MS = 300;
+  var WAITING_TEXT = "Waiting…";
+  var displayInfo = null;
+  var displaySince = 0;
+  var toolQueue = [];
+
+  function rawDetect() {
+    try {
+      // Tier 1: 优先检测当前处于 running 状态的工具调用行 / 命令 / 子分派
+      var runningRows = document.querySelectorAll('[data-tool][data-state="running"], [data-sample="bash"][data-state="running"], [data-subcalls] [data-tool][data-state="running"], .CY-8Ka_root[data-state="running"], .o3BgMG_root[data-state="running"], .iWrAna_card[data-state="running"], ._Xvjua_root[data-state="running"], .ztWv_q_subCalls [data-tool][data-state="running"]');
+      if (runningRows && runningRows.length > 0) {
+        for (var i = runningRows.length - 1; i >= 0; i--) {
+          var row = runningRows[i];
+          if (row.classList && (row.classList.contains("Md3f7G_turnStatus") || row.classList.contains("dsh-turn-status-text"))) continue;
+          var tool = row.getAttribute("data-tool");
+          if (!tool && (row.classList.contains("CY-8Ka_root") || row.closest(".CY-8Ka_card") || row.getAttribute("data-sample") === "bash")) {
+            tool = "bash";
+          }
+          if (!tool && (row.classList.contains("iWrAna_card") || row.closest(".iWrAna_card"))) {
+            tool = "skill";
+          }
+          if (!tool) {
+            var parent = row.closest("[data-tool]");
+            if (parent) tool = parent.getAttribute("data-tool");
+          }
+          if (tool === "run_code") {
+            var subCallRunning = row.querySelector('[data-subcalls] [data-tool][data-state="running"], .ztWv_q_subCalls [data-tool][data-state="running"]');
+            if (subCallRunning) {
+              var subTool = subCallRunning.getAttribute("data-tool");
+              if (subTool) {
+                row = subCallRunning;
+                tool = subTool;
+              }
+            }
+          }
+          if (tool) {
+            var mapped = TOOL_STATE_MAP[tool];
+            var stateKey = mapped ? mapped.state : (
+              tool.indexOf("cordis_") === 0 ? "weaving" :
+              tool.indexOf("subagent") === 0 ? "connecting" :
+              tool.indexOf("lsp_") === 0 ? "listening" :
+              tool.indexOf("browser_") === 0 ? "solving" :
+              tool.indexOf("read") === 0 ? "listening" : "composing"
+            );
+            var defaultTxt = mapped ? mapped.text : (tool + "…");
+            var customDetail = extractSummaryDetail(row, tool);
+            var resolvedText = customDetail || defaultTxt;
+            return {
+              state: stateKey,
+              text: resolvedText,
+              tool: tool
+            };
+          }
+        }
+      }
+
+      // Tier 2: 活跃的思考/推理流 (Reasoning Stream) — 纯 Thinking，不拼接具体摘要
+      var reasoningEl = document.querySelector('[data-variant="think"][data-state="running"], .QWLzlG_root[data-state="running"]');
+      if (reasoningEl && reasoningEl.offsetParent !== null) {
+        var thinkText = "Thinking…";
+        return { state: "composing", text: thinkText, tool: "reasoning" };
+      }
+
+      // Tier 3: 用户提问与计划待审交互卡片
+      var questionEl = document.querySelector('[data-slot="user-questions"], .Mbwy4a_card, [class*="QuestionComposer"]');
+      if (questionEl && questionEl.offsetParent !== null) {
+        return { state: "breathing", text: "Asking question…", tool: "ask_user_question" };
+      }
+      var planReviewEl = document.querySelector('[data-slot="plan-review"], .LVzXQa_card, [class*="PlanReviewPanel"]');
+      if (planReviewEl && planReviewEl.offsetParent !== null) {
+        return { state: "shaping", text: "Reviewing plan…", tool: "exit_plan_mode" };
+      }
+
+      // Tier 5: 活跃 Todo 项追踪（仅 executing 时）
+      var executing = shared.refs.isExecuting ? shared.refs.isExecuting() : false;
+      if (executing) {
+        var activeTodoEl = document.querySelector('[data-slot="plan"] [data-status="in_progress"], [class*="todo"] [data-status="in_progress"]');
+        if (activeTodoEl && activeTodoEl.textContent) {
+          var todoContent = activeTodoEl.textContent.trim();
+          if (todoContent.length > 0) {
+            return { state: "shaping", text: "Task: " + truncateStr(todoContent, 24), tool: "todo_write" };
+          }
+        }
+      }
+    } catch(e) {}
+    return null;
+  }
+
+  function resolveActiveToolState() {
+    try {
+      var executing = shared.refs.isExecuting ? shared.refs.isExecuting() : false;
+      var now = Date.now();
+      var candidate = rawDetect();
+
+      if (candidate) {
+        lastActiveToolRecord.state = candidate.state;
+        lastActiveToolRecord.text = candidate.text;
+        lastActiveToolRecord.tool = candidate.tool;
+        lastActiveToolRecord.timestamp = now;
+
+        if (!displayInfo) {
+          displayInfo = candidate;
+          displaySince = now;
+          return candidate;
+        }
+        if (displayInfo.tool === candidate.tool && displayInfo.text === candidate.text && displayInfo.state === candidate.state) {
+          displayInfo = candidate;
+          return candidate;
+        }
+        if (now - displaySince < MIN_TOOL_DWELL_MS) {
+          var alreadyQueued = false;
+          for (var qi = 0; qi < toolQueue.length; qi++) {
+            if (toolQueue[qi].tool === candidate.tool && toolQueue[qi].text === candidate.text) { alreadyQueued = true; break; }
+          }
+          if (!alreadyQueued) {
+            if (toolQueue.length < 8) toolQueue.push(candidate);
+            else toolQueue[toolQueue.length - 1] = candidate;
+          } else {
+            for (var qj = 0; qj < toolQueue.length; qj++) if (toolQueue[qj].tool === candidate.tool) toolQueue[qj] = candidate;
+          }
+          return displayInfo;
+        } else {
+          displayInfo = candidate;
+          displaySince = now;
+          return candidate;
+        }
+      }
+
+      // 无候选：优先消化队列（保证快工具至少露面一次）
+      if (toolQueue.length > 0) {
+        if (!displayInfo || now - displaySince >= MIN_TOOL_DWELL_MS) {
+          var next = toolQueue.shift();
+          displayInfo = next;
+          displaySince = now;
+          lastActiveToolRecord.state = next.state;
+          lastActiveToolRecord.text = next.text;
+          lastActiveToolRecord.tool = next.tool;
+          lastActiveToolRecord.timestamp = now;
+          return next;
+        } else {
+          return displayInfo;
+        }
+      }
+
+      // 若当前展示仍在最小可视期内，保持
+      if (displayInfo && now - displaySince < MIN_TOOL_DWELL_MS) {
+        if (!executing && displayInfo.tool === "waiting") {
+          // 等待态在空闲时应更快消失
+        } else {
+          return displayInfo;
+        }
+      }
+
+      if (!executing) {
+        if (displayInfo && now - displaySince < MIN_TOOL_DWELL_MS) {
+          return displayInfo;
+        }
+        // 非执行态：清空队列与展示，返回 idle 兜底（syncThinkingOrb 会隐藏小球，此返回值不会长期可见）
+        if (displayInfo) {
+          // 保留最后一次的 dwell 后再清空
+          if (now - displaySince >= MIN_TOOL_DWELL_MS) {
+            displayInfo = null;
+            displaySince = 0;
+            toolQueue = [];
+          } else {
+            return displayInfo;
+          }
+        }
+        if (shared.refs.isPlanMode && shared.refs.isPlanMode()) {
+          var planIdle = { state: "composing", text: "Planning…", tool: "plan" };
+          displayInfo = planIdle;
+          displaySince = now;
+          return planIdle;
+        }
+        // 空闲态不再误显示 Thinking，返回 idle 标记（由 syncThinkingOrb 隐藏）
+        var idleInfo = { state: "composing", text: "Thinking…", tool: "idle" };
+        return idleInfo;
+      }
+
+      // executing === true 但无候选：工具间隙或 LLM 思考间隙
+      // 区分：刚执行完工具后的短暂空隙应显示 Waiting，而非 Thinking，避免“不在思考却显示思考”
+      var age = lastActiveToolRecord.timestamp ? (now - lastActiveToolRecord.timestamp) : 99999;
+      var isRecentTool = lastActiveToolRecord.tool && lastActiveToolRecord.tool !== "reasoning" && lastActiveToolRecord.tool !== "ask_user_question" && lastActiveToolRecord.tool !== "plan" && lastActiveToolRecord.tool !== "idle" && lastActiveToolRecord.tool !== "waiting" && lastActiveToolRecord.tool !== "thinking";
+
+      if (isRecentTool && age > WAITING_GRACE_MS && age < 1200) {
+        var waitingInfo = { state: "working", text: WAITING_TEXT, tool: "waiting" };
+        if (!displayInfo || displayInfo.tool !== "waiting") {
+          if (displayInfo && now - displaySince < MIN_TOOL_DWELL_MS) return displayInfo;
+          displayInfo = waitingInfo;
+          displaySince = now;
+        }
+        return waitingInfo;
+      }
+
+      // 真正的 LLM 思考或 Plan 模式
+      if (shared.refs.isPlanMode && shared.refs.isPlanMode()) {
+        var planInfo2 = { state: "composing", text: "Planning…", tool: "plan" };
+        if (!displayInfo || displayInfo.tool !== "plan") {
+          if (displayInfo && now - displaySince < MIN_TOOL_DWELL_MS) return displayInfo;
+          displayInfo = planInfo2;
+          displaySince = now;
+        }
+        return planInfo2;
+      }
+      var thinkInfo = { state: "composing", text: "Thinking…", tool: "thinking" };
+      if (!displayInfo || displayInfo.tool !== "thinking") {
+        if (displayInfo && now - displaySince < MIN_TOOL_DWELL_MS) return displayInfo;
+        displayInfo = thinkInfo;
+        displaySince = now;
+      }
+      return thinkInfo;
+    } catch(e) {
+      return { state: "composing", text: "Thinking…", tool: "fallback" };
+    }
+  }
+
+  var orbCanvas = null;
+  var orbCtx = null;
+  var orbRaf = 0;
+  var orbMountedStatusEl = null;
+  var orbActive = false;
+  var orbCurrentState = "composing";
+  var orbStartTime = 0;
+  var orbTextSpan = null;
+
+  function syncTurnStatusText(statusEl, text) {
+    if (!statusEl || !document.contains(statusEl)) return;
+    try {
+      if (!orbTextSpan || !statusEl.contains(orbTextSpan)) {
+        var existing = statusEl.querySelector(".dsh-turn-status-text");
+        if (existing) {
+          orbTextSpan = existing;
+        } else {
+          orbTextSpan = document.createElement("span");
+          orbTextSpan.className = "dsh-turn-status-text";
+          var clockEl = statusEl.querySelector(".Md3f7G_turnStatusClock, [class*='turnStatusClock']");
+          if (clockEl) {
+            statusEl.insertBefore(orbTextSpan, clockEl);
+          } else {
+            statusEl.appendChild(orbTextSpan);
+          }
+        }
+      }
+      if (orbTextSpan && orbTextSpan.textContent !== text) {
+        orbTextSpan.textContent = text;
+      }
+    } catch(e) {}
+  }
+
+  function createThinkingOrbCanvas() {
+    var wrap = document.createElement("span");
+    wrap.className = "dsh-thinking-orb-wrap";
+    wrap.setAttribute("aria-hidden", "true");
+    var cvs = document.createElement("canvas");
+    cvs.className = "dsh-thinking-orb-canvas";
+    var size = 20;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cvs.width = size * dpr;
+    cvs.height = size * dpr;
+    cvs.style.width = size + "px";
+    cvs.style.height = size + "px";
+    wrap.appendChild(cvs);
+    return { wrap: wrap, canvas: cvs };
+  }
+
+  function startThinkingOrb(targetEl) {
+    if (!targetEl || !document.contains(targetEl)) return;
+    if (orbMountedStatusEl === targetEl && orbCanvas && targetEl.contains(orbCanvas.parentNode)) {
+      return;
+    }
+    stopThinkingOrb();
+
+    var orb = createThinkingOrbCanvas();
+    orbCanvas = orb.canvas;
+    orbCtx = orbCanvas.getContext("2d");
+    orbMountedStatusEl = targetEl;
+    targetEl.insertBefore(orb.wrap, targetEl.firstChild);
+    orbActive = true;
+    orbStartTime = performance.now();
+    var orbLastScan = 0;
+    var orbLastInfo = null;
+
+    function renderOrb(now) {
+      if (!orbActive || !orbCtx || !orbMountedStatusEl || !document.contains(orbMountedStatusEl)) {
+        stopThinkingOrb();
+        return;
+      }
+      orbRaf = requestAnimationFrame(renderOrb);
+
+      if (document.visibilityState === "hidden") return;
+
+      if (now - orbLastScan >= 50 || !orbLastInfo) {
+        orbLastScan = now;
+        orbLastInfo = resolveActiveToolState();
+      }
+      var activeInfo = orbLastInfo;
+      orbCurrentState = activeInfo.state;
+
+      var isPlan = (shared.refs.isPlanMode && shared.refs.isPlanMode()) || activeInfo.tool === "plan" || (activeInfo.state === "breathing" && shared.refs.isPlanMode && shared.refs.isPlanMode());
+      if (orb.wrap) {
+        if (orb.wrap.getAttribute("data-state") !== activeInfo.state) {
+          orb.wrap.setAttribute("data-state", activeInfo.state);
+        }
+        if (isPlan) {
+          orb.wrap.setAttribute("data-planning", "true");
+        } else {
+          orb.wrap.removeAttribute("data-planning");
+        }
+        if (activeInfo.tool === "waiting") {
+          orb.wrap.setAttribute("data-waiting", "true");
+        } else {
+          orb.wrap.removeAttribute("data-waiting");
+        }
+      }
+
+      syncTurnStatusText(orbMountedStatusEl, activeInfo.text);
+
+      var size = 20;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var preset = getOrbPreset(activeInfo.state, 20);
+      var renderFn = cp[preset.mode] || cp.orbits;
+
+      var elapsed = (now - orbStartTime) * 0.001 * preset.speed;
+      if (activeInfo.tool === "waiting") elapsed *= 0.62;
+      var res = renderFn(size, elapsed, preset.opts);
+
+      var isDark = shared.refs.getBeamThemeIsDark ? shared.refs.getBeamThemeIsDark() : false;
+      orbCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      orbCtx.clearRect(0, 0, size, size);
+      Xd(orbCtx, res, isDark);
+    }
+
+    orbRaf = requestAnimationFrame(renderOrb);
+  }
+
+  function stopThinkingOrb() {
+    orbActive = false;
+    if (orbRaf) {
+      cancelAnimationFrame(orbRaf);
+      orbRaf = 0;
+    }
+    if (orbCanvas && orbCanvas.parentNode) {
+      try { orbCanvas.parentNode.remove(); } catch(e) {}
+    }
+    orbCanvas = null;
+    orbCtx = null;
+    orbMountedStatusEl = null;
+    orbTextSpan = null;
+  }
+
+  function syncThinkingOrb() {
+    if (!bgSettings || bgSettings.orbs === false) {
+      if (orbActive) stopThinkingOrb();
+      if (orbMutObs || orbPollTimer) { try { detachThinkingOrbs(); } catch(e) {} }
+      return;
+    }
+    var statusEl = document.querySelector(".Md3f7G_turnStatus, [role=\"status\"][aria-live=\"polite\"]");
+    var executing = shared.refs.isExecuting ? shared.refs.isExecuting() : false;
+    if (statusEl && executing) {
+      startThinkingOrb(statusEl);
+    } else {
+      if (orbActive) stopThinkingOrb();
+      if (!executing) {
+        // 空闲时清空队列与展示，避免下次执行时残留旧状态
+        toolQueue = [];
+        if (displayInfo && displayInfo.tool === "waiting") {
+          displayInfo = null;
+          displaySince = 0;
+        }
+      }
+    }
+  }
+
+  var orbMutObs = null;
+  var orbCoalesceUnsub = null;
+  var orbPollTimer = null;
+  function detachThinkingOrbs() {
+    if (orbPollTimer) { try { clearInterval(orbPollTimer); } catch(e) {} orbPollTimer = null; }
+    if (orbCoalesceUnsub) { try { orbCoalesceUnsub(); } catch(e) {} orbCoalesceUnsub = null; }
+    if (orbMutObs) { try { orbMutObs.disconnect(); } catch(e) {} orbMutObs = null; }
+    if (orbActive) try { stopThinkingOrb(); } catch(e) {}
+  }
+  function watchThinkingOrbs() {
+    if (!bgSettings || bgSettings.orbs === false) { detachThinkingOrbs(); return; }
+    if (orbPollTimer) clearInterval(orbPollTimer);
+    orbPollTimer = setInterval(function() {
+      try { syncThinkingOrb(); } catch(e) {}
+    }, 400);
+
+    if (orbCoalesceUnsub || orbMutObs) return;
+    if (shared.refs.subscribeCoalesced) {
+      try { orbCoalesceUnsub = shared.refs.subscribeCoalesced(function(){ try{ syncThinkingOrb(); }catch(e){} }); return; } catch(e){}
+    }
+    if (window.MutationObserver) {
+      orbMutObs = new MutationObserver(function() {
+        try { syncThinkingOrb(); } catch(e) {}
+      });
+      var rootEl = document.querySelector("#root") || document.documentElement;
+      try {
+        orbMutObs.observe(rootEl, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ["data-state", "data-tool", "aria-label", "class", "data-plan-mode", "role"]
+        });
+      } catch(e) {}
+    }
+  }
+
+  shared.refs.syncThinkingOrb = syncThinkingOrb;
+  shared.refs.stopThinkingOrb = stopThinkingOrb;
+  shared.refs.watchThinkingOrbs = watchThinkingOrbs;
+  shared.refs.orbsHandle = {
+    start: startThinkingOrb,
+    stop: stopThinkingOrb,
+    sync: syncThinkingOrb,
+    watch: watchThinkingOrbs,
+    detach: detachThinkingOrbs,
+    get active() { return orbActive; },
+    get canvas() { return orbCanvas; },
+    get state() { return orbCurrentState; },
+    get lastRecord() { return lastActiveToolRecord; },
+    get queue() { return toolQueue.slice(); },
+    get display() { return displayInfo; },
+    resolveState: resolveActiveToolState,
+    rawDetect: rawDetect,
+    getPreset: getOrbPreset
+  };
+}
+
+
+/* ===================== aurora.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/aurora.js — 极光引擎（initAurora，WebGL2 流体/粒子）
+ *   shader 源码常量（VERT/FLOWMAP_FS/PARTICLE_FS/FLUID_FS）在 src/aurora-shaders.js（工厂级片段）。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initAurora(shared) {
+  var state = shared.state;
+  var bgSettings = shared.settings;
+  var media = shared.media;
+  var diag = shared.dom.diag;
+
+  /* ------------------------------------------------------------------ *
+   * 极光引擎（WebGL2）
+   * ------------------------------------------------------------------ */
+  function startAurora() {
+    var canvas = shared.dom.auroraCanvas;
+    var gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false, powerPreference: "low-power" });
+    if (!gl) { canvas.dataset.state = "no-webgl2"; return; }
+    diag.auroraGL = true;
+    // 上下文丢失防护：GPU 内存回收后可重建
+    try {
+      canvas.addEventListener("webglcontextlost", function(e){ try{ e.preventDefault(); }catch(_){} running=false; if(raf){ try{ cancelAnimationFrame(raf);}catch(_){} raf=0; } canvas.dataset.state="context-lost"; });
+      canvas.addEventListener("webglcontextrestored", function(){ try{ canvas.dataset.state="restoring"; startAurora(); }catch(_){} });
+    } catch(_){}
+
+    function compile(type, src) {
+      var s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        var log = ""; try{ log = gl.getShaderInfoLog(s) || "compile failed"; }catch(_){}
+        try{ console.error("[dsh-bg] aurora shader compile failed:", log.slice(0,400)); }catch(_){}
+        try{ canvas.dataset.state = "shader-compile-fail:" + log.slice(0,200); diag.auroraProgs = "compile-fail"; }catch(_){}
+        try{ gl.deleteShader(s); }catch(_){}
+        return null;
+      }
+      return s;
+    }
+    function link(vs, fs) {
+      var p = gl.createProgram();
+      gl.attachShader(p, vs);
+      gl.attachShader(p, fs);
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+        var log2=""; try{ log2 = gl.getProgramInfoLog(p) || "link failed"; }catch(_){}
+        try{ console.error("[dsh-bg] aurora program link failed:", log2.slice(0,400)); }catch(_){}
+        try{ canvas.dataset.state = "shader-link-fail:" + log2.slice(0,200); diag.auroraProgs = "link-fail"; }catch(_){}
+        try{ gl.deleteProgram(p); }catch(_){}
+        return null;
+      }
+      return p;
+    }
+    var vs = compile(gl.VERTEX_SHADER, VERT);
+    var progFlow = link(vs, compile(gl.FRAGMENT_SHADER, FLOWMAP_FS));
+    var progPart = link(vs, compile(gl.FRAGMENT_SHADER, PARTICLE_FS));
+    var progFluid = link(vs, compile(gl.FRAGMENT_SHADER, FLUID_FS));
+    diag.auroraProgs = [progFlow ? "flow" : "", progPart ? "particle" : "", progFluid ? "fluid" : ""].filter(Boolean).join(",");
+    if (!progFlow || !progPart || !progFluid) return;
+
+    var uFlow = {
+      prev: gl.getUniformLocation(progFlow, "u_prev"),
+      mouse: gl.getUniformLocation(progFlow, "u_mouse"),
+      velocity: gl.getUniformLocation(progFlow, "u_velocity"),
+      brushRadius: gl.getUniformLocation(progFlow, "u_brushRadius"),
+      brushStrength: gl.getUniformLocation(progFlow, "u_brushStrength"),
+      decay: gl.getUniformLocation(progFlow, "u_decay")
+    };
+    var uPart = {
+      time: gl.getUniformLocation(progPart, "u_time"),
+      pixelRatio: gl.getUniformLocation(progPart, "u_pixelRatio"),
+      resolution: gl.getUniformLocation(progPart, "u_resolution"),
+      scale: gl.getUniformLocation(progPart, "u_scale"),
+      rotation: gl.getUniformLocation(progPart, "u_rotation"),
+      offset: gl.getUniformLocation(progPart, "u_offset"),
+      color1: gl.getUniformLocation(progPart, "u_color1"),
+      color2: gl.getUniformLocation(progPart, "u_color2"),
+      color3: gl.getUniformLocation(progPart, "u_color3"),
+      color4: gl.getUniformLocation(progPart, "u_color4"),
+      color5: gl.getUniformLocation(progPart, "u_color5"),
+      colorCount: gl.getUniformLocation(progPart, "u_colorCount"),
+      proportion: gl.getUniformLocation(progPart, "u_proportion"),
+      softness: gl.getUniformLocation(progPart, "u_softness"),
+      shape: gl.getUniformLocation(progPart, "u_shape"),
+      shapeScale: gl.getUniformLocation(progPart, "u_shapeScale"),
+      distortion: gl.getUniformLocation(progPart, "u_distortion"),
+      swirl: gl.getUniformLocation(progPart, "u_swirl"),
+      swirlIterations: gl.getUniformLocation(progPart, "u_swirlIterations"),
+      flowmap: gl.getUniformLocation(progPart, "u_flowmap"),
+      distortBoost: gl.getUniformLocation(progPart, "u_distortBoost"),
+      noiseBoost: gl.getUniformLocation(progPart, "u_noiseBoost"),
+      swirlBoost: gl.getUniformLocation(progPart, "u_swirlBoost"),
+      glowIntensity: gl.getUniformLocation(progPart, "u_glowIntensity"),
+      glowColor1: gl.getUniformLocation(progPart, "u_glowColor1"),
+      glowColor2: gl.getUniformLocation(progPart, "u_glowColor2"),
+      glowColor3: gl.getUniformLocation(progPart, "u_glowColor3")
+    };
+    var uFluid = {
+      time: gl.getUniformLocation(progFluid, "u_time"),
+      resolution: gl.getUniformLocation(progFluid, "u_resolution"),
+      scale: gl.getUniformLocation(progFluid, "u_scale"),
+      offset: gl.getUniformLocation(progFluid, "u_offset"),
+      grain: gl.getUniformLocation(progFluid, "u_grain"),
+      speed: gl.getUniformLocation(progFluid, "u_speed"),
+      flowmap: gl.getUniformLocation(progFluid, "u_flowmap"),
+      distortBoost: gl.getUniformLocation(progFluid, "u_distortBoost"),
+      swirlBoost: gl.getUniformLocation(progFluid, "u_swirlBoost"),
+      glowIntensity: gl.getUniformLocation(progFluid, "u_glowIntensity"),
+      glowColor1: gl.getUniformLocation(progFluid, "u_glowColor1"),
+      glowColor2: gl.getUniformLocation(progFluid, "u_glowColor2"),
+      glowColor3: gl.getUniformLocation(progFluid, "u_glowColor3"),
+      c1: gl.getUniformLocation(progFluid, "u_c1"),
+      c2: gl.getUniformLocation(progFluid, "u_c2"),
+      c3: gl.getUniformLocation(progFluid, "u_c3"),
+      c4: gl.getUniformLocation(progFluid, "u_c4"),
+      c5: gl.getUniformLocation(progFluid, "u_c5"),
+      lightPos: gl.getUniformLocation(progFluid, "u_lightPos"),
+      lightCore: gl.getUniformLocation(progFluid, "u_lightCore"),
+      lightHalo: gl.getUniformLocation(progFluid, "u_lightHalo"),
+      vignette: gl.getUniformLocation(progFluid, "u_vignette"),
+      bloomThreshold: gl.getUniformLocation(progFluid, "u_bloomThreshold"),
+      bloomRange: gl.getUniformLocation(progFluid, "u_bloomRange"),
+      bloomStrength: gl.getUniformLocation(progFluid, "u_bloomStrength")
+    };
+
+    var buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    var _locFlow = gl.getAttribLocation(progFlow, "a_position");
+    var _locPart = gl.getAttribLocation(progPart, "a_position");
+    var _locFluid = gl.getAttribLocation(progFluid, "a_position");
+    function bindAttrib(prog) {
+      var loc = prog === progFlow ? _locFlow : (prog === progPart ? _locPart : (prog === progFluid ? _locFluid : gl.getAttribLocation(prog, "a_position")));
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    }
+    function makeTarget(w, h, data) {
+      var tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      if (data) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+      else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      var fbo = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      return { fbo: fbo, tex: tex };
+    }
+
+    var W = 0, H = 0, wQ = 0, hQ = 0;
+    var flip = false;
+    // GPU 优化：极光是柔和渐变背景，内部分辨率按 DPR 上限 1.5 再乘 0.75 渲染，
+    // 由 CSS 放大到全屏。像素量约为原 1.5x 的 1/4（1x 屏幕）~ 56%（retina），
+    // 对流动渐变背景肉眼几乎无差，fragment 负载（本插件最大 GPU 开销）大幅下降。
+    var AURORA_SCALE = 0.75;
+    // 分辨率由设置面板的「极光分辨率」滑杆实时控制（0.4–1.0）
+    function auroraScale() { return Math.min(window.devicePixelRatio || 1, 1.5) * (bgSettings.auroraScale || AURORA_SCALE); }
+    var k = auroraScale();
+    function resizeAll() {
+      // 释放旧渲染目标（纹理+FBO），避免窗口/DPR 变化时 GPU 内存堆积
+      if (targetA) { try { gl.deleteTexture(targetA.tex); gl.deleteFramebuffer(targetA.fbo); } catch (e) {} }
+      if (targetB) { try { gl.deleteTexture(targetB.tex); gl.deleteFramebuffer(targetB.fbo); } catch (e) {} }
+      k = auroraScale(); // DPR 变化时保持 resize 判定与渲染一致，避免每帧重建纹理
+      W = Math.round(canvas.clientWidth * k);
+      H = Math.round(canvas.clientHeight * k);
+      canvas.width = W; canvas.height = H;
+      wQ = Math.round(W / 4); hQ = Math.round(H / 4);
+      var init = new Uint8Array(wQ * hQ * 4);
+      for (var i = 0; i < wQ * hQ; i++) { init[4 * i] = 0; init[4 * i + 1] = 128; init[4 * i + 2] = 128; init[4 * i + 3] = 255; }
+      targetA = makeTarget(wQ, hQ, init);
+      targetB = makeTarget(wQ, hQ, init);
+    }
+    var targetA = null, targetB = null;
+    resizeAll();
+
+    var mouse = { x: 0.5, y: 0.5, smoothX: 0.5, smoothY: 0.5, vx: 0, vy: 0, svx: 0, svy: 0, rawVX: 0, rawVY: 0, lastT: 0, lastMove: 0 };
+    // 鼠标笔刷/光线跟随：由设置面板「鼠标跟随交互」开关实时控制（每帧判定）
+    function auroraMouseEnabled() { return !media.reducedMotion && !media.coarse && !media.isWindows && bgSettings.mouse; }
+    function onMove(e) {
+      var r = canvas.getBoundingClientRect();
+      var nx = (e.clientX - r.left) / r.width;
+      var ny = 1 - (e.clientY - r.top) / r.height;
+      var t = performance.now();
+      var dt = Math.max(1, t - (mouse.lastT || t));
+      // 用事件时间戳求真实速度（归一化坐标/秒），驱动流场拖尾方向；限幅防异常事件
+      var vx = (nx - mouse.x) / (dt / 1000);
+      var vy = (ny - mouse.y) / (dt / 1000);
+      var sp = Math.sqrt(vx * vx + vy * vy);
+      if (sp > 6) { vx = vx / sp * 6; vy = vy / sp * 6; }
+      mouse.rawVX = vx; mouse.rawVY = vy;
+      mouse.x = nx; mouse.y = ny;
+      mouse.lastT = t; mouse.lastMove = t;
+    }
+    // 监听常驻（一个 passive listener 成本可忽略），是否生效由 auroraMouseEnabled 逐帧决定
+    window.addEventListener("mousemove", onMove, { passive: true });
+
+    var start = performance.now();
+    var raf = 0;
+    var running = true;
+    // flowmap 与渲染解耦为两个独立节奏：交互活跃期均 60Hz，静止回落低频
+    var lastFlow = 0, lastRender = 0;
+    var latestTex = null;
+    var auroraBlanked = false;
+
+    var _hexCache = {};
+    function hex2rgb(hex) {
+      if (_hexCache[hex]) return _hexCache[hex];
+      var h = hex.replace("#", "");
+      var rgb = [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255];
+      _hexCache[hex] = rgb;
+      return rgb;
+    }
+
+    function frame(now) {
+      raf = requestAnimationFrame(frame);
+      if (!running) return;
+      if (!bgSettings.aurora) {
+        // 关闭：清空画布一次（透明）后跳过渲染，rAF 空转成本可忽略
+        if (!auroraBlanked) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); auroraBlanked = true; }
+        return;
+      }
+      var cfg = shared.refs.currentAuroraConfig();
+
+      var kk = auroraScale();
+      var w = Math.round(canvas.clientWidth * kk);
+      var h = Math.round(canvas.clientHeight * kk);
+      if (w !== W || h !== H) resizeAll();
+
+      var useM = auroraMouseEnabled();
+      // 交互活跃期（最近 200ms 内有鼠标移动）：flowmap 与渲染同步提到 60fps，
+      // 笔刷轨迹/光线跟手无感；静止后自动回落设置帧率，不白烧 GPU
+      var active = useM && (now - (mouse.lastMove || 0) < 200);
+      var flowHz = active ? 60 : 30;
+      var renderHz = active ? Math.max(60, bgSettings.fps || 30) : (bgSettings.fps || 30);
+
+      // 漫游笔刷目标（鼠标跟随关闭时）：Lissajous 轨迹 + 解析速度
+      var driftX = 0.5, driftY = 0.5, driftVX = 0, driftVY = 0;
+      if (!useM) {
+        var driftT = (now - start) * 0.001;
+        var a1 = driftT * 0.09, b1 = driftT * 0.13;
+        driftX = 0.5 + 0.38 * Math.sin(a1);
+        driftY = 0.5 + 0.3 * Math.cos(b1);
+        var e1 = 0.1;
+        driftVX = (0.38 * (Math.sin(a1 + e1) - Math.sin(a1))) / e1;
+        driftVY = (0.3 * (Math.cos(b1 + e1) - Math.cos(b1))) / e1;
+      }
+
+      // ---- flowmap 更新（独立节奏：交互期 60Hz，静止 30Hz；与渲染解耦保证笔刷实时性） ----
+      if (now - lastFlow >= 1000 / flowHz) {
+        var fdt = Math.min(0.25, (now - lastFlow) / 1000);
+        lastFlow = now - (now - lastFlow) % (1000 / flowHz);
+        // 帧率无关临界阻尼平滑：时间常数由「跟手灵敏度」控制（默认 20ms）
+        // —— 越小越贴手、滤掉事件抖动，越大越绵柔
+        var followTau = (bgSettings.followMs != null ? bgSettings.followMs : 20) / 1000;
+        var kp = 1 - Math.exp(-fdt / followTau);
+        mouse.smoothX += ((useM ? mouse.x : driftX) - mouse.smoothX) * kp;
+        mouse.smoothY += ((useM ? mouse.y : driftY) - mouse.smoothY) * kp;
+        // 速度平滑：时间常数为跟手灵敏度的 4 倍（默认 80ms），拖尾方向稳定不抖
+        var kv = 1 - Math.exp(-fdt / (followTau * 4));
+        mouse.svx += (mouse.rawVX - mouse.svx) * kv;
+        mouse.svy += (mouse.rawVY - mouse.svy) * kv;
+
+        var brushX = mouse.smoothX, brushY = mouse.smoothY;
+        var brushVX = useM ? mouse.svx : driftVX;
+        var brushVY = useM ? mouse.svy : driftVY;
+        var brushStrength = useM ? cfg.mouseStrength : cfg.mouseStrength * 0.28;
+
+        // --- flowmap pass（低分辨率流场，双缓冲乒乓；鼠标或漫游笔刷持续喂入） ---
+        var src = flip ? targetA : targetB;
+        var dst = flip ? targetB : targetA;
+        flip = !flip;
+        latestTex = dst.tex;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+        gl.viewport(0, 0, wQ, hQ);
+        gl.useProgram(progFlow);
+        bindAttrib(progFlow);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, src.tex);
+        gl.uniform1i(uFlow.prev, 0);
+        gl.uniform2f(uFlow.mouse, brushX, brushY);
+        gl.uniform2f(uFlow.velocity, brushVX, brushVY);
+        gl.uniform1f(uFlow.brushRadius, cfg.mouseRadius);
+        gl.uniform1f(uFlow.brushStrength, brushStrength);
+        // 衰减按实际帧间隔归一化（基准 30fps）：任何更新频率下拖尾淡出速度一致
+        gl.uniform1f(uFlow.decay, Math.pow(cfg.decay, fdt * 30));
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, W, H);
+      }
+
+      // ---- 渲染（帧率跟随设置；交互活跃期提到 60fps） ----
+      if (now - lastRender < 1000 / renderHz) return;
+      lastRender = now - (now - lastRender) % (1000 / renderHz);
+      auroraBlanked = false;
+
+      // --- 渲染 ---
+      var t = (performance.now() - start) * 0.001 * (cfg.speed / 100);
+      if (cfg.type === "fluid") {
+        gl.useProgram(progFluid);
+        bindAttrib(progFluid);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, latestTex);
+        gl.uniform1i(uFluid.flowmap, 0);
+        gl.uniform1f(uFluid.time, t);
+        gl.uniform2f(uFluid.resolution, W, H);
+        gl.uniform1f(uFluid.scale, cfg.scale);
+        gl.uniform2f(uFluid.offset, cfg.offsetX / 100, cfg.offsetY / 100);
+        gl.uniform1f(uFluid.grain, cfg.grain);
+        gl.uniform1f(uFluid.distortBoost, cfg.distortBoost);
+        gl.uniform1f(uFluid.swirlBoost, cfg.swirlBoost);
+        var lx = cfg.lightX != null ? cfg.lightX : 0.89;
+        // 光线跟随：官方 lightFollow × 设置面板强度，关闭鼠标跟随时完全静止（用 useM 守卫而非 0.85 衰减）
+        var lf = cfg.lightFollow != null ? cfg.lightFollow * (bgSettings.lightFollow != null ? bgSettings.lightFollow : 1) * (useM ? 1 : 0) : 0;
+        gl.uniform2f(uFluid.lightPos, lx + (mouse.smoothX - lx) * lf, cfg.lightY != null ? cfg.lightY : 0.46);
+        gl.uniform1f(uFluid.lightCore, media.coarse ? 0 : (cfg.lightCore != null ? cfg.lightCore : 0.14));
+        gl.uniform1f(uFluid.lightHalo, media.coarse ? 0 : (cfg.lightHalo != null ? cfg.lightHalo : 0.2));
+        gl.uniform1f(uFluid.vignette, cfg.vignette != null ? cfg.vignette : 0.38);
+        gl.uniform1f(uFluid.bloomThreshold, cfg.bloomThreshold != null ? cfg.bloomThreshold : 0.61);
+        gl.uniform1f(uFluid.bloomRange, cfg.bloomRange != null ? cfg.bloomRange : 0.18);
+        gl.uniform1f(uFluid.bloomStrength, cfg.bloomStrength != null ? cfg.bloomStrength : 0.4);
+        gl.uniform1f(uFluid.glowIntensity, cfg.glowIntensity);
+        var gc1 = hex2rgb(cfg.glowColors[0] || "#ffffff");
+        var gc2 = hex2rgb(cfg.glowColors[1] || cfg.glowColors[0] || "#ffffff");
+        var gc3 = hex2rgb(cfg.glowColors[2] || cfg.glowColors[0] || "#ffffff");
+        gl.uniform3f(uFluid.glowColor1, gc1[0], gc1[1], gc1[2]);
+        gl.uniform3f(uFluid.glowColor2, gc2[0], gc2[1], gc2[2]);
+        gl.uniform3f(uFluid.glowColor3, gc3[0], gc3[1], gc3[2]);
+        var cs = cfg.colors || [];
+        for (var ci = 0; ci < 5; ci++) {
+          var c = hex2rgb(cs[ci] || cs[cs.length - 1] || "#000000");
+          gl.uniform3f([uFluid.c1, uFluid.c2, uFluid.c3, uFluid.c4, uFluid.c5][ci], c[0], c[1], c[2]);
+        }
+      } else {
+        gl.useProgram(progPart);
+        bindAttrib(progPart);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, latestTex);
+        gl.uniform1i(uPart.flowmap, 0);
+        gl.uniform1f(uPart.time, t);
+        gl.uniform1f(uPart.pixelRatio, window.devicePixelRatio || 1);
+        gl.uniform2f(uPart.resolution, W, H);
+        gl.uniform1f(uPart.scale, cfg.scale);
+        gl.uniform1f(uPart.rotation, cfg.rotation / 90);
+        gl.uniform2f(uPart.offset, cfg.offsetX / 100, cfg.offsetY / 100);
+        var cols = cfg.colors || ["#2E58A4", "#D2E2EE", "#FFFFFF"];
+        for (var pi = 0; pi < 5; pi++) {
+          var pc = hex2rgb(cols[pi] || cols[cols.length - 1] || "#000000");
+          gl.uniform4f([uPart.color1, uPart.color2, uPart.color3, uPart.color4, uPart.color5][pi], pc[0], pc[1], pc[2], 1);
+        }
+        gl.uniform1f(uPart.colorCount, cols.length);
+        gl.uniform1f(uPart.proportion, cfg.proportion / 100);
+        gl.uniform1f(uPart.softness, cfg.softness / 100);
+        gl.uniform1f(uPart.shape, 0);
+        gl.uniform1f(uPart.shapeScale, cfg.shapeScale / 100);
+        gl.uniform1f(uPart.distortion, cfg.distortion / 100);
+        gl.uniform1f(uPart.swirl, cfg.swirl / 50);
+        gl.uniform1f(uPart.swirlIterations, cfg.swirlIterations);
+        gl.uniform1f(uPart.distortBoost, cfg.distortBoost);
+        gl.uniform1f(uPart.noiseBoost, cfg.noiseBoost);
+        gl.uniform1f(uPart.swirlBoost, cfg.swirlBoost);
+        gl.uniform1f(uPart.glowIntensity, cfg.glowIntensity);
+        var pc1 = hex2rgb(cfg.glowColors[0] || "#ffffff");
+        var pc2 = hex2rgb(cfg.glowColors[1] || cfg.glowColors[0] || "#ffffff");
+        var pc3 = hex2rgb(cfg.glowColors[2] || cfg.glowColors[0] || "#ffffff");
+        gl.uniform3f(uPart.glowColor1, pc1[0], pc1[1], pc1[2]);
+        gl.uniform3f(uPart.glowColor2, pc2[0], pc2[1], pc2[2]);
+        gl.uniform3f(uPart.glowColor3, pc3[0], pc3[1], pc3[2]);
+      }
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    if (media.reducedMotion) {
+      // 单帧静态（原代码误用未声明的 last，严格模式下抛 ReferenceError）
+      lastFlow = 0;
+      lastRender = 0;
+      running = true;
+      frame(performance.now());
+      cancelAnimationFrame(raf);
+      raf = 0;
+      running = false;
+    } else {
+      raf = requestAnimationFrame(frame);
+    }
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") {
+        if (!raf && running) raf = requestAnimationFrame(frame);
+      } else if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    });
+    window.addEventListener("resize", function () { resizeAll(); }, { passive: true });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 粒子化鲸鱼引擎（官方移植：HeroDigitileR3F → 原生 WebGL2）
+   * 源码取自官网 harness 页懒加载 chunk 776（未进缓存，已从官网抓取）：
+   *   - 粒子位置：官方算法从 hero-whale.svg 像素亮度采样（60x60，边缘保留）
+   *   - 顶点/片元 shader：官方 GLSL 逐字移植（three.js 矩阵替换为原生 uniform）
+   *   - 交互：鼠标扭曲粒子（radius/strength/decay/distort）、光线跟随鼠标
+   *     （lightParams.followX）、入场组装动画、松散漂移、游泳波动
+   *   - 参数：DIGITILE_LIGHT_DEFAULTS / DIGITILE_MOUSE_DEFAULTS 与官方一致
+   * ------------------------------------------------------------------ */
+  // 官方鲸鱼纹理（hero-whale.svg，抓自 https://www.deepseek.com/harness/images/hero-whale.svg）
+
+  shared.refs.startAurora = startAurora;
+}
+
+
+/* ===================== whale.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/whale.js — 粒子化鲸鱼引擎（initWhale）+ 鲸鱼层显隐
+ *   shader/纹理常量与矩阵工具在 src/whale-shaders.js（工厂级片段）。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initWhale(shared) {
+  var state = shared.state;
+  var bgSettings = shared.settings;
+  var media = shared.media;
+  var diag = shared.dom.diag;
+
+  /** 鲸鱼层显隐：全主题统一，仅受设置开关控制 */
+  function updateWhaleDisplay() {
+    if (!shared.dom.whaleLayer) return;
+    shared.dom.whaleLayer.style.display = bgSettings.whale ? "flex" : "none";
+  }
   function startWhale() {
-    var canvas = whaleCanvas;
+    var canvas = shared.dom.whaleCanvas;
     // GPU 优化：点精灵粒子不需要 MSAA，antialias:false 省掉全屏 MSAA resolve；
     // low-power 提示驱动选择低功耗 GPU。渲染效果与原来一致（GL_POINTS 本来就不走多边形 AA）。
     var gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: true, antialias: false, powerPreference: "low-power" });
     if (!gl) { canvas.dataset.state = "no-webgl2"; return; }
     diag.whaleGL = true;
+    try {
+      canvas.addEventListener("webglcontextlost", function(e){ try{ e.preventDefault(); }catch(_){} canvas.dataset.state="context-lost"; });
+      canvas.addEventListener("webglcontextrestored", function(){ try{ canvas.dataset.state="restoring"; startWhale(); }catch(_){} });
+    } catch(_){}
     var img = new Image();
     img.onload = function () {
       var data;
@@ -3827,18 +4763,26 @@ function apply(ctx) {
       gl.shaderSource(s, src);
       gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-        if (typeof console !== "undefined") console.error("whale shader:", gl.getShaderInfoLog(s));
+        var log=""; try{ log=gl.getShaderInfoLog(s)||"compile failed"; }catch(_){}
+        try{ console.error("[dsh-bg] whale shader compile failed:", log.slice(0,400)); }catch(_){}
+        try{ canvas.dataset.state="whale-compile-fail:"+log.slice(0,200); diag.whaleProgs="compile-fail"; }catch(_){}
+        try{ gl.deleteShader(s); }catch(_){}
         return null;
       }
       return s;
     }
     var prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl.VERTEX_SHADER, WHALE_VS));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, WHALE_FS));
+    var vsS = compile(gl.VERTEX_SHADER, WHALE_VS);
+    var fsS = compile(gl.FRAGMENT_SHADER, WHALE_FS);
+    if (!vsS || !fsS) { try{ canvas.dataset.state="whale-shader-null"; diag.whaleProgs="compile-fail"; }catch(_){} return; }
+    gl.attachShader(prog, vsS);
+    gl.attachShader(prog, fsS);
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      canvas.dataset.state = "link-fail";
-      diag.whaleProgs = "link-fail";
+      var log2=""; try{ log2=gl.getProgramInfoLog(prog)||"link failed"; }catch(_){}
+      try{ console.error("[dsh-bg] whale program link failed:", log2.slice(0,400)); }catch(_){}
+      try{ canvas.dataset.state = "link-fail:"+log2.slice(0,200); diag.whaleProgs = "link-fail"; }catch(_){}
+      try{ gl.deleteProgram(prog); }catch(_){}
       return;
     }
     canvas.dataset.state = "shader-ok";
@@ -3888,7 +4832,7 @@ function apply(ctx) {
     }
     function onLeave() { mouse.active = false; }
     function onVis() { if (document.hidden) mouse.active = false; }
-    if (!reducedMotion) {
+    if (!media.reducedMotion) {
       window.addEventListener("mousemove", onMove, { passive: true });
       window.addEventListener("mouseleave", onLeave);
       document.addEventListener("visibilitychange", onVis);
@@ -3906,10 +4850,23 @@ function apply(ctx) {
     var CAM_DIST = 15;
     var HALF_H = Math.tan(FOV / 2) * CAM_DIST; // viewport（z=0 平面）半高
     var view = m4Translation(0, 0, -15);
+    // 复用矩阵缓冲，避免每帧分配 6 个 Float32Array(16)
+    var _mTmpA = new Float32Array(16), _mTmpB = new Float32Array(16), _mTmpC = new Float32Array(16), _mTmpD = new Float32Array(16), _mTmpE = new Float32Array(16), _mTmpF = new Float32Array(16);
+    var _modelBuf = new Float32Array(16), _projBuf = new Float32Array(16);
 
     // GPU 优化：鲸鱼是柔光粒子层，1.25x 物理分辨率渲染（原 1.5x 上限），
     // 像素量减少约 30%，屏幕混合的柔光粒子放大后无感知差异
     var WHALE_DPR = 1.25;
+
+    // out 参数版矩阵工具（复用缓冲，零分配）
+    function m4TranslationOut(tx, ty, tz, out) { out[0]=1;out[1]=0;out[2]=0;out[3]=0; out[4]=0;out[5]=1;out[6]=0;out[7]=0; out[8]=0;out[9]=0;out[10]=1;out[11]=0; out[12]=tx;out[13]=ty;out[14]=tz;out[15]=1; return out; }
+    function m4ScaleOut(s, out) { out[0]=s;out[1]=0;out[2]=0;out[3]=0; out[4]=0;out[5]=s;out[6]=0;out[7]=0; out[8]=0;out[9]=0;out[10]=s;out[11]=0; out[12]=0;out[13]=0;out[14]=0;out[15]=1; return out; }
+    function m4RotationXOut(a, out){ var c=Math.cos(a),s=Math.sin(a); out[0]=1;out[1]=0;out[2]=0;out[3]=0; out[4]=0;out[5]=c;out[6]=s;out[7]=0; out[8]=0;out[9]=-s;out[10]=c;out[11]=0; out[12]=0;out[13]=0;out[14]=0;out[15]=1; return out; }
+    function m4RotationYOut(a, out){ var c=Math.cos(a),s=Math.sin(a); out[0]=c;out[1]=0;out[2]=-s;out[3]=0; out[4]=0;out[5]=1;out[6]=0;out[7]=0; out[8]=s;out[9]=0;out[10]=c;out[11]=0; out[12]=0;out[13]=0;out[14]=0;out[15]=1; return out; }
+    function m4RotationZOut(a, out){ var c=Math.cos(a),s=Math.sin(a); out[0]=c;out[1]=s;out[2]=0;out[3]=0; out[4]=-s;out[5]=c;out[6]=0;out[7]=0; out[8]=0;out[9]=0;out[10]=1;out[11]=0; out[12]=0;out[13]=0;out[14]=0;out[15]=1; return out; }
+    function m4MulOut(a,b,out){ for(var c=0;c<4;c++) for(var r=0;r<4;r++) out[c*4+r]=a[0*4+r]*b[c*4+0]+a[1*4+r]*b[c*4+1]+a[2*4+r]*b[c*4+2]+a[3*4+r]*b[c*4+3]; return out; }
+    function m4PerspectiveOut(fovY, aspect, near, far, out){ var f=1/Math.tan(fovY/2), nf=1/(near-far); out[0]=f/aspect;out[1]=0;out[2]=0;out[3]=0; out[4]=0;out[5]=f;out[6]=0;out[7]=0; out[8]=0;out[9]=0;out[10]=(far+near)*nf;out[11]=-1; out[12]=0;out[13]=0;out[14]=2*far*near*nf;out[15]=0; return out; }
+
     function resize() {
       var w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
       var dpr = WHALE_DPR;
@@ -3921,7 +4878,7 @@ function apply(ctx) {
 
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      if (whaleLayer.style.display === "none") return;
+      if (shared.dom.whaleLayer.style.display === "none") return;
       // 鼠标跟随开启时鲸鱼提到 60fps（点精灵渲染开销小），光线/扭曲跟手更顺滑
       var frameMs = 1000 / (bgSettings.mouse ? 60 : (bgSettings.fps || 30));
       if (now - last < frameMs) return;
@@ -3929,7 +4886,7 @@ function apply(ctx) {
       last = now - (now - last) % frameMs;
 
       var w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
-      if (Math.round(w * WHALE_DPR) !== canvas.width) resize();
+      if (Math.round(w * WHALE_DPR) !== canvas.width || Math.round(h * WHALE_DPR) !== canvas.height) resize();
 
       var elapsed = (now - start) / 1000;
       var L = Math.max(0, Math.min(1, (elapsed - 0.3) / 2.5));
@@ -3942,11 +4899,23 @@ function apply(ctx) {
       var rotY = 0.1 * Math.sin(0.08 * elapsed);
       var posY = 0.15 * Math.sin(0.4 * elapsed);
       var scale = 0.75 + 0.25 * D;
-      var model = m4Mul(m4Mul(m4Translation(0, posY, 0),
-        m4Mul(m4RotationZ(rotZ), m4Mul(m4RotationY(rotY), m4RotationX(rotX)))), m4Scale(scale));
-
       var aspect = canvas.width / canvas.height;
-      var proj = m4Perspective(FOV, aspect, 0.1, 100);
+      var halfW = HALF_H * aspect;
+      // 靠右布局：将鲸鱼中心进一步向右侧偏移（占据右侧开阔区域，文字区彻底清爽）
+      var posX = halfW * 0.52;
+      // 使用复用缓冲的 out 版矩阵，避免每帧新建 6 个 Float32Array
+      m4RotationXOut(rotX, _mTmpA);
+      m4RotationYOut(rotY, _mTmpB);
+      m4MulOut(_mTmpB, _mTmpA, _mTmpC);
+      m4RotationZOut(rotZ, _mTmpD);
+      m4MulOut(_mTmpD, _mTmpC, _mTmpE);
+      m4TranslationOut(posX, posY, 0, _mTmpA);
+      m4MulOut(_mTmpA, _mTmpE, _mTmpB);
+      m4ScaleOut(scale, _mTmpC);
+      m4MulOut(_mTmpB, _mTmpC, _modelBuf);
+      var model = _modelBuf;
+      m4PerspectiveOut(FOV, aspect, 0.1, 100, _projBuf);
+      var proj = _projBuf;
       gl.uniformMatrix4fv(u.uModel, false, model);
       gl.uniformMatrix4fv(u.uView, false, view);
       gl.uniformMatrix4fv(u.uProj, false, proj);
@@ -3962,14 +4931,11 @@ function apply(ctx) {
       var target = (mouse.active && bgSettings.mouse) ? MOUSE_DEFAULTS.strength : 0;
       strength += (target - strength) * (1 - Math.pow(0.05, dt));
       gl.uniform1f(u.uMouseStrength, strength);
-      // 光线：官方 lightParams.followX —— light.x 跟随鼠标世界坐标（关闭时固定）；
-      // 屏幕坐标先做帧率无关指数平滑（时间常数为跟手灵敏度的 2 倍，默认 40ms），
-      // 强度由「光线跟随强度」控制，消除事件抖动又不拖后腿
+      // 光线：跟随鲸鱼右移基准 + 光标移动响应
       var wk = 1 - Math.exp(-dt / ((bgSettings.followMs != null ? bgSettings.followMs : 20) * 2 / 1000));
       wSX += ((bgSettings.mouse ? mouse.x : 0) - wSX) * wk;
       wSY += ((bgSettings.mouse ? mouse.y : 0) - wSY) * wk;
-      var halfW = HALF_H * aspect;
-      gl.uniform3f(u.uLightPos, LIGHT_DEFAULTS.x + wSX * halfW * LIGHT_DEFAULTS.followX * (bgSettings.lightFollow != null ? bgSettings.lightFollow : 1), LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
+      gl.uniform3f(u.uLightPos, posX + 2.5 + wSX * halfW * LIGHT_DEFAULTS.followX * (bgSettings.mouse ? (bgSettings.lightFollow != null ? bgSettings.lightFollow : 1) : 0), LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
       gl.uniform1f(u.uLightRange, LIGHT_DEFAULTS.range);
       gl.uniform1f(u.uShadeMin, LIGHT_DEFAULTS.shadeMin);
       gl.uniform1f(u.uShadeMax, LIGHT_DEFAULTS.shadeMax);
@@ -3984,16 +4950,16 @@ function apply(ctx) {
       var ux = inv[0]*b.x + inv[4]*b.y + inv[12];
       var uy = inv[1]*b.x + inv[5]*b.y + inv[13];
       gl.uniform2f(u.uMouse, ux, uy);
-      // 颜色：官方 uColor = (.75P, .8P, .9P)，P = D*max(0,1-1.5E)
-      gl.uniform3f(u.uColor, 0.75 * D, 0.8 * D, 0.9 * D);
-      // 点尺寸：官方 BoxGeometry 0.06 单位 × 实例缩放 × 组缩放
-      gl.uniform1f(u.uPointScale, 0.06 * scale * (canvas.height / (2 * HALF_H)));
+      // 颜色：晶透亮白粒子（带极微量冰蓝高光）
+      gl.uniform3f(u.uColor, 0.95 * D, 0.97 * D, 1.0 * D);
+      // 点尺寸：官方 BoxGeometry 0.065 单位 × 实例缩放 × 组缩放（提升粒子点阵清晰度）
+      gl.uniform1f(u.uPointScale, 0.065 * scale * (canvas.height / (2 * HALF_H)));
 
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.POINTS, 0, data.count);
     }
 
-    if (reducedMotion) {
+    if (media.reducedMotion) {
       start = performance.now() - 30000; // 组装动画已完成的状态下绘制单帧
       last = 0;
       frame(performance.now());
@@ -4004,7 +4970,7 @@ function apply(ctx) {
     }
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "visible") {
-        if (!raf) raf = requestAnimationFrame(frame);
+        if (!raf && !media.reducedMotion) raf = requestAnimationFrame(frame);
       } else if (raf) {
         cancelAnimationFrame(raf);
         raf = 0;
@@ -4012,11 +4978,27 @@ function apply(ctx) {
     });
   }
 
+  shared.refs.startWhale = startWhale;
+  shared.refs.updateWhaleDisplay = updateWhaleDisplay;
+}
+
+
+/* ===================== constellation.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/constellation.js — 星座网格引擎（initConstellation，2D canvas）
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initConstellation(shared) {
+  var state = shared.state;
+  var bgSettings = shared.settings;
+  var media = shared.media;
+  var diag = shared.dom.diag;
+
   /* ------------------------------------------------------------------ *
    * 星座网格引擎（2D canvas）
    * ------------------------------------------------------------------ */
   function startConstellation() {
-    var canvas = constellationCanvas;
+    var canvas = shared.dom.constellationCanvas;
     var ctx = canvas.getContext("2d");
     if (!ctx) return;
     diag.constellation = true;
@@ -4060,10 +5042,10 @@ function apply(ctx) {
       mouse.y = e.clientY - r.top;
       wake();
     }
-    if (!reducedMotion) window.addEventListener("mousemove", onMove, { passive: true });
+    if (!media.reducedMotion) window.addEventListener("mousemove", onMove, { passive: true });
 
     function draw(mx, my, active) {
-      var opts = currentConstellation();
+      var opts = shared.refs.currentConstellation();
       var w = canvas.clientWidth, h = canvas.clientHeight;
       ctx.clearRect(0, 0, w, h);
 
@@ -4127,11 +5109,11 @@ function apply(ctx) {
         raf = requestAnimationFrame(loop);
       }
     }
-    wakeConstellationRef = wake; // 设置面板重新开启星座时唤醒（idle 停止后 rAF 已停）
+    shared.refs.wakeConstellation = wake; // 设置面板重新开启星座时唤醒（idle 停止后 rAF 已停）
 
     var constBlanked = false;
     function loop(now) {
-      if (!state.dark || !bgSettings.constellation) {
+      if (!bgSettings.constellation) {
         // 关闭：清空画布一次后空转（与浅色主题同一模式，代价可忽略）
         if (!bgSettings.constellation && !constBlanked) {
           ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
@@ -4183,7 +5165,7 @@ function apply(ctx) {
       raf = requestAnimationFrame(loop);
     }
 
-    if (reducedMotion) {
+    if (media.reducedMotion) {
       draw(NaN, NaN, false); // 静态单帧
     } else {
       idle = false;
@@ -4202,32 +5184,390 @@ function apply(ctx) {
   /* ------------------------------------------------------------------ *
    * 主题联动
    * ------------------------------------------------------------------ */
+
+  shared.refs.startConstellation = startConstellation;
+}
+
+
+/* ===================== shell.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/shell.js — 外壳透明化与诊断面板（initShell）
+ *   玻璃内联样式按设置开关重跑（shared.refs.shellGlassApply）；
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initShell(shared) {
+  var state = shared.state;
+  var bgSettings = shared.settings;
+  var diag = shared.dom.diag;
+  var shellMutObs = null;
+  var shellUnsub = null;
+  var shellTimer = null;
+  var shellTries = 0;
+  var shellRaf = 0;
+
+  function startDiagPanel() {
+    function collect() {
+      var cs = function (el) { try { return window.getComputedStyle(el); } catch (e) { return null; } };
+      var bcs = cs(document.body);
+      var hcs = cs(document.documentElement);
+      var ccs = cs(shared.dom.container);
+      var frame = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
+        document.querySelector('[data-slot="root"] > div');
+      var fcs = frame ? cs(frame) : null;
+      diag.theme = state.dark ? "dark" : "light";
+      diag.bodyBg = bcs ? bcs.backgroundColor : "?";
+      diag.htmlBg = hcs ? hcs.backgroundColor : "?";
+      diag.containerPos = ccs ? ccs.position : "?";
+      diag.containerZ = ccs ? ccs.zIndex : "?";
+      diag.containerBg = ccs ? (ccs.backgroundImage + " / " + ccs.backgroundColor) : "?";
+      diag.frameFound = !!frame;
+      diag.frameBg = fcs ? fcs.backgroundColor : "?";
+      diag.canvasW = shared.dom.auroraCanvas.width;
+      diag.canvasH = shared.dom.auroraCanvas.height;
+    }
+    collect();
+    var panel = document.createElement("pre");
+    panel.id = "dsh-ds-diag";
+    panel.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:2147483000;background:#fff;color:#000;" +
+      "font:11px/1.5 monospace;padding:10px 12px;border:2px solid #f00;max-width:520px;white-space:pre-wrap;";
+    document.body.appendChild(panel);
+    function render() {
+      collect();
+      panel.textContent = [
+        "dsh-deepseek-bg v3 diagnostics",
+        "theme: " + diag.theme,
+        "body bg: " + diag.bodyBg,
+        "html bg: " + diag.htmlBg,
+        "container: pos=" + diag.containerPos + " z=" + diag.containerZ + " bg=" + diag.containerBg,
+        "frame found: " + diag.frameFound + " bg=" + diag.frameBg,
+        "aurora: gl=" + diag.auroraGL + " progs=[" + diag.auroraProgs + "]",
+        "constellation: " + diag.constellation,
+        "canvas: " + diag.canvasW + "x" + diag.canvasH
+      ].join("\n");
+    }
+    render();
+    setInterval(render, 1000);
+  }
+  function makeShellTransparent() {
+    // 深色主题要设置/撤销的内联样式属性集合
+    var GLASS_PROPS = ["background", "background-color", "backdrop-filter", "-webkit-backdrop-filter",
+      "box-shadow", "border-right-color", "border-color", "--dsh-bg-blur"];
+    var processedGlass = (typeof WeakSet !== "undefined") ? new WeakSet() : null;
+    function clearInline(el) {
+      if (!el || !el.style) return;
+      for (var i = 0; i < GLASS_PROPS.length; i++) el.style.removeProperty(GLASS_PROPS[i]);
+    }
+    function ensureShellObserver() {
+      if (shellUnsub || shellMutObs) return;
+      if (!bgSettings.glass) return;
+      // 优先使用合批 observer（rAF 合批，单例在 #root），回退到独立 observer
+      if (shared.refs.subscribeCoalesced) {
+        try {
+          shellUnsub = shared.refs.subscribeCoalesced(function(){ try { scheduleShellGlass(); } catch(e) {} });
+          return;
+        } catch(e){}
+      }
+      if (!window.MutationObserver) return;
+      shellMutObs = new MutationObserver(function(){ try { scheduleShellGlass(); } catch(e) {} });
+      var rootEl = document.querySelector("#root") || document.documentElement;
+      try { shellMutObs.observe(rootEl, { childList: true, subtree: true }); } catch(e) {}
+    }
+    function detachShellObserver() {
+      if (shellUnsub) { try { shellUnsub(); } catch(e) {} shellUnsub = null; return; }
+      if (shellMutObs) { try { shellMutObs.disconnect(); } catch(e) {} shellMutObs = null; }
+      if (shellRaf) { try { cancelAnimationFrame(shellRaf); } catch(_){} shellRaf = 0; }
+    }
+    function scheduleShellGlass(){
+      if (shellRaf) return;
+      var raf = window.requestAnimationFrame || function(fn){ return setTimeout(fn,16); };
+      shellRaf = raf(function(){ shellRaf=0; try{ applyShellGlass(); }catch(e){} });
+    }
+    function applyShellGlass() {
+      // 玻璃开关关闭：清理覆盖并断开观察器/轮询（全主题统一深色，不再判断 state.dark）
+      if (!bgSettings.glass) {
+        try { detachShellObserver(); } catch(e) {}
+        // 浅色主题：撤销所有覆盖，恢复官方原版
+        var frame0 = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
+          document.querySelector('[data-slot="root"] > div');
+        clearInline(frame0);
+        clearInline(document.querySelector("#root ._boot_9gj4p_6"));
+        var views0 = document.querySelectorAll('[data-slot="conversation"] > div, .pI_x6G_detailsCol > div');
+        for (var i0 = 0; i0 < views0.length; i0++) clearInline(views0[i0]);
+        clearInline(document.querySelector(".pI_x6G_sidebarCol"));
+        clearInline(document.querySelector(".hHd-Xa_root, [data-slot=\"sidebar\"] > div"));
+        clearInline(document.querySelector(".uV2eYG_card, [data-composer-card=\"true\"]"));
+        clearInline(document.querySelector(".wSkVaW_composerSeat, [data-composer-seat]"));
+        clearInline(document.querySelector(".qDHVXG_fade"));
+        var glassEls0 = document.querySelectorAll(".gdEzaW_bubble, ._block_10eou_7, ._block_biesw_7, ._block_srovd_7, ._block_s66q0_7, ._block_178r4_4, ._block_d4nqi_7, ._body_1ye18_20, ._copyButton_10eou_142, ._bannerWrap_178r4_21, .LVzXQa_card, .Mbwy4a_card, .VOzbGW_panel, .CY-8Ka_ioCard, .o3BgMG_ioCard, [class$=\"_bubble\"], [class*=\"_block_\"], [class$=\"_bannerWrap\"], [class$=\"_copyButton\"]");
+        for (var g0 = 0; g0 < glassEls0.length; g0++) clearInline(glassEls0[g0]);
+        return;
+      }
+      // 玻璃开启且深色：确保观察器存活
+      try { ensureShellObserver(); } catch(e) {}
+      // 玻璃模糊强度由设置面板实时控制（CSS 全部走 blur(var(--dsh-bg-blur))）
+      try { document.body.style.setProperty("--dsh-bg-blur", (bgSettings.blur || 8) + "px"); } catch (e) {}
+      var frame = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
+        document.querySelector('[data-slot="root"] > div');
+      if (frame && frame.style) {
+        diag.frameFound = true;
+        diag.frameBg = window.getComputedStyle ? window.getComputedStyle(frame).backgroundColor : "?";
+        frame.style.setProperty("background", "transparent", "important");
+      }
+      var bootEl = document.querySelector("#root ._boot_9gj4p_6");
+      if (bootEl && bootEl.style) {
+        bootEl.style.setProperty("background", "transparent", "important");
+      }
+      // 视图根容器（会话视图等全高不透明层）同样透明化
+      var views = document.querySelectorAll('[data-slot="conversation"] > div, .pI_x6G_detailsCol > div');
+      for (var i = 0; i < views.length; i++) {
+        var v = views[i];
+        if (v && v.style) v.style.setProperty("background", "transparent", "important");
+      }
+      // 官方玻璃拟态（ds-glass 令牌：blur 12px + 深色半透明表面色 + 官方边框/阴影）
+      var glassBg = "rgba(13,15,19,.55)";
+      var glassBorder = "hsla(0,0%,100%,.08)";
+      var glassShadow = "0 0 1px 0 rgba(0,0,0,.2), 0 0 4px 0 rgba(0,0,0,.02), 0 12px 32px 0 rgba(0,0,0,.08)";
+      var side = document.querySelector(".pI_x6G_sidebarCol");
+      if (side && side.style) {
+        // 注意：backdrop-filter 会让侧边栏成为 fixed 后代的包含块（设置弹窗错乱），
+        // 所以列本身不设 backdrop-filter，模糊由 CSS 的 ::before 伪元素承担
+        side.style.setProperty("background", glassBg, "important");
+        side.style.setProperty("border-right-color", glassBorder, "important");
+      }
+      var sideRoot = document.querySelector(".hHd-Xa_root, [data-slot=\"sidebar\"] > div");
+      if (sideRoot && sideRoot.style) {
+        // 注意：不能给侧边栏内容根加 z-index/堆叠上下文——设置弹窗（fixed z-1000）
+        // 挂载在侧边栏内部，被困在侧边栏堆叠上下文里会被输入框（z-7）盖住；
+        // 模糊由 CSS 的 ::before z-index:-1 承担，内容自然在模糊层之上
+        sideRoot.style.setProperty("background", "transparent", "important");
+      }
+      var card = document.querySelector(".uV2eYG_card, [data-composer-card=\"true\"]");
+      if (card && card.style) {
+        card.style.setProperty("background", glassBg, "important");
+        card.style.setProperty("backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
+        card.style.setProperty("-webkit-backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
+        card.style.setProperty("border-color", glassBorder, "important");
+        card.style.setProperty("box-shadow", glassShadow, "important");
+      }
+      var seat = document.querySelector(".wSkVaW_composerSeat, [data-composer-seat]");
+      if (seat && seat.style) seat.style.setProperty("background", "transparent", "important");
+      // 会话列表底部渐隐条（qDHVXG_fade）：玻璃侧边栏下会露出浅色白条，透明化
+      var fade = document.querySelector(".qDHVXG_fade");
+      if (fade && fade.style) fade.style.setProperty("background", "transparent", "important");
+      // 消息气泡与代码块玻璃化（与侧边栏/输入框同款材质）—— WeakSet 缓存避免每突变全量重写
+      var glassRing = "inset 0 0 0 1px hsla(0,0%,100%,.08)";
+      var blurPx = (bgSettings.blur || 8) + "px";
+      var glassEls = document.querySelectorAll(".gdEzaW_bubble, ._block_10eou_7, ._block_biesw_7, ._block_srovd_7, ._block_s66q0_7, ._block_178r4_4, ._block_d4nqi_7, ._body_1ye18_20, ._copyButton_10eou_142, ._bannerWrap_178r4_21, .LVzXQa_card, .Mbwy4a_card, .VOzbGW_panel, .CY-8Ka_ioCard, .o3BgMG_ioCard, [class$=\"_bubble\"], [class*=\"_block_\"], [class$=\"_bannerWrap\"], [class$=\"_copyButton\"]");
+      for (var gi = 0; gi < glassEls.length; gi++) {
+        var ge = glassEls[gi];
+        if (!ge || !ge.style) continue;
+        if (processedGlass) {
+          var cached = ge._dshBlur;
+          if (processedGlass.has(ge) && cached === blurPx) continue;
+          processedGlass.add(ge); ge._dshBlur = blurPx;
+        }
+        ge.style.setProperty("background", glassBg, "important");
+        ge.style.setProperty("backdrop-filter", "blur(" + blurPx + ")", "important");
+        ge.style.setProperty("-webkit-backdrop-filter", "blur(" + blurPx + ")", "important");
+        ge.style.setProperty("box-shadow", glassRing, "important");
+      }
+    }
+    applyShellGlass();
+    shared.refs.shellGlassApply = applyShellGlass; // 暴露给设置开关：切换玻璃时立即重跑
+    shared.refs.shellMutObs = function(){ return shellMutObs; };
+    shared.refs.shellTimer = function(){ return shellTimer; };
+    // 暴露 detach 供外部/主题切换调用
+    shared.refs.detachShellObserver = detachShellObserver;
+    shared.refs.ensureShellObserver = ensureShellObserver;
+    // 轮询兜底：合批 observer 为主，仅保留轻量 2s 间隔作为保险（最多 30 次，60s 后自停）
+    if (!shellTimer) {
+      shellTimer = setInterval(function () {
+        if (!bgSettings.glass) { try { detachShellObserver(); } catch(e) {} if (shellTimer){ clearInterval(shellTimer); shellTimer=null; } return; }
+        try { scheduleShellGlass(); } catch(e) {}
+        if (++shellTries > 30) { clearInterval(shellTimer); shellTimer = null; }
+      }, 2000);
+    }
+    ensureShellObserver();
+  }
+
+  shared.refs.makeShellTransparent = makeShellTransparent;
+  shared.refs.startDiagPanel = startDiagPanel;
+}
+
+
+/* ===================== observer.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/observer.js — 主题联动（initObserver，MutationObserver + matchMedia）
+ *   全主题统一深色：监听到主题属性变化时强制回写 dark，确保浅色亦显示深色主题。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initObserver(shared) {
+  var state = shared.state;
+
   function observeTheme() {
     var apply = function () {
-      var d = detectDark();
-      if (d !== state.dark) {
-        state.dark = d;
-        applyThemeClass();
-        try{ refreshBeamTheme(); }catch(e){}
-      } else {
-        // even if dark didn't change, beam light/dark still follows state.dark, but ensure styles exist for initial light case
-        try{ if (beamAttachedCard) refreshBeamTheme(); }catch(e){}
-      }
+      // 全主题统一深色：属性回写由 applyThemeClass 幂等处理
+      // （已满足则不动 DOM，避免「观察 → 改写 → 再观察」死循环）。
+      state.dark = true;
+      try { shared.refs.applyThemeClass(); } catch(e){}
+      try{ if (shared.refs.refreshBeamTheme) shared.refs.refreshBeamTheme(); }catch(e){}
+      try{ if (shared.refs.shellGlassApply) shared.refs.shellGlassApply(); }catch(e){}
     };
     if (window.MutationObserver) {
-      var mo = new MutationObserver(apply);
-      mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-ds-dark-theme", "data-ds-light-theme", "class"] });
-      if (document.body) mo.observe(document.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "data-ds-light-theme"] });
-      else document.addEventListener("DOMContentLoaded", function () { mo.observe(document.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "data-ds-light-theme"] }); });
+      if (!shared.refs.themeObserver) {
+        var mo = new MutationObserver(apply);
+        shared.refs.themeObserver = mo;
+        // 观察主题信号属性。apply 不再回写这些属性（回写由幂等的
+        // applyThemeClass 承担），因此不会形成自触发死循环。
+        mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-ds-dark-theme", "data-ds-light-theme", "data-theme"] });
+        if (document.body) mo.observe(document.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "data-ds-light-theme", "data-theme"] });
+      }
     }
-    if (darkQuery && darkQuery.addEventListener) {
-      darkQuery.addEventListener("change", apply);
+    if (shared.media.darkQuery && shared.media.darkQuery.addEventListener) {
+      shared.media.darkQuery.addEventListener("change", apply);
+    } else if (shared.media.darkQuery && shared.media.darkQuery.addListener) {
+      shared.media.darkQuery.addListener(apply); // 旧版 Safari/WebView 回退
     }
   }
 
-  setupSettingsUi(ctx); // 注册设置页「背景特效」条目（slots 未就绪时由 inject 等待）
-  boot();
+  shared.refs.observeTheme = observeTheme;
 }
+
+
+/* ===================== boot.js ===================== */
+/* ------------------------------------------------------------------ *
+ * src/boot.js — 启动编排（initBoot）
+ *   在全部 initX 之后由 apply 调用；跨模块启动函数一律经 shared.refs.*。
+ *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
+ * ------------------------------------------------------------------ */
+function initBoot(shared) {
+  var media = shared.media;
+
+  function boot() {
+    if (!document.body) { document.addEventListener("DOMContentLoaded", boot, { once: true }); return; }
+    // body 背景透明化由 applyThemeClass 按主题管理（浅色主题保持官方原版）
+    shared.refs.applyThemeClass();
+    document.body.appendChild(shared.dom.container);
+    shared.refs.startAurora();
+    if (typeof location === "undefined" || location.search.indexOf("nowhale") === -1) shared.refs.startWhale();
+    if (!media.coarse || media.reducedMotion) shared.refs.startConstellation();
+    shared.refs.observeTheme();
+    shared.refs.makeShellTransparent();
+    try{ shared.refs.watchBeamComposer(); }catch(e){}
+    try{ shared.refs.watchBeamTodo(); }catch(e){}
+    try{ shared.refs.watchThinkingOrbs(); }catch(e){}
+    if (typeof location !== "undefined" && (location.search.indexOf("dshtest") !== -1)) shared.refs.startDiagPanel();
+    // 调试钩子：显式开启（localStorage dsh-bg-debug=1 或 ?dshdbg=1）才执行 opencv/opendbg，避免生产 URL 误触
+    var dbgEnabled = false; try { dbgEnabled = localStorage.getItem("dsh-bg-debug") === "1" || (typeof location !== "undefined" && location.search.indexOf("dshdbg") !== -1); } catch(e){}
+    // 调试钩子：?opencv=1 时展开侧边栏并打开第一个会话（检查真实消息 DOM 的代码块类名）
+    if (dbgEnabled && typeof location !== "undefined" && location.search.indexOf("opencv") !== -1) {
+      setTimeout(function () {
+        var toggle = document.querySelector(".hHd-Xa_toggle, [aria-label*=\"sidebar\"], [aria-label*=\"侧边栏\"]");
+        if (toggle) toggle.click();
+        setTimeout(function () {
+          var first = document.querySelector('.qDHVXG_listArea [role="button"], .qDHVXG_listArea button, [data-slot="sidebar.workspaces"] [role="button"]');
+          if (first) first.click();
+          setTimeout(function () {
+            var codes = document.querySelectorAll("pre, [class*=\"_block_\"], [class*=\"_banner\"], [class*=\"_body\"], code");
+            var dump = document.createElement("div");
+            dump.id = "dsh-dbg-codes";
+            dump.style.display = "none";
+            var cls = [];
+            for (var i = 0; i < codes.length; i++) {
+              var c = codes[i].className;
+              if (typeof c === "string" && c) cls.push(c.split(" ")[0]);
+            }
+            dump.setAttribute("data-classes", cls.join(","));
+            document.body.appendChild(dump);
+          }, 3000);
+        }, 2500);
+      }, 3500);
+    }
+    // 调试钩子：?opendbg=1 时自动打开设置页（用于无头浏览器检查设置页布局）
+    if (dbgEnabled && typeof location !== "undefined" && location.search.indexOf("opendbg") !== -1) {
+      setTimeout(function () {
+        var triggers = document.querySelectorAll('button, [role="button"]');
+        for (var i = 0; i < triggers.length; i++) {
+          var t = triggers[i];
+          var label = (t.getAttribute("aria-label") || t.textContent || "").toLowerCase();
+          if (label.indexOf("settings") !== -1 || label.indexOf("设置") !== -1) { t.click(); break; }
+        }
+        setTimeout(function () {
+          var panel = document.querySelector(".VOzbGW_panel");
+          var dump = document.createElement("div");
+          dump.id = "dsh-dbg-settings";
+          dump.style.display = "none";
+          dump.setAttribute("data-opened", panel ? "yes" : "no");
+          if (panel) dump.setAttribute("data-html", panel.outerHTML.slice(0, 20000));
+          document.body.appendChild(dump);
+        }, 2500);
+      }, 4000);
+    }
+  }
+
+  shared.refs.boot = boot;
+}
+
+
+/* ===================== index.js ===================== */
+/* ===================================================================== *
+ * src/index.js — 客户端入口 apply(ctx)（由 scripts/build.mjs 拼接进工厂闭包）
+ *   创建 shared（media / state / settings / dom / refs），按依赖顺序调用各
+ *   子系统的 initX，装配 window.__dshDeepSeekBg 调试句柄，最后按原执行顺序
+ *   执行 applyThemeClass → setupSettingsUi(ctx) → boot。
+ *   工厂级 seed `react`（构建模板注入）仅由 src/settings.js 的设置页 UI 使用。
+ * ===================================================================== */
+function apply(ctx) {
+  "use strict";
+  if (window.__dshDeepSeekBg && window.__dshDeepSeekBg._inited) return;
+  if (typeof document === "undefined") return;
+
+  if (typeof window.__dshDeepSeekBg !== 'object' || window.__dshDeepSeekBg === null) window.__dshDeepSeekBg = {};
+  window.__dshDeepSeekBg._inited = true;
+
+  /* 跨模块共享状态：预建全部容器对象，各 initX 捕获引用后后续填充依然有效 */
+  var shared = {
+    media: {
+      darkQuery: window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null,
+      reducedMotion: !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches),
+      coarse: !!(window.matchMedia && window.matchMedia("(hover: none), (pointer: coarse)").matches),
+      isWindows: (navigator.userAgentData && navigator.userAgentData.platform === "Windows") ||
+        navigator.userAgent.indexOf("Windows") !== -1
+    },
+    state: { dark: false },
+    settings: {},
+    dom: {},
+    refs: {},
+    ctx: ctx
+  };
+
+  // 依赖顺序：theme → settings → dom → coalesce → beam → orbs → 渲染引擎 → shell → observer → boot
+  initTheme(shared);         // 主题检测 / 官方参数配置 / state.dark 初值
+  initSettings(shared);      // bgSettings（shared.settings）+ 设置页 UI + 低电量自动节能
+  initDom(shared);           // 背景容器 / 极光 / 星座 canvas / 鲸鱼层 / diag
+  initCoalesce(shared);      // 合批 MutationObserver（供 beam/orbs/shell 订阅）
+  initBeam(shared);          // Border Beam 状态机 + composer/todo 集成（CSS 在 beam-css.js）
+  initOrbs(shared);          // Thinking Orbs 运行时（几何数学在 orbs-math.js）
+  initAurora(shared);        // 极光引擎（shader 在 aurora-shaders.js）
+  initWhale(shared);         // 粒子鲸鱼（shader/矩阵在 whale-shaders.js）
+  initConstellation(shared); // 星座网格
+  initShell(shared);         // 外壳透明化 + 诊断面板
+  initObserver(shared);      // 主题联动（MutationObserver + matchMedia）
+  initBoot(shared);          // 启动编排（原 boot()）
+
+  // 调试句柄（原 apply 内 try 块）：beam/orbs 句柄对象由各自模块构造后注册
+  try {
+    if (typeof window.__dshDeepSeekBg !== "object" || window.__dshDeepSeekBg === null) window.__dshDeepSeekBg = {};
+    window.__dshDeepSeekBg.beam = shared.refs.beamHandle;
+    window.__dshDeepSeekBg.orbs = shared.refs.orbsHandle;
+  } catch (e) {}
+
+  // 与原执行顺序一致：applyThemeClass（原 1833）→ setupSettingsUi(ctx)（原 5014）→ boot()（原 5015）
+  if (shared.refs.applyThemeClass) shared.refs.applyThemeClass();
+  if (shared.refs.setupSettingsUi) shared.refs.setupSettingsUi(ctx);
+  if (shared.refs.boot) shared.refs.boot();
+}
+
 
     exports.apply = apply;
     // 设置面板依赖 slots 服务（由 dsh-client-ui-slots 提供）；未就绪时等待其出现

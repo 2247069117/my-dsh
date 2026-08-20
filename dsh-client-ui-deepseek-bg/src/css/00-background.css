@@ -1,0 +1,57 @@
+/* ---------- 背景层：全主题统一深色 ---------- */
+#dsh-ds-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0a0a0a;
+  animation: dsh-ds-enter 1.8s ease-out backwards;
+  will-change: opacity, filter;
+}
+
+#dsh-ds-aurora,
+#dsh-ds-constellation {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* 官方 hero 蒙版（与 deepseek.com 原站一致） */
+  mask: linear-gradient(#000000fc 0%, #000000e8 8.98%, transparent 100%);
+  -webkit-mask: linear-gradient(#000000fc 0%, #000000e8 8.98%, transparent 100%);
+}
+
+#dsh-ds-constellation {
+  background: transparent;
+}
+
+/* 鲸鱼层：screen 混合，全主题显示 */
+.dsh-ds-whale {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  z-index: 2;
+}
+
+@keyframes dsh-ds-enter {
+  0% {
+    opacity: 0;
+    filter: blur(20px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #dsh-ds-bg {
+    animation: none;
+  }
+}

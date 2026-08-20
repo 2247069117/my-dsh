@@ -1,0 +1,112 @@
+/* ============ Thinking Orbs (orbs.jakubantalik.com 移植) & Deep diving... 状态栏深色适配 ============ */
+.dsh-thinking-orb-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  flex: none;
+  vertical-align: middle;
+  font-size: 14px;
+  -webkit-text-fill-color: initial !important;
+  transition: filter 0.25s ease;
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.7));
+}
+.dsh-thinking-orb-wrap[data-state="searching"] { filter: drop-shadow(0 0 7px rgba(59, 130, 246, 0.85)); }
+.dsh-thinking-orb-wrap[data-state="solving"] { filter: drop-shadow(0 0 7px rgba(52, 211, 153, 0.85)); }
+.dsh-thinking-orb-wrap[data-state="listening"] { filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.85)); }
+.dsh-thinking-orb-wrap[data-state="connecting"] { filter: drop-shadow(0 0 7px rgba(168, 85, 247, 0.9)); }
+.dsh-thinking-orb-wrap[data-state="weaving"] { filter: drop-shadow(0 0 7px rgba(236, 72, 153, 0.9)); }
+.dsh-thinking-orb-wrap[data-state="composing"] { filter: drop-shadow(0 0 7px rgba(251, 146, 60, 0.9)); }
+.dsh-thinking-orb-wrap[data-state="breathing"] { filter: drop-shadow(0 0 7px rgba(255, 122, 41, 0.9)); }
+.dsh-thinking-orb-wrap[data-state="shaping"] { filter: drop-shadow(0 0 7px rgba(96, 165, 250, 0.85)); }
+.dsh-thinking-orb-wrap[data-state="working"] { filter: drop-shadow(0 0 7px rgba(59, 130, 246, 0.8)); }
+.dsh-thinking-orb-wrap[data-waiting] { filter: drop-shadow(0 0 6px rgba(148, 163, 184, 0.65)) !important; opacity: 0.92; }
+.dsh-thinking-orb-wrap[data-planning],
+[data-plan-mode="1"] .dsh-thinking-orb-wrap {
+  filter: drop-shadow(0 0 8px rgba(255, 122, 41, 0.95)) !important;
+}
+
+.dsh-thinking-orb-canvas {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+/* 隐藏原生直接裸文本，防止 React Virtual DOM 冲突 */
+.Md3f7G_turnStatus,
+[role="status"][aria-live="polite"].Md3f7G_turnStatus {
+  font-size: 0 !important;
+}
+
+.dsh-turn-status-text {
+  font-size: 14px !important;
+  line-height: 24px !important;
+  font-weight: 500 !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  color: var(--dsw-static-deepseek-500, #1d6bf3);
+  -webkit-text-fill-color: var(--dsw-static-deepseek-500, #1d6bf3);
+}
+
+body .Md3f7G_turnStatus {
+  display: inline-flex !important;
+  align-items: center !important;
+  font-weight: 500 !important;
+  font-size: 0 !important;
+  line-height: 24px !important;
+  filter: drop-shadow(0 0 10px rgba(77, 139, 245, 0.45)) !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 4px 0 !important;
+}
+
+body .dsh-turn-status-text {
+  display: inline-block !important;
+  background: linear-gradient(90deg, #4d8bf5 0%, #60a5fa 35%, #ffffff 50%, #60a5fa 65%, #4d8bf5 100%) !important;
+  background-size: 250% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  animation: 1.8s linear infinite Md3f7G_dsh-turn-status-shimmer !important;
+}
+
+.Md3f7G_turnStatusClock,
+[class*="turnStatusClock"] {
+  font-size: 12px !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+
+body .Md3f7G_turnStatusClock {
+  font-size: 12px !important;
+  font-variant-numeric: tabular-nums !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.6) !important;
+  margin-left: 8px !important;
+  font-weight: 400 !important;
+  filter: none !important;
+}
+
+body [data-plan-mode="1"] .Md3f7G_turnStatus,
+body .Md3f7G_turnStatus[data-planning] {
+  filter: drop-shadow(0 0 10px rgba(255, 122, 41, 0.5)) !important;
+}
+
+body [data-plan-mode="1"] .dsh-turn-status-text,
+body .Md3f7G_turnStatus[data-planning] .dsh-turn-status-text {
+  background: linear-gradient(90deg, #ff7a29 0%, #ff9d42 35%, #fff1d6 50%, #ff9d42 65%, #ff7a29 100%) !important;
+  background-size: 250% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+[data-plan-mode="1"] .dsh-turn-status-text,
+.Md3f7G_turnStatus[data-planning] .dsh-turn-status-text {
+  color: #ff7a29 !important;
+  -webkit-text-fill-color: #ff7a29 !important;
+}

@@ -1,0 +1,433 @@
+/* ============ 任务清单框 (Todo List Dock & Panel) — Pulse 官方风格 ============ */
+
+/* 1. 容器卡片材质（Card Container） */
+body [data-testid="todo-panel"],
+body [data-slot="conversation.input.dock"] section,
+body .lXshSW_root,
+body ._7yHdaG_panel,
+body [data-slot="conversation.input.dock"] ._7yHdaG_panel,
+body [data-slot="conversation.input.dock"] > div > section {
+  position: relative !important;
+  background: rgba(29, 29, 29, 0.78) !important;
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: inset 0 0 0 1px rgba(44, 47, 54, 0.52), inset 0 0 50px 0 rgba(255, 255, 255, 0.02), 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+  margin-bottom: 8px !important;
+  overflow: visible !important;
+  isolation: isolate !important;
+  box-sizing: border-box !important;
+  transition: box-shadow 0.3s ease, background 0.3s ease !important;
+}
+
+body [data-slot="conversation.input.dock"] {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+body ._7yHdaG_panel:after {
+  display: none !important;
+  border: none !important;
+}
+
+body .lXshSW_body {
+  position: relative !important;
+  z-index: 4 !important;
+  padding: 14px 18px !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+}
+
+body .lXshSW_header {
+  padding: 0 !important;
+  gap: 10px !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+body ._7yHdaG_header {
+  padding: 10px 14px !important;
+  gap: 10px !important;
+  border-radius: 12px !important;
+}
+
+body ._7yHdaG_header:hover,
+body .lXshSW_header:hover {
+  background: transparent !important;
+}
+
+body .lXshSW_lead,
+body ._7yHdaG_lead {
+  color: #858585 !important;
+  transition: color 0.15s ease !important;
+}
+
+body .lXshSW_header:hover .lXshSW_lead,
+body ._7yHdaG_header:hover ._7yHdaG_lead {
+  color: #ededed !important;
+}
+
+body .lXshSW_chevron,
+body ._7yHdaG_chevron {
+  color: #858585 !important;
+  transition: color 0.15s ease, transform 0.2s ease !important;
+}
+
+body .lXshSW_header:hover .lXshSW_chevron,
+body ._7yHdaG_header:hover ._7yHdaG_chevron {
+  color: #ededed !important;
+}
+
+/* 2. 标题与状态文字流光（Text Shimmer） */
+body .lXshSW_title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 20px !important;
+  background: linear-gradient(90deg, transparent 0%, transparent 40%, #ffffff 50%, transparent 60%, transparent 100%), #ededed !important;
+  background-size: 400% 100%, 100% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  animation: dsh-pulse-shimmer 2.4s linear infinite !important;
+  display: inline-block !important;
+}
+
+body .lXshSW_progress,
+body ._7yHdaG_count,
+body [data-testid="todo-panel"] [class*="progress"],
+body [data-testid="todo-panel"] [class*="title"] {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 20px !important;
+  background: linear-gradient(90deg, transparent 0%, transparent 40%, #ededed 50%, transparent 60%, transparent 100%), #858585 !important;
+  background-size: 400% 100%, 100% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  animation: dsh-pulse-shimmer 2.4s linear infinite !important;
+  display: inline-block !important;
+}
+
+@keyframes dsh-pulse-shimmer {
+  0% {
+    background-position: 100% 0px, 0 0;
+  }
+  100% {
+    background-position: 0% 0px, 0 0;
+  }
+}
+
+/* 3. 任务条目与状态指示器（Task Items & Status Glyphs） */
+body .lXshSW_list,
+body ._7yHdaG_list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  max-height: 200px !important;
+  margin: 0 !important;
+  padding: 4px 0 0 0 !important;
+  list-style: none !important;
+  overflow-y: auto !important;
+}
+
+body .lXshSW_item,
+body ._7yHdaG_row,
+body [data-testid="todo-panel"] li {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  font-size: 13px !important;
+  line-height: 16px !important;
+  padding: 4px 6px !important;
+  border-radius: 8px !important;
+  transition: background 0.15s ease !important;
+  background: transparent !important;
+  box-sizing: border-box !important;
+}
+
+body .lXshSW_item:hover,
+body ._7yHdaG_row:hover,
+body [data-testid="todo-panel"] li:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+body .lXshSW_content {
+  min-width: 0 !important;
+  flex: auto !important;
+  transition: color 0.2s ease !important;
+}
+
+body .lXshSW_glyph {
+  flex: none !important;
+  place-items: center !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: grid !important;
+  transition: filter 0.25s ease, color 0.25s ease !important;
+}
+
+/* 进行中状态（in_progress） */
+body [data-status="in_progress"] .lXshSW_content,
+body .lXshSW_item[data-status="in_progress"] .lXshSW_content,
+body [data-testid="todo-panel"] [data-status="in_progress"] [class*="content"] {
+  color: #f5f5f5 !important;
+  -webkit-text-fill-color: #f5f5f5 !important;
+  font-weight: 500 !important;
+}
+
+body [data-status="in_progress"] .lXshSW_glyph,
+body .lXshSW_glyphProgress,
+body [data-testid="todo-panel"] [data-status="in_progress"] [class*="glyph"] {
+  color: #38bdf8 !important;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.65)) !important;
+  animation: dsh-task-spin 2s linear infinite !important;
+  transform-origin: center center !important;
+}
+
+body [data-status="in_progress"] svg circle,
+body .lXshSW_glyphProgress circle {
+  stroke-dasharray: 3 3 !important;
+  stroke: #38bdf8 !important;
+}
+
+@keyframes dsh-task-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 已完成状态（completed） */
+body [data-status="completed"] .lXshSW_content,
+body .lXshSW_item[data-status="completed"] .lXshSW_content,
+body [data-testid="todo-panel"] [data-status="completed"] [class*="content"] {
+  color: #686868 !important;
+  -webkit-text-fill-color: #686868 !important;
+  font-weight: 400 !important;
+}
+
+body [data-status="completed"] .lXshSW_glyph,
+body .lXshSW_glyphCompleted,
+body [data-testid="todo-panel"] [data-status="completed"] [class*="glyph"] {
+  color: #34d399 !important;
+  filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.35)) !important;
+  animation: none !important;
+}
+
+body [data-status="completed"] svg circle,
+body [data-status="completed"] svg path,
+body .lXshSW_glyphCompleted circle,
+body .lXshSW_glyphCompleted path {
+  color: #34d399 !important;
+  stroke: #34d399 !important;
+}
+
+/* 待处理状态（pending） */
+body [data-status="pending"] .lXshSW_content,
+body .lXshSW_item[data-status="pending"] .lXshSW_content,
+body [data-testid="todo-panel"] [data-status="pending"] [class*="content"] {
+  color: #858585 !important;
+  -webkit-text-fill-color: #858585 !important;
+  font-weight: 400 !important;
+}
+
+body [data-status="pending"] .lXshSW_glyph,
+body .lXshSW_glyphPending,
+body [data-testid="todo-panel"] [data-status="pending"] [class*="glyph"] {
+  color: #686868 !important;
+  filter: none !important;
+  opacity: 0.7 !important;
+  animation: none !important;
+}
+
+body [data-status="pending"] svg circle,
+body .lXshSW_glyphPending circle {
+  stroke-dasharray: 2.4 2.4 !important;
+  stroke: #686868 !important;
+}
+
+/* 4. Border Beam Pulse 边缘脉冲光束集成 */
+[data-beam="dsh-todo"] {
+  position: relative !important;
+  border-radius: 16px !important;
+  overflow: visible !important;
+  isolation: isolate !important;
+}
+
+[data-beam="dsh-todo"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 15px;
+  padding: 1px;
+  clip-path: inset(0 round 16px);
+  background:
+    radial-gradient(ellipse 70px 40px at 33% -7.4%, rgb(255, 50, 100), transparent),
+    radial-gradient(ellipse 60px 35px at 12% -5%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 40px 70px at 2.1% 68.3%, rgb(50, 200, 80), transparent),
+    radial-gradient(ellipse 20px 35px at 2.1% 68.3%, rgb(30, 185, 170), transparent),
+    radial-gradient(ellipse 180px 32px at 74.4% 100%, rgb(100, 70, 255), transparent),
+    radial-gradient(ellipse 85px 26px at 55% 100%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 74px 32px at 93.9% 0%, rgb(255, 120, 40), transparent),
+    radial-gradient(ellipse 26px 42px at 100% 27.1%, rgb(240, 50, 180), transparent),
+    radial-gradient(ellipse 52px 48px at 100% 27.1%, rgb(180, 40, 240), transparent);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.35;
+  transition: opacity 0.4s ease;
+  animation: none;
+}
+
+[data-beam="dsh-todo"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse 63px 36px at 33% -7.4%, rgba(255, 50, 100, 0.4), transparent),
+    radial-gradient(ellipse 54px 32px at 12% -5%, rgba(40, 140, 255, 0.4), transparent),
+    radial-gradient(ellipse 36px 63px at 2.1% 68.3%, rgba(50, 200, 80, 0.4), transparent),
+    radial-gradient(ellipse 18px 32px at 2.1% 68.3%, rgba(30, 185, 170, 0.4), transparent),
+    radial-gradient(ellipse 162px 29px at 74.4% 100%, rgba(100, 70, 255, 0.4), transparent),
+    radial-gradient(ellipse 77px 23px at 55% 100%, rgba(40, 140, 255, 0.4), transparent),
+    radial-gradient(ellipse 67px 29px at 93.9% 0%, rgba(255, 120, 40, 0.4), transparent),
+    radial-gradient(ellipse 23px 38px at 100% 27.1%, rgba(240, 50, 180, 0.4), transparent),
+    radial-gradient(ellipse 47px 43px at 100% 27.1%, rgba(180, 40, 240, 0.4), transparent);
+  box-shadow: inset 0 0 10px 1px rgba(255, 255, 255, 0.18);
+  -webkit-mask-image:
+    linear-gradient(white, transparent 24px, transparent calc(100% - 24px), white),
+    linear-gradient(to right, white, transparent 24px, transparent calc(100% - 24px), white);
+  -webkit-mask-composite: source-over;
+  mask-image:
+    linear-gradient(white, transparent 24px, transparent calc(100% - 24px), white),
+    linear-gradient(to right, white, transparent 24px, transparent calc(100% - 24px), white);
+  mask-composite: add;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.28;
+  clip-path: inset(0 round 16px);
+  transition: opacity 0.4s ease;
+  animation: none;
+}
+
+[data-beam="dsh-todo"] [data-beam-bloom] {
+  display: block;
+  position: absolute;
+  inset: -1px;
+  border-radius: 16px;
+  clip-path: inset(0 round 16px);
+  background:
+    radial-gradient(ellipse 70px 40px at 33% -7.4%, rgb(255, 50, 100), transparent),
+    radial-gradient(ellipse 60px 35px at 12% -5%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 40px 70px at 2.1% 68.3%, rgb(50, 200, 80), transparent),
+    radial-gradient(ellipse 20px 35px at 2.1% 68.3%, rgb(30, 185, 170), transparent),
+    radial-gradient(ellipse 180px 32px at 74.4% 100%, rgb(100, 70, 255), transparent),
+    radial-gradient(ellipse 85px 26px at 55% 100%, rgb(40, 140, 255), transparent),
+    radial-gradient(ellipse 74px 32px at 93.9% 0%, rgb(255, 120, 40), transparent),
+    radial-gradient(ellipse 26px 42px at 100% 27.1%, rgb(240, 50, 180), transparent),
+    radial-gradient(ellipse 52px 48px at 100% 27.1%, rgb(180, 40, 240), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 1px;
+  filter: blur(8px) brightness(1.2) saturate(1.2);
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.15;
+  transition: opacity 0.4s ease;
+  animation: none;
+}
+
+/* Active Pulse State: 存在进行中任务或运行状态时的灵动脉冲呼吸 */
+[data-beam="dsh-todo"][data-active]::after,
+[data-beam="dsh-todo"][data-pulse-active]::after {
+  opacity: 0.85;
+  animation: beam-pulse-hue-shift 12s ease-in-out infinite, dsh-pulse-breathe 2.8s ease-in-out infinite;
+}
+
+[data-beam="dsh-todo"][data-active]::before,
+[data-beam="dsh-todo"][data-pulse-active]::before {
+  opacity: 0.7;
+  animation: beam-pulse-hue-shift 12s ease-in-out infinite, dsh-pulse-inner-breathe 2.8s ease-in-out infinite;
+}
+
+[data-beam="dsh-todo"][data-active] [data-beam-bloom],
+[data-beam="dsh-todo"][data-pulse-active] [data-beam-bloom] {
+  opacity: 0.55;
+  animation: beam-pulse-hue-shift 12s ease-in-out infinite, dsh-pulse-bloom-breathe 2.8s ease-in-out infinite;
+}
+
+@keyframes beam-pulse-hue-shift {
+  0% {
+    filter: hue-rotate(-30deg) brightness(1.2) saturate(1.2);
+  }
+  50% {
+    filter: hue-rotate(30deg) brightness(1.2) saturate(1.2);
+  }
+  100% {
+    filter: hue-rotate(-30deg) brightness(1.2) saturate(1.2);
+  }
+}
+
+@keyframes dsh-pulse-breathe {
+  0%, 100% {
+    opacity: 0.45;
+    filter: hue-rotate(-30deg) brightness(1.15) saturate(1.2);
+  }
+  50% {
+    opacity: 0.95;
+    filter: hue-rotate(15deg) brightness(1.45) saturate(1.4);
+  }
+}
+
+@keyframes dsh-pulse-inner-breathe {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes dsh-pulse-bloom-breathe {
+  0%, 100% {
+    opacity: 0.25;
+    filter: blur(6px) brightness(1.1);
+  }
+  50% {
+    opacity: 0.65;
+    filter: blur(10px) brightness(1.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-beam="dsh-todo"]::after,
+  [data-beam="dsh-todo"]::before,
+  [data-beam="dsh-todo"] [data-beam-bloom],
+  body .lXshSW_title,
+  body .lXshSW_progress,
+  body ._7yHdaG_count,
+  body [data-status="in_progress"] .lXshSW_glyph,
+  body .lXshSW_glyphProgress {
+    animation: none !important;
+  }
+}
