@@ -25,6 +25,10 @@ node scripts/build.mjs
 node scripts/build.mjs --check
 ```
 
+## 致谢
+
+本插件基于 **B站 @爱玩蛛的少年（UID: 564770445）** 提供的主题二次开发，在此特别感谢原作者的创意与分享。
+
 ---
 
 MIT — Border Beam © Jakub Antalik, Thinking Orbs © Jakub Antalik

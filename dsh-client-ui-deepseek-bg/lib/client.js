@@ -2902,7 +2902,7 @@ function initSettings(shared) {
         sliderItem("光线跟随强度", "粒子鲸鱼与高光聚焦点随光标移动的响应幅度", Math.round(snap.lightFollow * 100) + "%", 0, 100, 5, Math.round(snap.lightFollow * 100), "0% (固定不动)", "100% (完全跟随)", function (v) { updateSetting("lightFollow", parseInt(v, 10) / 100); })),
       h("div", { className: "dsh-bg-foot" },
         h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
-        h("span", { className: "dsh-bg-note" }, "v1.11.0 · 即时生效并自动保存")));
+        h("span", { className: "dsh-bg-note" }, "v1.11.1 · 即时生效并自动保存")));
   }
 
   /** 注册设置页条目（需要 slots 服务；缺 ctx/slots 时静默跳过） */
@@ -2943,7 +2943,7 @@ function initDom(shared) {
    * ------------------------------------------------------------------ */
   shared.dom.container = document.createElement("div");
   shared.dom.container.id = "dsh-ds-bg";
-  shared.dom.container.dataset.version = "1.11.0"; // 部署版本标记：由 build.mjs 从 package.json 注入，页面可查 document.getElementById('dsh-ds-bg')?.dataset.version
+  shared.dom.container.dataset.version = "1.11.1"; // 部署版本标记：由 build.mjs 从 package.json 注入，页面可查 document.getElementById('dsh-ds-bg')?.dataset.version
   // 关键样式内联兜底：全主题统一深色背景
   shared.dom.container.style.cssText = "position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;" +
     "background:#0a0a0a;" +
