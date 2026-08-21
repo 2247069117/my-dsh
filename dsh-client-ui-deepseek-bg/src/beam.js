@@ -383,6 +383,27 @@ function initBeam(shared) {
           // Enter 且处于锁窗口但浏览器已判定非 composing：视为真实发送，透传至下方发送逻辑
         }
         if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          // @/slash 联想菜单打开时：回车是选中候选（文件/命令/技能），不应进入彩色执行态，只触发白色呼吸
+          var _menuOpen = false;
+          try {
+            var _lb = document.querySelector('[role="listbox"]');
+            if (_lb && _lb.offsetParent !== null) _menuOpen = true;
+            if (!_menuOpen) {
+              var _m = document.querySelector('._3e4SsG_menu');
+              if (_m && _m.offsetParent !== null) _menuOpen = true;
+            }
+            if (!_menuOpen) {
+              var _ad = document.querySelector('[aria-activedescendant]');
+              if (_ad) {
+                var _aid = _ad.getAttribute('aria-activedescendant');
+                if (_aid && document.getElementById(_aid) && document.getElementById(_aid).offsetParent !== null) _menuOpen = true;
+              }
+            }
+          } catch (_e) {}
+          if (_menuOpen) {
+            triggerTypingBreathe();
+            return;
+          }
           var val = input.value !== undefined ? input.value : input.textContent;
           if (val && String(val).trim().length > 0) {
             // 回车发送：设置短时 pending（1.4s），桥接 DOM 尚未挂载 running 状态的空档，

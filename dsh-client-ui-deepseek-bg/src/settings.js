@@ -17,9 +17,9 @@ function initSettings(shared) {
   var SETTINGS_KEY = "dsh-bg-settings";
   var PRESETS = {
     // 全特效：极光分辨率与玻璃模糊全部拉满（滑杆上限 1.0x / 12px）——下载后默认即为此档
-    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 1, fps: 30, blur: 12, followMs: 120, lightFollow: 1 },
-    half: { label: "均衡", aurora: false, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 30, blur: 8, followMs: 20, lightFollow: 1 },
-    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: false, glass: true, orbs: true, mouse: false, auroraScale: 0.4, fps: 20, blur: 6, followMs: 20, lightFollow: 1 }
+    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 1, fps: 60, blur: 12, followMs: 120, lightFollow: 1 },
+    half: { label: "均衡", aurora: false, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 60, blur: 8, followMs: 20, lightFollow: 1 },
+    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: true, glass: true, orbs: true, mouse: false, auroraScale: 0.4, fps: 20, blur: 6, followMs: 20, lightFollow: 1 }
   };
 
   function loadSettings() {
@@ -210,9 +210,9 @@ function initSettings(shared) {
     var presetIds = ["full", "half", "eco"];
     var presetNames = { full: "全特效", half: "均衡", eco: "节能" };
     var presetDescs = {
-      full: "所有特效拉满：极光 1.0x、玻璃 12px、30fps、跟手 120ms",
-      half: "保留粒子鲸鱼/星座/玻璃与鼠标跟随，关闭高开销极光流体（30fps / blur 8px）",
-      eco: "仅保留玻璃拟态与静态深色背景（20fps / blur 6px）"
+      full: "所有特效拉满：极光 1.0x、玻璃 12px、60fps、跟手 120ms",
+      half: "保留粒子鲸鱼/星座/玻璃与鼠标跟随，关闭高开销极光流体（60fps / blur 8px）",
+      eco: "仅保留玻璃拟态与 Border Beam 及静态深色背景（20fps / blur 6px）"
     };
     var modeName = presetNames[snap.mode] || "自定义";
     var modeCaption = presetDescs[snap.mode] || "手动调整的特效组合，可随时切回预设档位";
@@ -318,7 +318,8 @@ function initSettings(shared) {
         selectItem("动画帧率上限", "鼠标交互期间自动提升至 60fps 保证操作跟手，停止 200ms 后回落", snap.fps, [
           { value: 20, label: "20 fps（最省）" },
           { value: 24, label: "24 fps（均衡）" },
-          { value: 30, label: "30 fps（流畅）" }
+          { value: 30, label: "30 fps（流畅）" },
+          { value: 60, label: "60 fps（极致流畅）" }
         ], function (v) { updateSetting("fps", parseInt(v, 10)); }),
         selectItem("玻璃模糊强度", "侧边栏、对话气泡与代码块的背景模糊半径（数值越大磨砂越重、越小越轻透）", snap.blur, [
           { value: 6, label: "6 px（轻透磨砂 · 最省）" },
