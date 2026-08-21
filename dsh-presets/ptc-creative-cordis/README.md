@@ -42,6 +42,15 @@ cp -R ptc-creative-cordis ~/.dsh/.agent-presets/
 
 因此需要对 `@deepseek-ai/dsh-tool-cordis` 的 `lib/index.js` 打**幂等补丁**：注册前先列出已注册的 host provider，同 id 跳过。
 
+### 触发条件：什么叫「同时使用」
+
+「同时使用」**不要求两个会话同时开着**，实际机制是：
+
+- 预设的挂载是**常驻挂载**（standing mount）：同一 dsh 进程内，某个预设的 composition 只在第一次被会话使用时完整挂载一次（执行其中的 `apply()`），随后进程存活期间一直驻留内存；同预设的后续会话直接复用，`apply()` 不重跑。
+- 因此冲突发生在**同一进程内先后用过两个不同的、都带 `dsh-tool-cordis` 的预设**：先挂载的注册成功，后挂载的注册同 id provider 时抛 `already registered`。
+- 谁的预设先被使用谁赢；**关掉会话不会清理**（常驻挂载只在进程退出时释放），唯一重置方式是**重启 dsh 进程**。
+- 官方随附预设（`standard` / `code` / `minimal` / `cordis`）中只有 `cordis` 带 `dsh-tool-cordis`。所以：只用 `ptc-creative-cordis` 单一预设不会触发冲突；同一进程内先后用过 `cordis` 与 `ptc-creative-cordis`，第二次挂载即失败，需要本补丁。
+
 ### 补丁内容
 
 **原始代码（`lib/index.js` 中）**
