@@ -207,7 +207,7 @@ function initOrbs(shared) {
       // Tier 5: 活跃 Todo 项追踪（仅 executing 时）
       var executing = shared.refs.isExecuting ? shared.refs.isExecuting() : false;
       if (executing) {
-        var activeTodoEl = document.querySelector('[data-slot="plan"] [data-status="in_progress"], [class*="todo"] [data-status="in_progress"]');
+        var activeTodoEl = document.querySelector('[data-testid="todo-panel"] [data-status="in_progress"], [data-slot="conversation.input.dock"] [data-status="in_progress"], [data-slot="plan"] [data-status="in_progress"], [class*="todo"] [data-status="in_progress"]');
         if (activeTodoEl && activeTodoEl.textContent) {
           var todoContent = activeTodoEl.textContent.trim();
           if (todoContent.length > 0) {

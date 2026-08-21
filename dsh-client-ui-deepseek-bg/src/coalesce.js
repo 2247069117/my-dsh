@@ -28,7 +28,7 @@ function initCoalesce(shared) {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ["data-ds-dark-theme","data-ds-light-theme","data-theme","class","data-state","data-tool","data-status","aria-label","role","data-plan-mode","data-beam"]
+        attributeFilter: ["data-ds-dark-theme","data-ds-light-theme","data-theme","class","data-state","data-tool","data-status","aria-label","aria-expanded","data-testid","role","data-plan-mode","data-beam","data-active","data-pulse-active"]
       });
     } catch(e){}
     // 暴露给 diag/调试

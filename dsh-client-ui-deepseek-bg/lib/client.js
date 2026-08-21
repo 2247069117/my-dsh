@@ -2905,7 +2905,7 @@ function initSettings(shared) {
         sliderItem("光线跟随强度", "粒子鲸鱼与高光聚焦点随光标移动的响应幅度", Math.round(snap.lightFollow * 100) + "%", 0, 100, 5, Math.round(snap.lightFollow * 100), "0% (固定不动)", "100% (完全跟随)", function (v) { updateSetting("lightFollow", parseInt(v, 10) / 100); })),
       h("div", { className: "dsh-bg-foot" },
         h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
-        h("span", { className: "dsh-bg-note" }, "v1.11.3 · 即时生效并自动保存")));
+        h("span", { className: "dsh-bg-note" }, "v1.11.4 · 即时生效并自动保存")));
   }
 
   /** 注册设置页条目（需要 slots 服务；缺 ctx/slots 时静默跳过） */
@@ -2946,7 +2946,7 @@ function initDom(shared) {
    * ------------------------------------------------------------------ */
   shared.dom.container = document.createElement("div");
   shared.dom.container.id = "dsh-ds-bg";
-  shared.dom.container.dataset.version = "1.11.3"; // 部署版本标记：由 build.mjs 从 package.json 注入，页面可查 document.getElementById('dsh-ds-bg')?.dataset.version
+  shared.dom.container.dataset.version = "1.11.4"; // 部署版本标记：由 build.mjs 从 package.json 注入，页面可查 document.getElementById('dsh-ds-bg')?.dataset.version
   // 关键样式内联兜底：全主题统一深色背景
   // GPU 优化：不再常驻 will-change:opacity,filter——它会在入场动画结束后仍强制
   // 全屏容器保持独立合成层；合成器对运行中的动画本就会自动提升，观感不变
@@ -3040,7 +3040,7 @@ function initCoalesce(shared) {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ["data-ds-dark-theme","data-ds-light-theme","data-theme","class","data-state","data-tool","data-status","aria-label","role","data-plan-mode","data-beam"]
+        attributeFilter: ["data-ds-dark-theme","data-ds-light-theme","data-theme","class","data-state","data-tool","data-status","aria-label","aria-expanded","data-testid","role","data-plan-mode","data-beam","data-active","data-pulse-active"]
       });
     } catch(e){}
     // 暴露给 diag/调试
@@ -3602,29 +3602,101 @@ function initBeam(shared) {
     ensureBeamMutObs();
   }
 
+  /* ------------------------------------------------------------------ *
+   * Border Beam — Todo List Panel integration
+   * ------------------------------------------------------------------ */
   var todoAttachedPanel = null;
   var todoPollTimer = null;
   var todoMutObs = null;
   var todoCoalesceUnsub = null;
 
   function findTodoPanel() {
-    return document.querySelector('[data-testid="todo-panel"], [data-slot="conversation.input.dock"] section, .lXshSW_root, [data-slot="conversation.input.dock"] ._7yHdaG_panel');
+    var panel = document.querySelector('[data-testid="todo-panel"], .lXshSW_root, [data-slot="conversation.input.dock"] [data-testid="todo-panel"], [data-slot="conversation.input.dock"] .lXshSW_root');
+    if (panel) return panel;
+    var dockSections = document.querySelectorAll('[data-slot="conversation.input.dock"] section, [data-slot="conversation.input.dock"] > div > section');
+    for (var i = 0; i < dockSections.length; i++) {
+      var s = dockSections[i];
+      if (s.querySelector('.lXshSW_body, .lXshSW_header, [data-testid="todo-panel"], [aria-label*="待办"], [aria-label*="Todo"], [aria-label*="todo"]')) {
+        return s;
+      }
+    }
+    return null;
+  }
+
+  function isTodoActive(panel) {
+    if (!panel) return false;
+    if (panel.querySelector('[data-status="in_progress"]')) return true;
+    if (panel.querySelector('.lXshSW_glyphProgress, [class*="glyphProgress"]')) return true;
+    var progressEl = panel.querySelector('.lXshSW_progress, [class*="progress"]');
+    if (progressEl && progressEl.textContent) {
+      var ptxt = progressEl.textContent.toLowerCase();
+      if (ptxt.indexOf('进行中') !== -1 || ptxt.indexOf('in progress') !== -1 || ptxt.indexOf('active') !== -1) {
+        return true;
+      }
+    }
+    if (isExecuting()) return true;
+    return false;
+  }
+
+  function cleanupTodoPanelDom(panel) {
+    if (!panel) return;
+    try {
+      panel.removeAttribute("data-beam");
+      panel.removeAttribute("data-active");
+      panel.removeAttribute("data-pulse-active");
+      var bloom = panel.querySelector("[data-beam-bloom]");
+      if (bloom) bloom.remove();
+    } catch(e) {}
   }
 
   function updateTodoBeamState() {
     if (isBeamDisabled() || !bgSettings.beam) {
-      detachTodoBeam();
+      if (todoAttachedPanel) {
+        cleanupTodoPanelDom(todoAttachedPanel);
+        todoAttachedPanel = null;
+      }
       return;
     }
     var panel = findTodoPanel();
-    if (!panel) {
-      if (todoAttachedPanel) detachTodoBeam();
+    if (!panel || !document.contains(panel)) {
+      if (todoAttachedPanel) {
+        cleanupTodoPanelDom(todoAttachedPanel);
+        todoAttachedPanel = null;
+      }
       return;
     }
-    if (panel !== todoAttachedPanel) {
+    if (panel !== todoAttachedPanel || panel.getAttribute("data-beam") !== "dsh-todo" || !panel.querySelector("[data-beam-bloom]")) {
       attachTodoBeam(panel);
+      return;
     }
-    var hasActiveTask = panel.querySelector('[data-status="in_progress"]') !== null || isExecuting();
+    var hasActiveTask = isTodoActive(panel);
+    if (hasActiveTask) {
+      if (!panel.hasAttribute("data-pulse-active")) panel.setAttribute("data-pulse-active", "");
+      if (!panel.hasAttribute("data-active")) panel.setAttribute("data-active", "");
+    } else {
+      if (panel.hasAttribute("data-pulse-active")) panel.removeAttribute("data-pulse-active");
+      if (panel.hasAttribute("data-active")) panel.removeAttribute("data-active");
+    }
+  }
+
+  function attachTodoBeam(panel) {
+    if (!panel) panel = findTodoPanel();
+    if (!panel) return;
+    if (isBeamDisabled() || !bgSettings.beam) return;
+    if (todoAttachedPanel && todoAttachedPanel !== panel) {
+      cleanupTodoPanelDom(todoAttachedPanel);
+    }
+    todoAttachedPanel = panel;
+    if (panel.getAttribute("data-beam") !== "dsh-todo") {
+      panel.setAttribute("data-beam", "dsh-todo");
+    }
+    if (!panel.querySelector("[data-beam-bloom]")) {
+      var bloom = document.createElement("div");
+      bloom.setAttribute("data-beam-bloom", "");
+      bloom.setAttribute("aria-hidden", "true");
+      panel.appendChild(bloom);
+    }
+    var hasActiveTask = isTodoActive(panel);
     if (hasActiveTask) {
       panel.setAttribute("data-pulse-active", "");
       panel.setAttribute("data-active", "");
@@ -3634,53 +3706,66 @@ function initBeam(shared) {
     }
   }
 
-  function attachTodoBeam(panel) {
-    if (!panel) panel = findTodoPanel();
-    if (!panel) return;
-    if (isBeamDisabled() || !bgSettings.beam) return;
-    if (todoAttachedPanel && todoAttachedPanel !== panel) {
-      detachTodoBeam();
+  function ensureTodoMutObs() {
+    if (todoMutObs || todoCoalesceUnsub) return;
+    if (shared.refs.subscribeCoalesced) {
+      try {
+        todoCoalesceUnsub = shared.refs.subscribeCoalesced(function() {
+          try {
+            var panel = findTodoPanel();
+            if (!todoAttachedPanel || !document.contains(todoAttachedPanel) || (panel && panel !== todoAttachedPanel) || (panel && panel.getAttribute("data-beam") !== "dsh-todo")) {
+              if (panel) attachTodoBeam(panel);
+              else updateTodoBeamState();
+            } else {
+              updateTodoBeamState();
+            }
+          } catch(e) {}
+        });
+        return;
+      } catch(e) {}
     }
-    todoAttachedPanel = panel;
-    panel.setAttribute("data-beam", "dsh-todo");
-    if (!panel.querySelector("[data-beam-bloom]")) {
-      var bloom = document.createElement("div");
-      bloom.setAttribute("data-beam-bloom", "");
-      bloom.setAttribute("aria-hidden", "true");
-      panel.appendChild(bloom);
-    }
-    updateTodoBeamState();
+    if (!window.MutationObserver) return;
+    todoMutObs = new MutationObserver(function() {
+      try {
+        var panel = findTodoPanel();
+        if (!todoAttachedPanel || !document.contains(todoAttachedPanel) || (panel && panel !== todoAttachedPanel) || (panel && panel.getAttribute("data-beam") !== "dsh-todo")) {
+          if (panel) attachTodoBeam(panel);
+          else updateTodoBeamState();
+        } else {
+          updateTodoBeamState();
+        }
+      } catch(e) {}
+    });
+    var rootEl = document.querySelector("#root") || document.documentElement;
+    try {
+      todoMutObs.observe(rootEl, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["data-status", "class", "aria-expanded", "data-state", "data-testid", "aria-label", "data-beam"]
+      });
+    } catch(e) {}
+  }
+
+  function detachTodoMutObs() {
+    if (todoCoalesceUnsub) { try { todoCoalesceUnsub(); } catch(e) {} todoCoalesceUnsub = null; return; }
+    if (todoMutObs) { try { todoMutObs.disconnect(); } catch(e) {} todoMutObs = null; }
   }
 
   function detachTodoBeam() {
     var panel = todoAttachedPanel || findTodoPanel();
-    if (panel) {
-      panel.removeAttribute("data-beam");
-      panel.removeAttribute("data-active");
-      panel.removeAttribute("data-pulse-active");
-      var bloom = panel.querySelector("[data-beam-bloom]");
-      if (bloom) try { bloom.remove(); } catch(e) {}
-    }
+    if (panel) cleanupTodoPanelDom(panel);
     if (todoPollTimer) { clearInterval(todoPollTimer); todoPollTimer = null; }
-    if (todoCoalesceUnsub) { try { todoCoalesceUnsub(); } catch(e) {} todoCoalesceUnsub = null; }
-    if (todoMutObs) { try { todoMutObs.disconnect(); todoMutObs = null; } catch(e) {} }
+    detachTodoMutObs();
     todoAttachedPanel = null;
   }
 
   function watchBeamTodo() {
     if (isBeamDisabled() || !bgSettings.beam) { detachTodoBeam(); return; }
     attachTodoBeam();
+    ensureTodoMutObs();
     if (!todoPollTimer) {
-      todoPollTimer = setInterval(updateTodoBeamState, 1000);
-    }
-    if (todoCoalesceUnsub || todoMutObs) return;
-    if (shared.refs.subscribeCoalesced) {
-      try { todoCoalesceUnsub = shared.refs.subscribeCoalesced(function(){ try{ updateTodoBeamState(); }catch(e){} }); return; } catch(e){}
-    }
-    if (window.MutationObserver) {
-      todoMutObs = new MutationObserver(function() { updateTodoBeamState(); });
-      var rootEl = document.querySelector("#root") || document.documentElement;
-      try { todoMutObs.observe(rootEl, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-status", "class", "aria-expanded"] }); } catch(e) {}
+      todoPollTimer = setInterval(updateTodoBeamState, 450);
     }
   }
 
@@ -3926,7 +4011,7 @@ function initOrbs(shared) {
       // Tier 5: 活跃 Todo 项追踪（仅 executing 时）
       var executing = shared.refs.isExecuting ? shared.refs.isExecuting() : false;
       if (executing) {
-        var activeTodoEl = document.querySelector('[data-slot="plan"] [data-status="in_progress"], [class*="todo"] [data-status="in_progress"]');
+        var activeTodoEl = document.querySelector('[data-testid="todo-panel"] [data-status="in_progress"], [data-slot="conversation.input.dock"] [data-status="in_progress"], [data-slot="plan"] [data-status="in_progress"], [class*="todo"] [data-status="in_progress"]');
         if (activeTodoEl && activeTodoEl.textContent) {
           var todoContent = activeTodoEl.textContent.trim();
           if (todoContent.length > 0) {
