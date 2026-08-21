@@ -1,6 +1,6 @@
 # dsh-client-ui-deepseek-bg
 
-DeepSeek 官网风格深色皮肤插件：极光背景 + 粒子鲸鱼 + 星座网格 + 侧边栏/输入框/消息气泡/代码块玻璃拟态 + Border Beam 状态机 + Thinking Orbs 动态指示器 + Pulse 任务清单框。全主题统一深色（#0a0a0a）。
+仿 DeepSeek Harness 官网风格的深色皮肤插件：极光背景 + 粒子鲸鱼 + 星座网格 + 侧边栏/输入框/消息气泡/代码块玻璃拟态 + Border Beam 状态机 + Thinking Orbs 动态指示器 + Pulse 任务清单框。全主题统一深色（#0a0a0a）。
 
 ## 安装
 
