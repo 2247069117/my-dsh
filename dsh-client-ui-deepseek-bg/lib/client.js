@@ -39,7 +39,8 @@ window.__ModuleLoader__.load({
   pointer-events: none;
   background: #0a0a0a;
   animation: dsh-ds-enter 1.8s ease-out backwards;
-  will-change: opacity, filter;
+  /* GPU 优化：不常驻 will-change（入场动画由合成器自动提升层），避免全屏容器
+     永久占用一层合成显存与带宽 */
 }
 
 #dsh-ds-aurora,
@@ -2462,7 +2463,8 @@ body.dsh-bg-no-glass ._7yHdaG_panel {
     var f = 1 / Math.tan(fovY / 2), nf = 1 / (near - far);
     return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
   }
-  function m4Inverse(m) {
+  function m4Inverse(m, out) {
+    // GPU 优化：支持传入复用缓冲（out），帧循环调用零分配
     var m00 = m[0], m01 = m[1], m02 = m[2], m03 = m[3];
     var m10 = m[4], m11 = m[5], m12 = m[6], m13 = m[7];
     var m20 = m[8], m21 = m[9], m22 = m[10], m23 = m[11];
@@ -2485,7 +2487,8 @@ body.dsh-bg-no-glass ._7yHdaG_panel {
     if (!det) return m4Identity();
     var invDet = 1.0 / det;
 
-    var out = new Float32Array(16);
+    // 复用调用方传入的缓冲（帧循环零分配）；未传时保持原有行为分配新数组
+    out = out || new Float32Array(16);
     out[0] = (m11 * b11 - m12 * b10 + m13 * b09) * invDet;
     out[1] = (-m01 * b11 + m02 * b10 - m03 * b09) * invDet;
     out[2] = (m31 * b05 - m32 * b04 + m33 * b03) * invDet;
@@ -2902,7 +2905,7 @@ function initSettings(shared) {
         sliderItem("光线跟随强度", "粒子鲸鱼与高光聚焦点随光标移动的响应幅度", Math.round(snap.lightFollow * 100) + "%", 0, 100, 5, Math.round(snap.lightFollow * 100), "0% (固定不动)", "100% (完全跟随)", function (v) { updateSetting("lightFollow", parseInt(v, 10) / 100); })),
       h("div", { className: "dsh-bg-foot" },
         h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
-        h("span", { className: "dsh-bg-note" }, "v1.11.1 · 即时生效并自动保存")));
+        h("span", { className: "dsh-bg-note" }, "v1.11.3 · 即时生效并自动保存")));
   }
 
   /** 注册设置页条目（需要 slots 服务；缺 ctx/slots 时静默跳过） */
@@ -2943,11 +2946,13 @@ function initDom(shared) {
    * ------------------------------------------------------------------ */
   shared.dom.container = document.createElement("div");
   shared.dom.container.id = "dsh-ds-bg";
-  shared.dom.container.dataset.version = "1.11.1"; // 部署版本标记：由 build.mjs 从 package.json 注入，页面可查 document.getElementById('dsh-ds-bg')?.dataset.version
+  shared.dom.container.dataset.version = "1.11.3"; // 部署版本标记：由 build.mjs 从 package.json 注入，页面可查 document.getElementById('dsh-ds-bg')?.dataset.version
   // 关键样式内联兜底：全主题统一深色背景
+  // GPU 优化：不再常驻 will-change:opacity,filter——它会在入场动画结束后仍强制
+  // 全屏容器保持独立合成层；合成器对运行中的动画本就会自动提升，观感不变
   shared.dom.container.style.cssText = "position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;" +
     "background:#0a0a0a;" +
-    "animation:dsh-ds-enter 1.8s ease-out backwards;will-change:opacity,filter;";
+    "animation:dsh-ds-enter 1.8s ease-out backwards;";
   var MASK = "linear-gradient(#000000fc 0%,#000000e8 8.98%,transparent 100%)";
   shared.dom.auroraCanvas = document.createElement("canvas");
   shared.dom.auroraCanvas.id = "dsh-ds-aurora";
@@ -4293,7 +4298,9 @@ function initAurora(shared) {
    * ------------------------------------------------------------------ */
   function startAurora() {
     var canvas = shared.dom.auroraCanvas;
-    var gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false, powerPreference: "low-power" });
+    // GPU 优化：单张全屏三角形/条带没有任何几何边缘，MSAA 对片元着色结果零影响，
+    // antialias:false 直接省掉 MSAA tile 显存与每帧 resolve 带宽（鲸鱼层同款处理）。
+    var gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false, powerPreference: "low-power", antialias: false });
     if (!gl) { canvas.dataset.state = "no-webgl2"; return; }
     diag.auroraGL = true;
     // 上下文丢失防护：GPU 内存回收后可重建
@@ -4459,9 +4466,12 @@ function initAurora(shared) {
     // 鼠标笔刷/光线跟随：由设置面板「鼠标跟随交互」开关实时控制（每帧判定）
     function auroraMouseEnabled() { return !media.reducedMotion && !media.coarse && !media.isWindows && bgSettings.mouse; }
     function onMove(e) {
-      var r = canvas.getBoundingClientRect();
-      var nx = (e.clientX - r.left) / r.width;
-      var ny = 1 - (e.clientY - r.top) / r.height;
+      // 画布为 position:fixed inset:0 铺满视口，直接用视口尺寸换算，
+      // 避免 mousemove 高频事件里 getBoundingClientRect() 的强制布局
+      var w = window.innerWidth || canvas.clientWidth || 1;
+      var h = window.innerHeight || canvas.clientHeight || 1;
+      var nx = e.clientX / w;
+      var ny = 1 - e.clientY / h;
       var t = performance.now();
       var dt = Math.max(1, t - (mouse.lastT || t));
       // 用事件时间戳求真实速度（归一化坐标/秒），驱动流场拖尾方向；限幅防异常事件
@@ -4823,9 +4833,22 @@ function initWhale(shared) {
     var CAM_DIST = 15;
     var HALF_H = Math.tan(FOV / 2) * CAM_DIST; // viewport（z=0 平面）半高
     var view = m4Translation(0, 0, -15);
+    // GPU 优化：恒定不变的 uniform 只在初始化时上传一次（该 program 在此上下文常驻绑定），
+    // 每帧省去约 10 次冗余 uniform 调用；动态值仍逐帧上传
+    gl.uniformMatrix4fv(u.uView, false, view);
+    gl.uniform1f(u.uWaveSpeed, WAVE_DEFAULTS.speed);
+    gl.uniform1f(u.uWaveAmount, WAVE_DEFAULTS.amount);
+    gl.uniform1f(u.uMouseRadius, MOUSE_DEFAULTS.radius);
+    gl.uniform1f(u.uMouseDistort, MOUSE_DEFAULTS.distort);
+    gl.uniform1f(u.uLoose, 1);
+    gl.uniform1f(u.uScatter, 0);
+    gl.uniform1f(u.uLightRange, LIGHT_DEFAULTS.range);
+    gl.uniform1f(u.uShadeMin, LIGHT_DEFAULTS.shadeMin);
+    gl.uniform1f(u.uShadeMax, LIGHT_DEFAULTS.shadeMax);
     // 复用矩阵缓冲，避免每帧分配 6 个 Float32Array(16)
     var _mTmpA = new Float32Array(16), _mTmpB = new Float32Array(16), _mTmpC = new Float32Array(16), _mTmpD = new Float32Array(16), _mTmpE = new Float32Array(16), _mTmpF = new Float32Array(16);
     var _modelBuf = new Float32Array(16), _projBuf = new Float32Array(16);
+    var _invBuf = new Float32Array(16);
 
     // GPU 优化：鲸鱼是柔光粒子层，1.25x 物理分辨率渲染（原 1.5x 上限），
     // 像素量减少约 30%，屏幕混合的柔光粒子放大后无感知差异
@@ -4890,16 +4913,9 @@ function initWhale(shared) {
       m4PerspectiveOut(FOV, aspect, 0.1, 100, _projBuf);
       var proj = _projBuf;
       gl.uniformMatrix4fv(u.uModel, false, model);
-      gl.uniformMatrix4fv(u.uView, false, view);
       gl.uniformMatrix4fv(u.uProj, false, proj);
       gl.uniform1f(u.uTime, elapsed);
-      gl.uniform1f(u.uWaveSpeed, WAVE_DEFAULTS.speed);
-      gl.uniform1f(u.uWaveAmount, WAVE_DEFAULTS.amount);
       gl.uniform1f(u.uAssembly, D);
-      gl.uniform1f(u.uLoose, 1);
-      gl.uniform1f(u.uScatter, 0);
-      gl.uniform1f(u.uMouseRadius, MOUSE_DEFAULTS.radius);
-      gl.uniform1f(u.uMouseDistort, MOUSE_DEFAULTS.distort);
       // 鼠标强度：官方以 (1-0.05^dt) 插值；设置面板关闭时恒为 0
       var target = (mouse.active && bgSettings.mouse) ? MOUSE_DEFAULTS.strength : 0;
       strength += (target - strength) * (1 - Math.pow(0.05, dt));
@@ -4909,9 +4925,6 @@ function initWhale(shared) {
       wSX += ((bgSettings.mouse ? mouse.x : 0) - wSX) * wk;
       wSY += ((bgSettings.mouse ? mouse.y : 0) - wSY) * wk;
       gl.uniform3f(u.uLightPos, posX + 2.5 + wSX * halfW * LIGHT_DEFAULTS.followX * (bgSettings.mouse ? (bgSettings.lightFollow != null ? bgSettings.lightFollow : 1) : 0), LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
-      gl.uniform1f(u.uLightRange, LIGHT_DEFAULTS.range);
-      gl.uniform1f(u.uShadeMin, LIGHT_DEFAULTS.shadeMin);
-      gl.uniform1f(u.uShadeMax, LIGHT_DEFAULTS.shadeMax);
       // uMouse：屏幕鼠标 → 世界(z=0) → 组局部空间（官方 matrixWorld 逆变换）
       if (mouse.hasMoved) {
         var wx = mouse.x * halfW, wy = mouse.y * HALF_H;
@@ -4919,7 +4932,7 @@ function initWhale(shared) {
         // 帧率无关：官方 decay 是每 30fps 帧的插值系数，按实际 dt 归一化，60fps 下手感一致
         else { b.x += (wx - b.x) * (1 - Math.pow(1 - MOUSE_DEFAULTS.decay, dt * 30)); b.y += (wy - b.y) * (1 - Math.pow(1 - MOUSE_DEFAULTS.decay, dt * 30)); }
       }
-      var inv = m4Inverse(model);
+      var inv = m4Inverse(model, _invBuf); // 复用缓冲，帧循环零分配
       var ux = inv[0]*b.x + inv[4]*b.y + inv[12];
       var uy = inv[1]*b.x + inv[5]*b.y + inv[13];
       gl.uniform2f(u.uMouse, ux, uy);
@@ -5010,9 +5023,10 @@ function initConstellation(shared) {
 
     function onMove(e) {
       if (!bgSettings.mouse) return; // 设置面板「鼠标跟随交互」关闭时忽略（网格保持静止）
-      var r = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - r.left;
-      mouse.y = e.clientY - r.top;
+      // 画布为 position:fixed inset:0 铺满视口，直接用视口尺寸换算，
+      // 避免 mousemove 高频事件里 getBoundingClientRect() 的强制布局
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
       wake();
     }
     if (!media.reducedMotion) window.addEventListener("mousemove", onMove, { passive: true });
@@ -5022,9 +5036,12 @@ function initConstellation(shared) {
       var w = canvas.clientWidth, h = canvas.clientHeight;
       ctx.clearRect(0, 0, w, h);
 
+      // GPU/CPU 优化：线段互不重叠，逐段 beginPath/stroke 与「单路径收集 + 一次 stroke」
+      // 的栅格化结果完全一致，但绘制调用从 O(n) 次降为 1 次（全屏网格每帧省下数百次 stroke）
       ctx.strokeStyle = opts.lineColor + " " + opts.lineOpacity + ")";
       ctx.lineWidth = 0.5;
       var i, j, a, b, dx, dy, dist, ux, uy;
+      ctx.beginPath();
       for (j = 0; j < rows; j++) {
         for (i = 0; i < cols - 1; i++) {
           a = dots[j * cols + i]; b = dots[j * cols + i + 1];
@@ -5032,10 +5049,8 @@ function initConstellation(shared) {
           dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 20) continue;
           ux = dx / dist; uy = dy / dist;
-          ctx.beginPath();
           ctx.moveTo(a.x + 10 * ux, a.y + 10 * uy);
           ctx.lineTo(b.x - 10 * ux, b.y - 10 * uy);
-          ctx.stroke();
         }
       }
       for (i = 0; i < cols; i++) {
@@ -5045,25 +5060,42 @@ function initConstellation(shared) {
           dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 20) continue;
           ux = dx / dist; uy = dy / dist;
-          ctx.beginPath();
           ctx.moveTo(a.x + 10 * ux, a.y + 10 * uy);
           ctx.lineTo(b.x - 10 * ux, b.y - 10 * uy);
-          ctx.stroke();
         }
       }
+      ctx.stroke();
 
+      // 点批量合并：远离光标的点尺寸与透明度完全相同（n=1.8 / dotOpacity），
+      // 合并进单一 path 一次填充；仅光标邻近点保留逐个绘制（亮度/尺寸渐变不变）
       ctx.fillStyle = opts.dotColor + " " + opts.dotOpacity + ")";
+      var hasMouse = !isNaN(mx) && !isNaN(my);
+      var nearIdx = [];
+      ctx.globalAlpha = opts.dotOpacity;
+      ctx.beginPath();
       for (i = 0; i < dots.length; i++) {
         var p = dots[i];
-        var n = 1.8, alpha = opts.dotOpacity;
-        if (!isNaN(mx) && !isNaN(my)) {
+        if (hasMouse) {
           dx = p.x - mx; dy = p.y - my;
           dist = Math.sqrt(dx * dx + dy * dy);
           var l = Math.max(0, 1 - dist / 140);
-          n = 1.8 + 2 * l;
-          alpha = opts.dotOpacity + 0.4 * l;
+          if (l > 0) { nearIdx.push(i); continue; }
         }
-        ctx.globalAlpha = alpha;
+        if (opts.round) {
+          ctx.moveTo(p.x + 1.8, p.y);
+          ctx.arc(p.x, p.y, 1.8, 0, 2 * Math.PI);
+        } else {
+          ctx.rect(p.x - 1.8, p.y - 1.8, 3.6, 3.6);
+        }
+      }
+      ctx.fill();
+      for (j = 0; j < nearIdx.length; j++) {
+        p = dots[nearIdx[j]];
+        dx = p.x - mx; dy = p.y - my;
+        dist = Math.sqrt(dx * dx + dy * dy);
+        var ln = Math.max(0, 1 - dist / 140);
+        var n = 1.8 + 2 * ln;
+        ctx.globalAlpha = opts.dotOpacity + 0.4 * ln;
         if (opts.round) {
           ctx.beginPath();
           ctx.arc(p.x, p.y, n, 0, 2 * Math.PI);
@@ -5226,9 +5258,20 @@ function initShell(shared) {
     var GLASS_PROPS = ["background", "background-color", "backdrop-filter", "-webkit-backdrop-filter",
       "box-shadow", "border-right-color", "border-color", "--dsh-bg-blur"];
     var processedGlass = (typeof WeakSet !== "undefined") ? new WeakSet() : null;
+    // 幂等写入：值与优先级均一致时跳过。流式输出期间本函数随每次 DOM 突变合批触发，
+    // 无条件 setProperty 会造成大量冗余样式失效/重绘；跳过未变化项可显著降低主线程
+    // 与合成器压力（GPU 优化，最终样式结果与原实现完全一致）
+    function setProp(el, prop, val, prio) {
+      if (!el || !el.style) return;
+      var p = prio || "";
+      if (el.style.getPropertyValue(prop) === val && el.style.getPropertyPriority(prop) === p) return;
+      el.style.setProperty(prop, val, p);
+    }
     function clearInline(el) {
       if (!el || !el.style) return;
-      for (var i = 0; i < GLASS_PROPS.length; i++) el.style.removeProperty(GLASS_PROPS[i]);
+      for (var i = 0; i < GLASS_PROPS.length; i++) {
+        if (el.style.getPropertyValue(GLASS_PROPS[i]) !== "") el.style.removeProperty(GLASS_PROPS[i]);
+      }
     }
     function ensureShellObserver() {
       if (shellUnsub || shellMutObs) return;
@@ -5278,23 +5321,23 @@ function initShell(shared) {
       // 玻璃开启且深色：确保观察器存活
       try { ensureShellObserver(); } catch(e) {}
       // 玻璃模糊强度由设置面板实时控制（CSS 全部走 blur(var(--dsh-bg-blur))）
-      try { document.body.style.setProperty("--dsh-bg-blur", (bgSettings.blur || 8) + "px"); } catch (e) {}
+      try { setProp(document.body, "--dsh-bg-blur", (bgSettings.blur || 8) + "px"); } catch (e) {}
       var frame = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
         document.querySelector('[data-slot="root"] > div');
       if (frame && frame.style) {
         diag.frameFound = true;
         diag.frameBg = window.getComputedStyle ? window.getComputedStyle(frame).backgroundColor : "?";
-        frame.style.setProperty("background", "transparent", "important");
+        setProp(frame, "background", "transparent", "important");
       }
       var bootEl = document.querySelector("#root ._boot_9gj4p_6");
       if (bootEl && bootEl.style) {
-        bootEl.style.setProperty("background", "transparent", "important");
+        setProp(bootEl, "background", "transparent", "important");
       }
       // 视图根容器（会话视图等全高不透明层）同样透明化
       var views = document.querySelectorAll('[data-slot="conversation"] > div, .pI_x6G_detailsCol > div');
       for (var i = 0; i < views.length; i++) {
         var v = views[i];
-        if (v && v.style) v.style.setProperty("background", "transparent", "important");
+        if (v && v.style) setProp(v, "background", "transparent", "important");
       }
       // 官方玻璃拟态（ds-glass 令牌：blur 12px + 深色半透明表面色 + 官方边框/阴影）
       var glassBg = "rgba(13,15,19,.55)";
@@ -5304,29 +5347,29 @@ function initShell(shared) {
       if (side && side.style) {
         // 注意：backdrop-filter 会让侧边栏成为 fixed 后代的包含块（设置弹窗错乱），
         // 所以列本身不设 backdrop-filter，模糊由 CSS 的 ::before 伪元素承担
-        side.style.setProperty("background", glassBg, "important");
-        side.style.setProperty("border-right-color", glassBorder, "important");
+        setProp(side, "background", glassBg, "important");
+        setProp(side, "border-right-color", glassBorder, "important");
       }
       var sideRoot = document.querySelector(".hHd-Xa_root, [data-slot=\"sidebar\"] > div");
       if (sideRoot && sideRoot.style) {
         // 注意：不能给侧边栏内容根加 z-index/堆叠上下文——设置弹窗（fixed z-1000）
         // 挂载在侧边栏内部，被困在侧边栏堆叠上下文里会被输入框（z-7）盖住；
         // 模糊由 CSS 的 ::before z-index:-1 承担，内容自然在模糊层之上
-        sideRoot.style.setProperty("background", "transparent", "important");
+        setProp(sideRoot, "background", "transparent", "important");
       }
       var card = document.querySelector(".uV2eYG_card, [data-composer-card=\"true\"]");
       if (card && card.style) {
-        card.style.setProperty("background", glassBg, "important");
-        card.style.setProperty("backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
-        card.style.setProperty("-webkit-backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
-        card.style.setProperty("border-color", glassBorder, "important");
-        card.style.setProperty("box-shadow", glassShadow, "important");
+        setProp(card, "background", glassBg, "important");
+        setProp(card, "backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
+        setProp(card, "-webkit-backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
+        setProp(card, "border-color", glassBorder, "important");
+        setProp(card, "box-shadow", glassShadow, "important");
       }
       var seat = document.querySelector(".wSkVaW_composerSeat, [data-composer-seat]");
-      if (seat && seat.style) seat.style.setProperty("background", "transparent", "important");
+      if (seat && seat.style) setProp(seat, "background", "transparent", "important");
       // 会话列表底部渐隐条（qDHVXG_fade）：玻璃侧边栏下会露出浅色白条，透明化
       var fade = document.querySelector(".qDHVXG_fade");
-      if (fade && fade.style) fade.style.setProperty("background", "transparent", "important");
+      if (fade && fade.style) setProp(fade, "background", "transparent", "important");
       // 消息气泡与代码块玻璃化（与侧边栏/输入框同款材质）—— WeakSet 缓存避免每突变全量重写
       var glassRing = "inset 0 0 0 1px hsla(0,0%,100%,.08)";
       var blurPx = (bgSettings.blur || 8) + "px";
@@ -5339,10 +5382,10 @@ function initShell(shared) {
           if (processedGlass.has(ge) && cached === blurPx) continue;
           processedGlass.add(ge); ge._dshBlur = blurPx;
         }
-        ge.style.setProperty("background", glassBg, "important");
-        ge.style.setProperty("backdrop-filter", "blur(" + blurPx + ")", "important");
-        ge.style.setProperty("-webkit-backdrop-filter", "blur(" + blurPx + ")", "important");
-        ge.style.setProperty("box-shadow", glassRing, "important");
+        setProp(ge, "background", glassBg, "important");
+        setProp(ge, "backdrop-filter", "blur(" + blurPx + ")", "important");
+        setProp(ge, "-webkit-backdrop-filter", "blur(" + blurPx + ")", "important");
+        setProp(ge, "box-shadow", glassRing, "important");
       }
     }
     applyShellGlass();

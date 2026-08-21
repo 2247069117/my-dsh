@@ -211,7 +211,8 @@
     var f = 1 / Math.tan(fovY / 2), nf = 1 / (near - far);
     return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
   }
-  function m4Inverse(m) {
+  function m4Inverse(m, out) {
+    // GPU 优化：支持传入复用缓冲（out），帧循环调用零分配
     var m00 = m[0], m01 = m[1], m02 = m[2], m03 = m[3];
     var m10 = m[4], m11 = m[5], m12 = m[6], m13 = m[7];
     var m20 = m[8], m21 = m[9], m22 = m[10], m23 = m[11];
@@ -234,7 +235,8 @@
     if (!det) return m4Identity();
     var invDet = 1.0 / det;
 
-    var out = new Float32Array(16);
+    // 复用调用方传入的缓冲（帧循环零分配）；未传时保持原有行为分配新数组
+    out = out || new Float32Array(16);
     out[0] = (m11 * b11 - m12 * b10 + m13 * b09) * invDet;
     out[1] = (-m01 * b11 + m02 * b10 - m03 * b09) * invDet;
     out[2] = (m31 * b05 - m32 * b04 + m33 * b03) * invDet;

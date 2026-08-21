@@ -14,7 +14,9 @@ function initAurora(shared) {
    * ------------------------------------------------------------------ */
   function startAurora() {
     var canvas = shared.dom.auroraCanvas;
-    var gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false, powerPreference: "low-power" });
+    // GPU 优化：单张全屏三角形/条带没有任何几何边缘，MSAA 对片元着色结果零影响，
+    // antialias:false 直接省掉 MSAA tile 显存与每帧 resolve 带宽（鲸鱼层同款处理）。
+    var gl = canvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false, powerPreference: "low-power", antialias: false });
     if (!gl) { canvas.dataset.state = "no-webgl2"; return; }
     diag.auroraGL = true;
     // 上下文丢失防护：GPU 内存回收后可重建
@@ -180,9 +182,12 @@ function initAurora(shared) {
     // 鼠标笔刷/光线跟随：由设置面板「鼠标跟随交互」开关实时控制（每帧判定）
     function auroraMouseEnabled() { return !media.reducedMotion && !media.coarse && !media.isWindows && bgSettings.mouse; }
     function onMove(e) {
-      var r = canvas.getBoundingClientRect();
-      var nx = (e.clientX - r.left) / r.width;
-      var ny = 1 - (e.clientY - r.top) / r.height;
+      // 画布为 position:fixed inset:0 铺满视口，直接用视口尺寸换算，
+      // 避免 mousemove 高频事件里 getBoundingClientRect() 的强制布局
+      var w = window.innerWidth || canvas.clientWidth || 1;
+      var h = window.innerHeight || canvas.clientHeight || 1;
+      var nx = e.clientX / w;
+      var ny = 1 - e.clientY / h;
       var t = performance.now();
       var dt = Math.max(1, t - (mouse.lastT || t));
       // 用事件时间戳求真实速度（归一化坐标/秒），驱动流场拖尾方向；限幅防异常事件

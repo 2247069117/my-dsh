@@ -7,7 +7,8 @@
   pointer-events: none;
   background: #0a0a0a;
   animation: dsh-ds-enter 1.8s ease-out backwards;
-  will-change: opacity, filter;
+  /* GPU 优化：不常驻 will-change（入场动画由合成器自动提升层），避免全屏容器
+     永久占用一层合成显存与带宽 */
 }
 
 #dsh-ds-aurora,

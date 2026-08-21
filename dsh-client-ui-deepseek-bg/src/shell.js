@@ -61,9 +61,20 @@ function initShell(shared) {
     var GLASS_PROPS = ["background", "background-color", "backdrop-filter", "-webkit-backdrop-filter",
       "box-shadow", "border-right-color", "border-color", "--dsh-bg-blur"];
     var processedGlass = (typeof WeakSet !== "undefined") ? new WeakSet() : null;
+    // 幂等写入：值与优先级均一致时跳过。流式输出期间本函数随每次 DOM 突变合批触发，
+    // 无条件 setProperty 会造成大量冗余样式失效/重绘；跳过未变化项可显著降低主线程
+    // 与合成器压力（GPU 优化，最终样式结果与原实现完全一致）
+    function setProp(el, prop, val, prio) {
+      if (!el || !el.style) return;
+      var p = prio || "";
+      if (el.style.getPropertyValue(prop) === val && el.style.getPropertyPriority(prop) === p) return;
+      el.style.setProperty(prop, val, p);
+    }
     function clearInline(el) {
       if (!el || !el.style) return;
-      for (var i = 0; i < GLASS_PROPS.length; i++) el.style.removeProperty(GLASS_PROPS[i]);
+      for (var i = 0; i < GLASS_PROPS.length; i++) {
+        if (el.style.getPropertyValue(GLASS_PROPS[i]) !== "") el.style.removeProperty(GLASS_PROPS[i]);
+      }
     }
     function ensureShellObserver() {
       if (shellUnsub || shellMutObs) return;
@@ -113,23 +124,23 @@ function initShell(shared) {
       // 玻璃开启且深色：确保观察器存活
       try { ensureShellObserver(); } catch(e) {}
       // 玻璃模糊强度由设置面板实时控制（CSS 全部走 blur(var(--dsh-bg-blur))）
-      try { document.body.style.setProperty("--dsh-bg-blur", (bgSettings.blur || 8) + "px"); } catch (e) {}
+      try { setProp(document.body, "--dsh-bg-blur", (bgSettings.blur || 8) + "px"); } catch (e) {}
       var frame = document.querySelector('[data-slot="root"] .pI_x6G_frame') ||
         document.querySelector('[data-slot="root"] > div');
       if (frame && frame.style) {
         diag.frameFound = true;
         diag.frameBg = window.getComputedStyle ? window.getComputedStyle(frame).backgroundColor : "?";
-        frame.style.setProperty("background", "transparent", "important");
+        setProp(frame, "background", "transparent", "important");
       }
       var bootEl = document.querySelector("#root ._boot_9gj4p_6");
       if (bootEl && bootEl.style) {
-        bootEl.style.setProperty("background", "transparent", "important");
+        setProp(bootEl, "background", "transparent", "important");
       }
       // 视图根容器（会话视图等全高不透明层）同样透明化
       var views = document.querySelectorAll('[data-slot="conversation"] > div, .pI_x6G_detailsCol > div');
       for (var i = 0; i < views.length; i++) {
         var v = views[i];
-        if (v && v.style) v.style.setProperty("background", "transparent", "important");
+        if (v && v.style) setProp(v, "background", "transparent", "important");
       }
       // 官方玻璃拟态（ds-glass 令牌：blur 12px + 深色半透明表面色 + 官方边框/阴影）
       var glassBg = "rgba(13,15,19,.55)";
@@ -139,29 +150,29 @@ function initShell(shared) {
       if (side && side.style) {
         // 注意：backdrop-filter 会让侧边栏成为 fixed 后代的包含块（设置弹窗错乱），
         // 所以列本身不设 backdrop-filter，模糊由 CSS 的 ::before 伪元素承担
-        side.style.setProperty("background", glassBg, "important");
-        side.style.setProperty("border-right-color", glassBorder, "important");
+        setProp(side, "background", glassBg, "important");
+        setProp(side, "border-right-color", glassBorder, "important");
       }
       var sideRoot = document.querySelector(".hHd-Xa_root, [data-slot=\"sidebar\"] > div");
       if (sideRoot && sideRoot.style) {
         // 注意：不能给侧边栏内容根加 z-index/堆叠上下文——设置弹窗（fixed z-1000）
         // 挂载在侧边栏内部，被困在侧边栏堆叠上下文里会被输入框（z-7）盖住；
         // 模糊由 CSS 的 ::before z-index:-1 承担，内容自然在模糊层之上
-        sideRoot.style.setProperty("background", "transparent", "important");
+        setProp(sideRoot, "background", "transparent", "important");
       }
       var card = document.querySelector(".uV2eYG_card, [data-composer-card=\"true\"]");
       if (card && card.style) {
-        card.style.setProperty("background", glassBg, "important");
-        card.style.setProperty("backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
-        card.style.setProperty("-webkit-backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
-        card.style.setProperty("border-color", glassBorder, "important");
-        card.style.setProperty("box-shadow", glassShadow, "important");
+        setProp(card, "background", glassBg, "important");
+        setProp(card, "backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
+        setProp(card, "-webkit-backdrop-filter", "blur(" + (bgSettings.blur || 8) + "px)", "important");
+        setProp(card, "border-color", glassBorder, "important");
+        setProp(card, "box-shadow", glassShadow, "important");
       }
       var seat = document.querySelector(".wSkVaW_composerSeat, [data-composer-seat]");
-      if (seat && seat.style) seat.style.setProperty("background", "transparent", "important");
+      if (seat && seat.style) setProp(seat, "background", "transparent", "important");
       // 会话列表底部渐隐条（qDHVXG_fade）：玻璃侧边栏下会露出浅色白条，透明化
       var fade = document.querySelector(".qDHVXG_fade");
-      if (fade && fade.style) fade.style.setProperty("background", "transparent", "important");
+      if (fade && fade.style) setProp(fade, "background", "transparent", "important");
       // 消息气泡与代码块玻璃化（与侧边栏/输入框同款材质）—— WeakSet 缓存避免每突变全量重写
       var glassRing = "inset 0 0 0 1px hsla(0,0%,100%,.08)";
       var blurPx = (bgSettings.blur || 8) + "px";
@@ -174,10 +185,10 @@ function initShell(shared) {
           if (processedGlass.has(ge) && cached === blurPx) continue;
           processedGlass.add(ge); ge._dshBlur = blurPx;
         }
-        ge.style.setProperty("background", glassBg, "important");
-        ge.style.setProperty("backdrop-filter", "blur(" + blurPx + ")", "important");
-        ge.style.setProperty("-webkit-backdrop-filter", "blur(" + blurPx + ")", "important");
-        ge.style.setProperty("box-shadow", glassRing, "important");
+        setProp(ge, "background", glassBg, "important");
+        setProp(ge, "backdrop-filter", "blur(" + blurPx + ")", "important");
+        setProp(ge, "-webkit-backdrop-filter", "blur(" + blurPx + ")", "important");
+        setProp(ge, "box-shadow", glassRing, "important");
       }
     }
     applyShellGlass();

@@ -15,9 +15,11 @@ function initDom(shared) {
   shared.dom.container.id = "dsh-ds-bg";
   shared.dom.container.dataset.version = "__PKG_VERSION__"; // 部署版本标记：由 build.mjs 从 package.json 注入，页面可查 document.getElementById('dsh-ds-bg')?.dataset.version
   // 关键样式内联兜底：全主题统一深色背景
+  // GPU 优化：不再常驻 will-change:opacity,filter——它会在入场动画结束后仍强制
+  // 全屏容器保持独立合成层；合成器对运行中的动画本就会自动提升，观感不变
   shared.dom.container.style.cssText = "position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;" +
     "background:#0a0a0a;" +
-    "animation:dsh-ds-enter 1.8s ease-out backwards;will-change:opacity,filter;";
+    "animation:dsh-ds-enter 1.8s ease-out backwards;";
   var MASK = "linear-gradient(#000000fc 0%,#000000e8 8.98%,transparent 100%)";
   shared.dom.auroraCanvas = document.createElement("canvas");
   shared.dom.auroraCanvas.id = "dsh-ds-aurora";

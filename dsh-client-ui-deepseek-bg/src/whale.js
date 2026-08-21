@@ -130,9 +130,22 @@ function initWhale(shared) {
     var CAM_DIST = 15;
     var HALF_H = Math.tan(FOV / 2) * CAM_DIST; // viewport（z=0 平面）半高
     var view = m4Translation(0, 0, -15);
+    // GPU 优化：恒定不变的 uniform 只在初始化时上传一次（该 program 在此上下文常驻绑定），
+    // 每帧省去约 10 次冗余 uniform 调用；动态值仍逐帧上传
+    gl.uniformMatrix4fv(u.uView, false, view);
+    gl.uniform1f(u.uWaveSpeed, WAVE_DEFAULTS.speed);
+    gl.uniform1f(u.uWaveAmount, WAVE_DEFAULTS.amount);
+    gl.uniform1f(u.uMouseRadius, MOUSE_DEFAULTS.radius);
+    gl.uniform1f(u.uMouseDistort, MOUSE_DEFAULTS.distort);
+    gl.uniform1f(u.uLoose, 1);
+    gl.uniform1f(u.uScatter, 0);
+    gl.uniform1f(u.uLightRange, LIGHT_DEFAULTS.range);
+    gl.uniform1f(u.uShadeMin, LIGHT_DEFAULTS.shadeMin);
+    gl.uniform1f(u.uShadeMax, LIGHT_DEFAULTS.shadeMax);
     // 复用矩阵缓冲，避免每帧分配 6 个 Float32Array(16)
     var _mTmpA = new Float32Array(16), _mTmpB = new Float32Array(16), _mTmpC = new Float32Array(16), _mTmpD = new Float32Array(16), _mTmpE = new Float32Array(16), _mTmpF = new Float32Array(16);
     var _modelBuf = new Float32Array(16), _projBuf = new Float32Array(16);
+    var _invBuf = new Float32Array(16);
 
     // GPU 优化：鲸鱼是柔光粒子层，1.25x 物理分辨率渲染（原 1.5x 上限），
     // 像素量减少约 30%，屏幕混合的柔光粒子放大后无感知差异
@@ -197,16 +210,9 @@ function initWhale(shared) {
       m4PerspectiveOut(FOV, aspect, 0.1, 100, _projBuf);
       var proj = _projBuf;
       gl.uniformMatrix4fv(u.uModel, false, model);
-      gl.uniformMatrix4fv(u.uView, false, view);
       gl.uniformMatrix4fv(u.uProj, false, proj);
       gl.uniform1f(u.uTime, elapsed);
-      gl.uniform1f(u.uWaveSpeed, WAVE_DEFAULTS.speed);
-      gl.uniform1f(u.uWaveAmount, WAVE_DEFAULTS.amount);
       gl.uniform1f(u.uAssembly, D);
-      gl.uniform1f(u.uLoose, 1);
-      gl.uniform1f(u.uScatter, 0);
-      gl.uniform1f(u.uMouseRadius, MOUSE_DEFAULTS.radius);
-      gl.uniform1f(u.uMouseDistort, MOUSE_DEFAULTS.distort);
       // 鼠标强度：官方以 (1-0.05^dt) 插值；设置面板关闭时恒为 0
       var target = (mouse.active && bgSettings.mouse) ? MOUSE_DEFAULTS.strength : 0;
       strength += (target - strength) * (1 - Math.pow(0.05, dt));
@@ -216,9 +222,6 @@ function initWhale(shared) {
       wSX += ((bgSettings.mouse ? mouse.x : 0) - wSX) * wk;
       wSY += ((bgSettings.mouse ? mouse.y : 0) - wSY) * wk;
       gl.uniform3f(u.uLightPos, posX + 2.5 + wSX * halfW * LIGHT_DEFAULTS.followX * (bgSettings.mouse ? (bgSettings.lightFollow != null ? bgSettings.lightFollow : 1) : 0), LIGHT_DEFAULTS.y, LIGHT_DEFAULTS.z);
-      gl.uniform1f(u.uLightRange, LIGHT_DEFAULTS.range);
-      gl.uniform1f(u.uShadeMin, LIGHT_DEFAULTS.shadeMin);
-      gl.uniform1f(u.uShadeMax, LIGHT_DEFAULTS.shadeMax);
       // uMouse：屏幕鼠标 → 世界(z=0) → 组局部空间（官方 matrixWorld 逆变换）
       if (mouse.hasMoved) {
         var wx = mouse.x * halfW, wy = mouse.y * HALF_H;
@@ -226,7 +229,7 @@ function initWhale(shared) {
         // 帧率无关：官方 decay 是每 30fps 帧的插值系数，按实际 dt 归一化，60fps 下手感一致
         else { b.x += (wx - b.x) * (1 - Math.pow(1 - MOUSE_DEFAULTS.decay, dt * 30)); b.y += (wy - b.y) * (1 - Math.pow(1 - MOUSE_DEFAULTS.decay, dt * 30)); }
       }
-      var inv = m4Inverse(model);
+      var inv = m4Inverse(model, _invBuf); // 复用缓冲，帧循环零分配
       var ux = inv[0]*b.x + inv[4]*b.y + inv[12];
       var uy = inv[1]*b.x + inv[5]*b.y + inv[13];
       gl.uniform2f(u.uMouse, ux, uy);

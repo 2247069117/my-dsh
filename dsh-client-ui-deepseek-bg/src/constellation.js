@@ -51,9 +51,10 @@ function initConstellation(shared) {
 
     function onMove(e) {
       if (!bgSettings.mouse) return; // 设置面板「鼠标跟随交互」关闭时忽略（网格保持静止）
-      var r = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - r.left;
-      mouse.y = e.clientY - r.top;
+      // 画布为 position:fixed inset:0 铺满视口，直接用视口尺寸换算，
+      // 避免 mousemove 高频事件里 getBoundingClientRect() 的强制布局
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
       wake();
     }
     if (!media.reducedMotion) window.addEventListener("mousemove", onMove, { passive: true });
@@ -63,9 +64,12 @@ function initConstellation(shared) {
       var w = canvas.clientWidth, h = canvas.clientHeight;
       ctx.clearRect(0, 0, w, h);
 
+      // GPU/CPU 优化：线段互不重叠，逐段 beginPath/stroke 与「单路径收集 + 一次 stroke」
+      // 的栅格化结果完全一致，但绘制调用从 O(n) 次降为 1 次（全屏网格每帧省下数百次 stroke）
       ctx.strokeStyle = opts.lineColor + " " + opts.lineOpacity + ")";
       ctx.lineWidth = 0.5;
       var i, j, a, b, dx, dy, dist, ux, uy;
+      ctx.beginPath();
       for (j = 0; j < rows; j++) {
         for (i = 0; i < cols - 1; i++) {
           a = dots[j * cols + i]; b = dots[j * cols + i + 1];
@@ -73,10 +77,8 @@ function initConstellation(shared) {
           dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 20) continue;
           ux = dx / dist; uy = dy / dist;
-          ctx.beginPath();
           ctx.moveTo(a.x + 10 * ux, a.y + 10 * uy);
           ctx.lineTo(b.x - 10 * ux, b.y - 10 * uy);
-          ctx.stroke();
         }
       }
       for (i = 0; i < cols; i++) {
@@ -86,25 +88,42 @@ function initConstellation(shared) {
           dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 20) continue;
           ux = dx / dist; uy = dy / dist;
-          ctx.beginPath();
           ctx.moveTo(a.x + 10 * ux, a.y + 10 * uy);
           ctx.lineTo(b.x - 10 * ux, b.y - 10 * uy);
-          ctx.stroke();
         }
       }
+      ctx.stroke();
 
+      // 点批量合并：远离光标的点尺寸与透明度完全相同（n=1.8 / dotOpacity），
+      // 合并进单一 path 一次填充；仅光标邻近点保留逐个绘制（亮度/尺寸渐变不变）
       ctx.fillStyle = opts.dotColor + " " + opts.dotOpacity + ")";
+      var hasMouse = !isNaN(mx) && !isNaN(my);
+      var nearIdx = [];
+      ctx.globalAlpha = opts.dotOpacity;
+      ctx.beginPath();
       for (i = 0; i < dots.length; i++) {
         var p = dots[i];
-        var n = 1.8, alpha = opts.dotOpacity;
-        if (!isNaN(mx) && !isNaN(my)) {
+        if (hasMouse) {
           dx = p.x - mx; dy = p.y - my;
           dist = Math.sqrt(dx * dx + dy * dy);
           var l = Math.max(0, 1 - dist / 140);
-          n = 1.8 + 2 * l;
-          alpha = opts.dotOpacity + 0.4 * l;
+          if (l > 0) { nearIdx.push(i); continue; }
         }
-        ctx.globalAlpha = alpha;
+        if (opts.round) {
+          ctx.moveTo(p.x + 1.8, p.y);
+          ctx.arc(p.x, p.y, 1.8, 0, 2 * Math.PI);
+        } else {
+          ctx.rect(p.x - 1.8, p.y - 1.8, 3.6, 3.6);
+        }
+      }
+      ctx.fill();
+      for (j = 0; j < nearIdx.length; j++) {
+        p = dots[nearIdx[j]];
+        dx = p.x - mx; dy = p.y - my;
+        dist = Math.sqrt(dx * dx + dy * dy);
+        var ln = Math.max(0, 1 - dist / 140);
+        var n = 1.8 + 2 * ln;
+        ctx.globalAlpha = opts.dotOpacity + 0.4 * ln;
         if (opts.round) {
           ctx.beginPath();
           ctx.arc(p.x, p.y, n, 0, 2 * Math.PI);
