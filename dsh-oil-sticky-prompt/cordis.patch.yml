@@ -1,0 +1,5 @@
+# dsh-oil-sticky-prompt bundle patch
+# 声明在 package.json 的 dsh.bundle.patch，`dsh plugin add` 后自动并入 profile 层栈。
+- insert:
+    - id: dsh-oil-sticky-prompt
+      name: dsh-oil-sticky-prompt
