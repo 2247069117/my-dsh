@@ -4,20 +4,24 @@
 #
 # 背景
 # ----
-# opencode.ai zen/go 的 ox-alpha-free 路由在 SSE 流结束时从不发送 finish_reason，
-# 而 DSH 内置的 pi-ai (0.82.x) 把这种情况当作协议错误抛出
-# "Stream ended without finish_reason"，导致已生成的一大段推理/输出被丢弃并整轮重试。
+# 不少 OpenAI 兼容网关（opencode.ai zen/go 的 ox-alpha-free、部分代理/中转
+# 路由等）在 SSE 流结束时从不发送 finish_reason，而 DSH 内置的 pi-ai (0.82.x)
+# 把这种情况当作协议错误抛出 "Stream ended without finish_reason"，导致已生成
+# 的一大段推理/输出被丢弃并整轮重试。该检查是 openai-completions 适配器的
+# 通用逻辑，任何自定义路由都可能触发，不只某一家。
 #
-# 本脚本对全局安装的 DSH 做三层修补（全部幂等，可重复执行）：
+# 本脚本对全局安装的 DSH 做三步修补（每步幂等，可重复执行）：
 #   1. 将 @deepseek-ai/dsh-llm-pi-ai 依赖的 pi-ai 从 ^0.82.1 升到 ^0.84.2
 #      （pi-ai ≥0.83 新增 OpenAICompletionsCompat.supportsFinishReason）。
 #   2. 在 dsh-llm-pi-ai 的编译产物 lib/index.js 中把 supportsFinishReason 加入
 #      COMPLETIONS_COMPAT_GATE（offer）与 compatProfile 的 z.object 模式。
-#   3. （配置层，不在此脚本内）在 ~/.dsh/settings.yaml 的模型上声明：
-#          compat:
-#            supportsFinishReason: false
+#   3. 默认值注入：手写声明的自定义路由（不在 pi-ai 内置 catalog 中）且协议为
+#      openai-completions 的模型，resolveModelCompat 默认补上
+#      supportsFinishReason: false —— 流自然结束不再报错，内容完整保留。
+#      catalog 内置路由保持 pi-ai 的严格检测；settings.yaml 里显式声明
+#      compat.supportsFinishReason 仍可覆盖默认值。
 #
-# DSH 每次升级/重装后需要重新执行本脚本；settings.yaml 的声明保留即可。
+# DSH 每次升级/重装后需要重新执行本脚本。
 #
 # 用法
 # ----
@@ -52,9 +56,6 @@ else
 fi
 
 NEED_INSTALL=1
-if [[ -n "$INSTALLED" ]] && node -e "process.exit(require('semver') ? 0 : 1)" 2>/dev/null; then
-  : # semver 未必可用，走下面的简单比较
-fi
 if [[ -n "$INSTALLED" && "$INSTALLED" != 0.82* ]]; then
   # 已不是 0.82 系列就不再强改依赖
   NEED_INSTALL=0
@@ -71,25 +72,70 @@ if [[ "$NEED_INSTALL" == 1 ]]; then
 fi
 
 # ---------- 2) 让 dsh-llm-pi-ai 把 supportsFinishReason 当作可配置字段 ----------
-if grep -q 'supportsFinishReason' "$LIB"; then
-  echo "✓ lib/index.js 已包含 supportsFinishReason，跳过补丁"
+# 2a. COMPLETIONS_COMPAT_GATE 标记 offer
+if grep -q 'supportsFinishReason: "offer"' "$LIB"; then
+  echo "✓ gate 已含 supportsFinishReason: offer，跳过"
 else
   perl -0pi -e 's/(\tsupportsUsageInStreaming: "offer",)(\n\tmaxTokensField: "offer",)/$1\n\tsupportsFinishReason: "offer",$2/' "$LIB"
-  perl -0pi -e 's/(\tsupportsUsageInStreaming: z\.boolean\(\),)(\n\tmaxTokensField: z\.union\(MAX_TOKENS_FIELDS\),)/$1\n\tsupportsFinishReason: z.boolean(),$2/' "$LIB"
-  if grep -q 'supportsFinishReason' "$LIB"; then
-    echo "✓ lib/index.js 补丁完成（gate + schema）"
-  else
-    echo "✗ 补丁未生效，请检查 $LIB 的 COMPLETIONS_COMPAT_GATE / compatProfile 结构"
-    exit 1
-  fi
+  grep -q 'supportsFinishReason: "offer"' "$LIB" || { echo "✗ gate 补丁未生效"; exit 1; }
+  echo "✓ gate 补丁完成"
 fi
+
+# 2b. compatProfile 的 z.object 模式声明字段
+if grep -q 'supportsFinishReason: z.boolean()' "$LIB"; then
+  echo "✓ schema 已含 supportsFinishReason: z.boolean()，跳过"
+else
+  perl -0pi -e 's/(\tsupportsUsageInStreaming: z\.boolean\(\),)(\n\tmaxTokensField: z\.union\(MAX_TOKENS_FIELDS\),)/$1\n\tsupportsFinishReason: z.boolean(),$2/' "$LIB"
+  grep -q 'supportsFinishReason: z.boolean()' "$LIB" || { echo "✗ schema 补丁未生效"; exit 1; }
+  echo "✓ schema 补丁完成"
+fi
+
+# ---------- 3) 自定义路由默认 supportsFinishReason: false ----------
+if grep -q 'local patch (user): custom routes default' "$LIB"; then
+  echo "✓ 自定义路由默认值已注入，跳过"
+else
+  python3 - "$LIB" <<'PY'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+
+anchor = "\tif (Object.keys(configured).length === 0) return {};"
+inject = (
+    "\t// local patch (user): custom routes default supportsFinishReason=false — gateways\n"
+    "\t// outside pi-ai's catalog often end streams without a final finish_reason, and\n"
+    "\t// treating that as a protocol error discards generated content and retries.\n"
+    "\tif (base === void 0 && api === \"openai-completions\" && configured.supportsFinishReason === void 0) {\n"
+    "\t\tconfigured.supportsFinishReason = false;\n"
+    "\t}\n"
+)
+
+count = src.count(anchor)
+if count != 1:
+    sys.exit(f"✗ 锚点出现 {count} 次（期望 1 次）——vendor 文件可能已被 DSH 升级改动，"
+             f"请人工核对 {path} 后再打补丁")
+
+open(path, "w", encoding="utf-8").write(src.replace(anchor, inject + anchor))
+PY
+  grep -q 'local patch (user): custom routes default' "$LIB" || { echo "✗ 默认值注入未生效"; exit 1; }
+  echo "✓ 自定义路由默认值注入完成"
+fi
+
+node --check "$LIB" || { echo "✗ 语法检查失败，请回滚备份"; exit 1; }
 
 cat <<'EOF'
 
-✅ 全部完成。接下来：
-  1. 重启 dsh web 服务（退出 DSH Launcher.app 或 kill 掉 `dsh web` 进程后重新打开），
-     使新代码加载。
-  2. 确认 ~/.dsh/settings.yaml 的目标模型带有：
+✅ 全部完成。接下来重启 dsh web 服务（退出 DSH Launcher.app 或 kill 掉 `dsh web`
+   进程后重新打开），使新代码加载。
+
+   说明：
+   - 所有手写声明的 openai-completions 自定义路由（如 opencode、中转网关等）现在
+     默认容忍「流结束不带 finish_reason」，内容不再被丢弃重试。
+   - settings.yaml 里显式的：
          compat:
            supportsFinishReason: false
+     仍有效但已非必需；若某个路由想保持严格检测，显式声明
+         compat:
+           supportsFinishReason: true
+     即可覆盖默认值。
 EOF

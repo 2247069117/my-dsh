@@ -12,5 +12,5 @@ DeepSeek Harness 插件合集 · Collection of DSH plugins
 
 | 目录 | 说明 |
 | --- | --- |
-| [patch-dsh-finish-reason](./scripts/patch-dsh-finish-reason/) | DSH 本地补丁：修复「流结束不带 `finish_reason`」的端点（如 opencode.ai zen/go 的 `ox-alpha-free`）导致的报错、内容丢弃与整轮重试。详情见其目录内 [README](./scripts/patch-dsh-finish-reason/README.md) |
+| [patch-dsh-finish-reason](./scripts/patch-dsh-finish-reason/) | DSH 本地补丁：修复「流结束不带 `finish_reason`」导致的报错、内容丢弃与整轮重试（`openai-completions` 协议的通用检查，对所有手写声明的自定义路由默认生效，如 opencode.ai zen/go、各类中转网关）。详情见其目录内 [README](./scripts/patch-dsh-finish-reason/README.md) |
 | [patch-dsh-escalation-noop](./scripts/patch-dsh-escalation-noop/) | DSH 本地补丁：`dsh-sandbox` 同模式 `sandbox_permissions` 升级 no-op 放行（`danger→danger` 不再报错，真实升级仍审批、降级仍拒绝）。详情见其目录内 [README](./scripts/patch-dsh-escalation-noop/README.md) |
