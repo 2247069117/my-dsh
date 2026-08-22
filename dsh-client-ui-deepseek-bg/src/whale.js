@@ -9,10 +9,10 @@ function initWhale(shared) {
   var media = shared.media;
   var diag = shared.dom.diag;
 
-  /** 鲸鱼层显隐：全主题统一，仅受设置开关控制 */
+  /** 鲸鱼层显隐：仅深色主题显示（官方深色 hero 元素），浅色保持官方原版 */
   function updateWhaleDisplay() {
     if (!shared.dom.whaleLayer) return;
-    shared.dom.whaleLayer.style.display = bgSettings.whale ? "flex" : "none";
+    shared.dom.whaleLayer.style.display = (state.dark && bgSettings.whale) ? "flex" : "none";
   }
   function startWhale() {
     var canvas = shared.dom.whaleCanvas;

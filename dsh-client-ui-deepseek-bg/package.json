@@ -1,7 +1,7 @@
 {
   "name": "dsh-client-ui-deepseek-bg",
-  "description": "DeepSeek Harness 官网风格深色皮肤：极光/粒子鲸鱼背景 + 玻璃拟态 + Border Beam + Thinking Orbs 动态工具状态机 + Pulse 官方风格任务清单框，内置设置页「背景特效」GPU 调优面板",
-  "version": "1.11.4",
+  "description": "DeepSeek Harness 官网风格背景引擎：极光/粒子鲸鱼/星座网格/鼠标跟随交互 + 背景特效设置面板（界面皮肤层玻璃/Beam/Orbs 在 dsh-client-ui-deepseek-glass）",
+  "version": "1.13.0",
   "type": "module",
   "main": "lib/index.js",
   "scripts": {

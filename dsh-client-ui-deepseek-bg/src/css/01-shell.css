@@ -1,32 +1,33 @@
 /* ===================================================================== *
- * 外壳透明化：全主题统一深色背景透出
+ * 外壳透明化：仅深色主题生效（body[data-ds-dark-theme]）；
+ * 浅色主题不匹配任何规则，保持 DSH 官方原版外观。
  * ===================================================================== */
 
 /* 背景透出：body 与外壳层透明化 */
-body {
+body[data-ds-dark-theme] {
   background: transparent !important;
 }
 
-body [data-slot="root"] > div {
+body[data-ds-dark-theme] [data-slot="root"] > div {
   background: transparent !important;
 }
 
 /* 当前构建的布局 frame 类名（精确覆盖，防中间包裹层） */
-body [data-slot="root"] .pI_x6G_frame {
+body[data-ds-dark-theme] [data-slot="root"] .pI_x6G_frame {
   background: transparent !important;
 }
 
 /* 插件加载前的启动屏 */
-body #root ._boot_9gj4p_6 {
+body[data-ds-dark-theme] #root ._boot_9gj4p_6 {
   background: transparent !important;
 }
 
 /* 视图根容器透明化：会话视图（bg-base）与详情列内容（轨迹视图 bg-layer-1）
    都是全高不透明容器，会盖住 DeepSeek 背景层 */
-body [data-slot="conversation"] > div {
+body[data-ds-dark-theme] [data-slot="conversation"] > div {
   background: transparent !important;
 }
 
-body .pI_x6G_detailsCol > div {
+body[data-ds-dark-theme] .pI_x6G_detailsCol > div {
   background: transparent !important;
 }

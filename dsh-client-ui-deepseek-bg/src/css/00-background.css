@@ -1,14 +1,23 @@
-/* ---------- 背景层：全主题统一深色 ---------- */
+/* ---------- 背景层：深色主题生效，浅色主题隐藏（官方原版） ---------- */
 #dsh-ds-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
-  background: #0a0a0a;
+  background: linear-gradient(180deg, #9cc1e7 0%, rgba(250, 250, 250, 0) 100%), #f9f8f8;
   animation: dsh-ds-enter 1.8s ease-out backwards;
   /* GPU 优化：不常驻 will-change（入场动画由合成器自动提升层），避免全屏容器
      永久占用一层合成显存与带宽 */
+}
+
+/* 浅色主题：整个背景层隐藏，DSH 官方原版浅色背景透出 */
+#dsh-ds-bg:not(.dsh-ds-dark) {
+  display: none;
+}
+
+#dsh-ds-bg.dsh-ds-dark {
+  background: #0a0a0a;
 }
 
 #dsh-ds-aurora,
@@ -28,11 +37,10 @@
   background: transparent;
 }
 
-/* 鲸鱼层：screen 混合，全主题显示 */
+/* 鲸鱼层：screen 混合；显隐由 JS 控制（仅深色主题 + 设置开关） */
 .dsh-ds-whale {
   position: absolute;
   inset: 0;
-  display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;

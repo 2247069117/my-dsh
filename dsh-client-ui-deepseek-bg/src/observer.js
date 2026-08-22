@@ -1,6 +1,8 @@
 /* ------------------------------------------------------------------ *
  * src/observer.js — 主题联动（initObserver，MutationObserver + matchMedia）
- *   全主题统一深色：监听到主题属性变化时强制回写 dark，确保浅色亦显示深色主题。
+ *   监听到主题属性 / prefers-color-scheme 变化时重新检测 state.dark，
+ *   并联动 applyThemeClass（深色显示背景层；浅色恢复官方原版）。
+ *   UI 皮肤联动（玻璃/Beam）由 dsh-client-ui-deepseek-glass 插件自行处理。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
  * ------------------------------------------------------------------ */
 function initObserver(shared) {
@@ -8,19 +10,17 @@ function initObserver(shared) {
 
   function observeTheme() {
     var apply = function () {
-      // 全主题统一深色：属性回写由 applyThemeClass 幂等处理
-      // （已满足则不动 DOM，避免「观察 → 改写 → 再观察」死循环）。
-      state.dark = true;
-      try { shared.refs.applyThemeClass(); } catch(e){}
-      try{ if (shared.refs.refreshBeamTheme) shared.refs.refreshBeamTheme(); }catch(e){}
-      try{ if (shared.refs.shellGlassApply) shared.refs.shellGlassApply(); }catch(e){}
+      var d = (shared.refs.detectDark) ? shared.refs.detectDark() :
+        !!(shared.media.darkQuery && shared.media.darkQuery.matches);
+      if (d !== state.dark) {
+        state.dark = d;
+        try { shared.refs.applyThemeClass(); } catch(e){}
+      }
     };
     if (window.MutationObserver) {
       if (!shared.refs.themeObserver) {
         var mo = new MutationObserver(apply);
         shared.refs.themeObserver = mo;
-        // 观察主题信号属性。apply 不再回写这些属性（回写由幂等的
-        // applyThemeClass 承担），因此不会形成自触发死循环。
         mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-ds-dark-theme", "data-ds-light-theme", "data-theme"] });
         if (document.body) mo.observe(document.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "data-ds-light-theme", "data-theme"] });
       }

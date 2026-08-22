@@ -20,23 +20,20 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "lib", "client.js");
 const PKG_VERSION = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version || "0.0.0";
 
-/** JS 源码文件（按序拼接；index.js 必须最后，负责 apply 与 init 编排） */
+/** JS 源码文件（按序拼接；index.js 必须最后，负责 apply 与 init 编排）
+ *  本插件仅含背景引擎（极光/鲸鱼/星座/鼠标跟随）：
+ *  玻璃拟态 / Beam / Orbs / 任务清单已在 dsh-client-ui-deepseek-glass。 */
 const JS_FILES = [
-  "beam-css.js",         // 工厂级：Border Beam 调色板与 CSS 生成
-  "orbs-math.js",        // 工厂级：Thinking Orbs 几何数学
   "aurora-shaders.js",   // 工厂级：极光 GLSL 字符串常量
   "whale-shaders.js",    // 工厂级：鲸鱼 SVG/GLSL/矩阵工具
   "theme.js",            // initTheme
   "settings.js",         // initSettings
   "dom.js",              // initDom
-  "coalesce.js",         // 合批 MutationObserver（供 beam/orbs/shell 订阅）
-  "beam.js",             // initBeam
-  "orbs.js",             // initOrbs
   "aurora.js",           // initAurora
   "whale.js",            // initWhale
   "constellation.js",    // initConstellation
-  "shell.js",            // initShell
   "observer.js",         // initObserver
+  "diag.js",             // initDiag
   "boot.js",             // initBoot
   "index.js"             // apply(ctx)
 ];
@@ -52,7 +49,9 @@ const CSS_HEADER = `/*!
  *  - canvas 蒙版:      linear-gradient(#000000fc 0%, #000000e8 8.98%, transparent 100%)
  *  - 入场动画:        opacity 0→1 + blur(20px)→0，1.8s ease-out（harness hero 同款）
  *
- * 全主题统一深色：浅色/深色均使用 harness 深色主题（#0a0a0a + 玻璃/极光/鲸鱼）。
+ * 本插件仅背景引擎：深色主题显示背景层（#0a0a0a + 极光/鲸鱼/星座，
+ * body[data-ds-dark-theme] 生效）；浅色主题恢复 DSH 官方原版外观。
+ * UI 皮肤（玻璃/Beam/Orbs）由 dsh-client-ui-deepseek-glass 提供。
  */`;
 
 function read(name) {

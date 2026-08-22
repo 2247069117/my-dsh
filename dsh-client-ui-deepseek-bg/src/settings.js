@@ -1,25 +1,28 @@
 /* ===================================================================== *
- * src/settings.js — GPU 特效设置（initSettings）
+ * src/settings.js — 背景特效设置（initSettings）
  *   档位/开关/高级参数 + 设置页「背景特效」面板（React）。
+ *   本插件只管理背景引擎四项：极光背景 / 粒子鲸鱼 / 星座网格 /
+ *   鼠标跟随交互 + 极光分辨率/帧率/跟手/光线高级参数
+ *   （玻璃拟态 / Beam / Orbs 设置在 dsh-client-ui-deepseek-glass 插件）。
  *   创建 shared.settings（loadSettings 结果，各模块经 shared.settings 只读）；
- *   跨模块回调一律走 shared.refs.*（beam watch/detach、orbs sync、shell 玻璃、星座唤醒、鲸鱼显隐）。
+ *   跨模块回调一律走 shared.refs.*（星座唤醒、鲸鱼显隐）。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
  * ===================================================================== */
 function initSettings(shared) {
   var ctx = shared.ctx;
 
   /* ===================================================================== *
-   * GPU 特效设置（设置页「背景特效」面板 + 运行时联动）
+   * 背景特效设置（设置页「背景特效」面板 + 运行时联动）
    *   档位预设 → 独立开关（自动转自定义）→ 高级参数
    *   全部即时生效、localStorage 持久化（dsh-bg-settings）
    *   默认档位：全特效（下载后即开即用，无需手动切换）
    * ===================================================================== */
   var SETTINGS_KEY = "dsh-bg-settings";
   var PRESETS = {
-    // 全特效：极光分辨率与玻璃模糊全部拉满（滑杆上限 1.0x / 12px）——下载后默认即为此档
-    full: { label: "全特效", aurora: true, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 1, fps: 60, blur: 12, followMs: 120, lightFollow: 1 },
-    half: { label: "均衡", aurora: false, whale: true, constellation: true, beam: true, glass: true, orbs: true, mouse: true, auroraScale: 0.55, fps: 60, blur: 8, followMs: 20, lightFollow: 1 },
-    eco:  { label: "节能", aurora: false, whale: false, constellation: false, beam: true, glass: true, orbs: true, mouse: false, auroraScale: 0.4, fps: 20, blur: 6, followMs: 20, lightFollow: 1 }
+    // 全特效：极光分辨率拉满（滑杆上限 1.0x）——下载后默认即为此档
+    full: { label: "全特效", aurora: true, whale: true, constellation: true, mouse: true, auroraScale: 1, fps: 60, followMs: 120, lightFollow: 1 },
+    half: { label: "均衡", aurora: false, whale: true, constellation: true, mouse: true, auroraScale: 0.55, fps: 60, followMs: 20, lightFollow: 1 },
+    eco:  { label: "节能", aurora: false, whale: false, constellation: false, mouse: false, auroraScale: 0.4, fps: 20, followMs: 20, lightFollow: 1 }
   };
 
   function loadSettings() {
@@ -42,12 +45,11 @@ function initSettings(shared) {
       var base = PRESETS.full;
       for (var k2 in base) if (k2 !== "label") d[k2] = base[k2];
       if (parsed && typeof parsed === "object") {
-        var allowed = { aurora:1, whale:1, constellation:1, beam:1, glass:1, mouse:1, auroraScale:1, fps:1, blur:1, followMs:1, lightFollow:1 };
+        var allowed = { aurora:1, whale:1, constellation:1, mouse:1, auroraScale:1, fps:1, followMs:1, lightFollow:1 };
         for (var k3 in parsed) if (Object.prototype.hasOwnProperty.call(parsed, k3) && allowed[k3]) d[k3] = parsed[k3];
       }
       d.mode = "custom"; // 非法/过期 mode 值不得覆盖自定义档位
     }
-    d.orbs = true; // Thinking Orbs 核心交互特性，始终保持开启
     return d;
   }
   shared.settings = loadSettings();
@@ -60,9 +62,6 @@ function initSettings(shared) {
     if (s.whale) score += 20;
     if (s.constellation) score += 9;
     if (s.mouse) score += 1; // 光标交互物理（极光漫游笔刷始终在跑，成本几乎无差）
-    if (s.beam) score += 8;
-    if (s.glass) score += 9 * Math.min(1.6, (s.blur || 8) / 8);
-    if (s.orbs) score += 2;
     score *= ((s.fps || 30) / 30);
     return Math.max(0, Math.min(100, Math.round(score)));
   }
@@ -70,8 +69,8 @@ function initSettings(shared) {
     return {
       mode: bgSettings.mode,
       aurora: !!bgSettings.aurora, whale: !!bgSettings.whale, constellation: !!bgSettings.constellation,
-      beam: !!bgSettings.beam, glass: !!bgSettings.glass, orbs: true, mouse: !!bgSettings.mouse,
-      auroraScale: Number(bgSettings.auroraScale) || 1, fps: Number(bgSettings.fps) || 30, blur: Number(bgSettings.blur) || 8,
+      mouse: !!bgSettings.mouse,
+      auroraScale: Number(bgSettings.auroraScale) || 1, fps: Number(bgSettings.fps) || 30,
       followMs: bgSettings.followMs != null ? Number(bgSettings.followMs) : 20,
       lightFollow: bgSettings.lightFollow != null ? Number(bgSettings.lightFollow) : 1,
       gpu: estimateGpu(),
@@ -88,12 +87,10 @@ function initSettings(shared) {
   function applyPreset(mode) {
     var p = PRESETS[mode]; if (!p) return;
     for (var k in p) if (k !== "label") bgSettings[k] = p[k];
-    bgSettings.orbs = true;
     bgSettings.mode = mode;
     commitSettings();
   }
   function updateSetting(key, value) {
-    if (key === "orbs") return;
     bgSettings[key] = value;
     bgSettings.mode = "custom";
     commitSettings();
@@ -104,19 +101,7 @@ function initSettings(shared) {
 
   /** 把每个子系统立即切换到当前设置 */
   function applyBgSettings() {
-    try { document.body.classList.toggle("dsh-bg-no-glass", !bgSettings.glass); } catch (e) {}
     try { if (shared.refs.updateWhaleDisplay) shared.refs.updateWhaleDisplay(); } catch (e) {}
-    try {
-      if (bgSettings.beam) {
-        if (shared.refs.watchBeamComposer) shared.refs.watchBeamComposer();
-        if (shared.refs.watchBeamTodo) shared.refs.watchBeamTodo();
-      } else {
-        if (shared.refs.detachComposerBeam) shared.refs.detachComposerBeam();
-        if (shared.refs.detachTodoBeam) shared.refs.detachTodoBeam();
-      }
-    } catch (e) {}
-    try { if (shared.refs.shellGlassApply) shared.refs.shellGlassApply(); } catch (e) {} // 玻璃内联样式按开关重跑一次（轮询由 makeShellTransparent 持有）
-    try { if (shared.refs.syncThinkingOrb) shared.refs.syncThinkingOrb(); } catch (e) {}
     try { if (bgSettings.constellation && shared.refs.wakeConstellation) shared.refs.wakeConstellation(); } catch (e) {}
   }
 
@@ -130,7 +115,7 @@ function initSettings(shared) {
     ".dsh-bg-presets{display:flex;gap:6px;}",
     ".dsh-bg-preset{flex:1;cursor:pointer;border:1px solid rgba(128,128,128,.2);background:rgba(128,128,128,.04);color:inherit;border-radius:8px;padding:7px 6px;font-size:13px;font-weight:500;font-family:inherit;text-align:center;transition:all .15s ease;}",
     ".dsh-bg-preset:hover{background:rgba(128,128,128,.1);border-color:rgba(128,128,128,.35);}",
-    ".dsh-bg-preset[data-active=\"true\"]{border-color:#4d8bf5;color:#6ea8ff;background:rgba(77,139,245,.14);font-weight:600;}",
+    ".dsh-bg-preset[data-active='true']{border-color:#4d8bf5;color:#6ea8ff;background:rgba(77,139,245,.14);font-weight:600;}",
     ".dsh-bg-preset-caption{font-size:11px;opacity:.65;margin-top:8px;line-height:1.5;}",
     /* GPU 仪表 */
     ".dsh-bg-meter-label{display:flex;justify-content:space-between;align-items:center;font-size:12px;opacity:.85;margin-bottom:6px;}",
@@ -144,17 +129,17 @@ function initSettings(shared) {
     ".dsh-bg-row-title{font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;}",
     ".dsh-bg-row-desc{font-size:11px;opacity:.6;margin-top:2px;line-height:1.4;}",
     ".dsh-bg-chip{font-size:10px;line-height:16px;padding:0 6px;border-radius:999px;border:1px solid rgba(128,128,128,.3);opacity:.85;white-space:nowrap;flex:none;}",
-    ".dsh-bg-chip[data-level=\"high\"]{color:#ff9d6b;border-color:rgba(255,140,80,.4);}",
-    ".dsh-bg-chip[data-level=\"mid\"]{color:#ffd166;border-color:rgba(255,200,90,.4);}",
-    ".dsh-bg-chip[data-level=\"low\"]{color:#7ee2a8;border-color:rgba(110,220,160,.4);}",
+    ".dsh-bg-chip[data-level='high']{color:#ff9d6b;border-color:rgba(255,140,80,.4);}",
+    ".dsh-bg-chip[data-level='mid']{color:#ffd166;border-color:rgba(255,200,90,.4);}",
+    ".dsh-bg-chip[data-level='low']{color:#7ee2a8;border-color:rgba(110,220,160,.4);}",
     ".dsh-bg-switch{position:relative;width:36px;height:20px;flex:none;cursor:pointer;border-radius:999px;border:none;background:rgba(128,128,128,.3);transition:background .15s;padding:0;}",
-    ".dsh-bg-switch[aria-checked=\"true\"]{background:#4d8bf5;}",
-    ".dsh-bg-switch::after{content:\"\";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s ease;box-shadow:0 1px 2px rgba(0,0,0,.2);}",
-    ".dsh-bg-switch[aria-checked=\"true\"]::after{transform:translateX(16px);}",
+    ".dsh-bg-switch[aria-checked='true']{background:#4d8bf5;}",
+    ".dsh-bg-switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s ease;box-shadow:0 1px 2px rgba(0,0,0,.2);}",
+    ".dsh-bg-switch[aria-checked='true']::after{transform:translateX(16px);}",
     /* 高级折叠面板 */
     ".dsh-bg-adv summary{cursor:pointer;font-size:13px;font-weight:600;opacity:.9;user-select:none;padding:2px 0;outline:none;display:flex;align-items:center;gap:6px;}",
     ".dsh-bg-adv summary::-webkit-details-marker{display:none;}",
-    ".dsh-bg-adv summary::before{content:\"▶\";font-size:9px;display:inline-block;transition:transform .2s ease;opacity:.7;}",
+    ".dsh-bg-adv summary::before{content:'▶';font-size:9px;display:inline-block;transition:transform .2s ease;opacity:.7;}",
     ".dsh-bg-adv[open] summary::before{transform:rotate(90deg);}",
     ".dsh-bg-adv[open] summary{margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(128,128,128,.12);}",
     ".dsh-bg-adv summary:hover{opacity:1;}",
@@ -210,9 +195,9 @@ function initSettings(shared) {
     var presetIds = ["full", "half", "eco"];
     var presetNames = { full: "全特效", half: "均衡", eco: "节能" };
     var presetDescs = {
-      full: "所有特效拉满：极光 1.0x、玻璃 12px、60fps、跟手 120ms",
-      half: "保留粒子鲸鱼/星座/玻璃与鼠标跟随，关闭高开销极光流体（60fps / blur 8px）",
-      eco: "仅保留玻璃拟态与 Border Beam 及静态深色背景（20fps / blur 6px）"
+      full: "所有背景特效拉满：极光 1.0x、60fps、跟手 120ms",
+      half: "保留粒子鲸鱼/星座/鼠标跟随，关闭高开销极光流体（60fps）",
+      eco: "仅保留静态深色背景与最低开销（20fps）"
     };
     var modeName = presetNames[snap.mode] || "自定义";
     var modeCaption = presetDescs[snap.mode] || "手动调整的特效组合，可随时切回预设档位";
@@ -220,9 +205,7 @@ function initSettings(shared) {
       { key: "aurora", title: "极光背景", desc: "WebGL2 流体渐变，本插件最大 GPU 开销", level: "high" },
       { key: "whale", title: "粒子鲸鱼", desc: "全屏 WebGL2 点阵粒子，光线跟随鼠标", level: "mid" },
       { key: "constellation", title: "星座网格", desc: "2D 网格，鼠标斥力弹簧物理", level: "low" },
-      { key: "mouse", title: "鼠标跟随交互", desc: "极光/鲸鱼/星座跟随光标互动；关闭后极光改为自主缓慢漂移，画面保持流动", level: "low" },
-      { key: "beam", title: "Border Beam 光效", desc: "输入框边界旋转光晕与打字呼吸", level: "mid" },
-      { key: "glass", title: "玻璃拟态", desc: "侧边栏/气泡/代码块的 backdrop blur", level: "mid" }
+      { key: "mouse", title: "鼠标跟随交互", desc: "极光/鲸鱼/星座跟随光标互动；关闭后极光改为自主缓慢漂移，画面保持流动", level: "low" }
     ];
     var levelText = { high: "高", mid: "中", low: "低" };
     function presetButtons() {
@@ -288,14 +271,6 @@ function initSettings(shared) {
         }))
       );
     }
-    function switchRow(title, desc, key) {
-      return h("div", { className: "dsh-bg-adv-row" },
-        h("div", { className: "dsh-bg-adv-info" },
-          h("div", { className: "dsh-bg-item-title" }, title),
-          desc ? h("div", { className: "dsh-bg-item-desc" }, desc) : null),
-        switchBtn(key)
-      );
-    }
     return h("div", { className: "dsh-bg-settings" },
       h("div", { className: "dsh-bg-card" },
         h("div", { className: "dsh-bg-sec-title" }, "性能档位"),
@@ -307,7 +282,7 @@ function initSettings(shared) {
           h("span", { style: { color: meterColor, fontWeight: 600 } }, gpu + "%")),
         h("div", { className: "dsh-bg-meter" }, h("div", { style: { width: gpu + "%", background: meterColor } })),
         h("div", { className: "dsh-bg-meta" },
-          "按 分辨率 × 帧率 × 模糊半径 估算，仅供参考；切换即时生效并自动保存。" +
+          "按 分辨率 × 帧率 估算（背景引擎四项），仅供参考；切换即时生效并自动保存。" +
           (snap.canvasW ? " 当前极光画布 " + snap.canvasW + "×" + snap.canvasH + "（×" + snap.auroraScale.toFixed(2) + "）" : "")),
         h("div", { className: "dsh-bg-div" }),
         h("div", { className: "dsh-bg-sec-title" }, "特效开关"),
@@ -321,12 +296,6 @@ function initSettings(shared) {
           { value: 30, label: "30 fps（流畅）" },
           { value: 60, label: "60 fps（极致流畅）" }
         ], function (v) { updateSetting("fps", parseInt(v, 10)); }),
-        selectItem("玻璃模糊强度", "侧边栏、对话气泡与代码块的背景模糊半径（数值越大磨砂越重、越小越轻透）", snap.blur, [
-          { value: 6, label: "6 px（轻透磨砂 · 最省）" },
-          { value: 8, label: "8 px（标准磨砂）" },
-          { value: 10, label: "10 px（柔和毛玻璃）" },
-          { value: 12, label: "12 px（深度毛玻璃）" }
-        ], function (v) { updateSetting("blur", parseInt(v, 10)); }),
         sliderItem("跟手灵敏度", "鼠标跟随平滑时间常数（越小越贴手响应越快，越大越绵柔滞后）", snap.followMs + " ms", 5, 120, 5, snap.followMs, "5 ms (极速贴手)", "120 ms (绵柔)", function (v) { updateSetting("followMs", parseInt(v, 10)); }),
         sliderItem("光线跟随强度", "粒子鲸鱼与高光聚焦点随光标移动的响应幅度", Math.round(snap.lightFollow * 100) + "%", 0, 100, 5, Math.round(snap.lightFollow * 100), "0% (固定不动)", "100% (完全跟随)", function (v) { updateSetting("lightFollow", parseInt(v, 10) / 100); })),
       h("div", { className: "dsh-bg-foot" },
