@@ -1,5 +1,5 @@
 {
-  "name": "dsh-ui-Beam-Orbs",
+  "name": "dsh-ui-beam-orbs",
   "description": "DeepSeek 官网风格界面皮肤层：玻璃拟态 + Border Beam + Thinking Orbs + Pulse 任务清单框 + 发送按钮微动效（背景引擎极光/鲸鱼/星座在 dsh-ui-deepseek-bg）",
   "version": "1.0.0",
   "type": "module",
@@ -26,7 +26,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tttnny/my-dsh.git",
-    "directory": "dsh-ui-Beam-Orbs"
+    "directory": "dsh-ui-beam-orbs"
   },
   "license": "MIT",
   "dsh": {

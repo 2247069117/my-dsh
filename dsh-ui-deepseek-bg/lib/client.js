@@ -29,7 +29,7 @@ window.__ModuleLoader__.load({
  *
  * 本插件仅背景引擎：深色主题显示背景层（#0a0a0a + 极光/鲸鱼/星座，
  * body[data-ds-dark-theme] 生效）；浅色主题恢复 DSH 官方原版外观。
- * UI 皮肤（玻璃/Beam/Orbs）由 dsh-ui-Beam-Orbs 提供。
+ * UI 皮肤（玻璃/Beam/Orbs）由 dsh-ui-beam-orbs 提供。
  */
 
 /* ---------- 背景层：深色主题生效，浅色主题隐藏（官方原版） ---------- */
@@ -791,7 +791,7 @@ function initTheme(shared) {
  *   档位/开关/高级参数 + 设置页「背景特效」面板（React）。
  *   本插件只管理背景引擎四项：极光背景 / 粒子鲸鱼 / 星座网格 /
  *   鼠标跟随交互 + 极光分辨率/帧率/跟手/光线高级参数
- *   （玻璃拟态 / Beam / Orbs 设置在 dsh-ui-Beam-Orbs 插件）。
+ *   （玻璃拟态 / Beam / Orbs 设置在 dsh-ui-beam-orbs 插件）。
  *   创建 shared.settings（loadSettings 结果，各模块经 shared.settings 只读）；
  *   跨模块回调一律走 shared.refs.*（星座唤醒、鲸鱼显隐）。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
@@ -2101,7 +2101,7 @@ function initConstellation(shared) {
  * src/observer.js — 主题联动（initObserver，MutationObserver + matchMedia）
  *   监听到主题属性 / prefers-color-scheme 变化时重新检测 state.dark，
  *   并联动 applyThemeClass（深色显示背景层；浅色恢复官方原版）。
- *   UI 皮肤联动（玻璃/Beam）由 dsh-ui-Beam-Orbs 插件自行处理。
+ *   UI 皮肤联动（玻璃/Beam）由 dsh-ui-beam-orbs 插件自行处理。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
  * ------------------------------------------------------------------ */
 function initObserver(shared) {
@@ -2138,7 +2138,7 @@ function initObserver(shared) {
 /* ===================== diag.js ===================== */
 /* ------------------------------------------------------------------ *
  * src/diag.js — 背景引擎诊断面板（initDiag，?dshtest=1 时显示）
- *   UI 皮肤诊断（玻璃/Beam/Orbs）在 dsh-ui-Beam-Orbs 插件。
+ *   UI 皮肤诊断（玻璃/Beam/Orbs）在 dsh-ui-beam-orbs 插件。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
  * ------------------------------------------------------------------ */
 function initDiag(shared) {
@@ -2198,7 +2198,7 @@ function initDiag(shared) {
  * src/boot.js — 启动编排（initBoot）
  *   在全部 initX 之后由 apply 调用；跨模块启动函数一律经 shared.refs.*。
  *   仅启动背景引擎（极光/鲸鱼/星座/主题观察/诊断）；
- *   UI 皮肤启动（玻璃/Beam/Orbs）在 dsh-ui-Beam-Orbs 插件。
+ *   UI 皮肤启动（玻璃/Beam/Orbs）在 dsh-ui-beam-orbs 插件。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
  * ------------------------------------------------------------------ */
 function initBoot(shared) {
@@ -2225,7 +2225,7 @@ function initBoot(shared) {
  * src/index.js — 客户端入口 apply(ctx)（由 scripts/build.mjs 拼接进工厂闭包）
  *   本插件只负责背景引擎：极光 / 粒子鲸鱼 / 星座网格 + 鼠标跟随交互
  *   （玻璃拟态 / Border Beam / Thinking Orbs / 任务清单 Pulse 已拆分至
- *    dsh-ui-Beam-Orbs 插件）。
+ *    dsh-ui-beam-orbs 插件）。
  *   创建 shared（media / state / settings / dom / refs），按依赖顺序调用
  *   各子系统的 initX，装配 window.__dshDeepSeekBg 调试句柄，最后按原执行
  *   顺序执行 applyThemeClass → boot。

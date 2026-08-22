@@ -1,4 +1,4 @@
-# dsh-ui-Beam-Orbs
+# dsh-ui-beam-orbs
 
 DeepSeek 官网风格**界面皮肤层**插件：玻璃拟态（侧边栏/输入框/消息气泡/代码块/计划/任务/提问/审批卡片）+ Border Beam 状态机 + Thinking Orbs 动态指示器 + Pulse 任务清单框 + 发送按钮微动效。
 
@@ -11,7 +11,7 @@ DeepSeek 官网风格**界面皮肤层**插件：玻璃拟态（侧边栏/输入
 
 ```bash
 dsh plugin --profile web add dsh-ui-deepseek-bg
-dsh plugin --profile web add dsh-ui-Beam-Orbs
+dsh plugin --profile web add dsh-ui-beam-orbs
 ```
 
 重启后打开 http://127.0.0.1:3080 即可。

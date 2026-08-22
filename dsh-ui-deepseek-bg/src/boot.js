@@ -2,7 +2,7 @@
  * src/boot.js — 启动编排（initBoot）
  *   在全部 initX 之后由 apply 调用；跨模块启动函数一律经 shared.refs.*。
  *   仅启动背景引擎（极光/鲸鱼/星座/主题观察/诊断）；
- *   UI 皮肤启动（玻璃/Beam/Orbs）在 dsh-ui-Beam-Orbs 插件。
+ *   UI 皮肤启动（玻璃/Beam/Orbs）在 dsh-ui-beam-orbs 插件。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
  * ------------------------------------------------------------------ */
 function initBoot(shared) {

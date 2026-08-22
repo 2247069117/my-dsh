@@ -22,7 +22,7 @@ const PKG_VERSION = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
 
 /** JS 源码文件（按序拼接；index.js 必须最后，负责 apply 与 init 编排）
  *  本插件仅含背景引擎（极光/鲸鱼/星座/鼠标跟随）：
- *  玻璃拟态 / Beam / Orbs / 任务清单已在 dsh-ui-Beam-Orbs。 */
+ *  玻璃拟态 / Beam / Orbs / 任务清单已在 dsh-ui-beam-orbs。 */
 const JS_FILES = [
   "aurora-shaders.js",   // 工厂级：极光 GLSL 字符串常量
   "whale-shaders.js",    // 工厂级：鲸鱼 SVG/GLSL/矩阵工具
@@ -51,7 +51,7 @@ const CSS_HEADER = `/*!
  *
  * 本插件仅背景引擎：深色主题显示背景层（#0a0a0a + 极光/鲸鱼/星座，
  * body[data-ds-dark-theme] 生效）；浅色主题恢复 DSH 官方原版外观。
- * UI 皮肤（玻璃/Beam/Orbs）由 dsh-ui-Beam-Orbs 提供。
+ * UI 皮肤（玻璃/Beam/Orbs）由 dsh-ui-beam-orbs 提供。
  */`;
 
 function read(name) {

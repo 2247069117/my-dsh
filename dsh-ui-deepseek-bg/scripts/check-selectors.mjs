@@ -6,7 +6,7 @@
  *   node scripts/check-selectors.mjs --live   # （可选）若本机 3080 可用，尝试无头抓取
  *
  * 本插件仅背景引擎（极光/鲸鱼/星座/鼠标跟随）；UI 皮肤选择器由
- * dsh-ui-Beam-Orbs 插件自行校验。
+ * dsh-ui-beam-orbs 插件自行校验。
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";

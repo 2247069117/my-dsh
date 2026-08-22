@@ -1,10 +1,10 @@
 /*!
- * dsh-ui-Beam-Orbs 客户端入口（自动生成）
+ * dsh-ui-beam-orbs 客户端入口（自动生成）
  * 由 scripts/build.mjs 从 src/ 拼接生成——请勿直接修改本文件；
  * 修改源码（src/ 下的模块与 CSS）后运行：node scripts/build.mjs
  */
 window.__ModuleLoader__.load({
-  id: "dsh-ui-Beam-Orbs",
+  id: "dsh-ui-beam-orbs",
   factory: (require) => {
     "use strict";
     var module = { exports: {} };
@@ -1866,7 +1866,7 @@ body[data-ds-dark-theme].dsh-bg-no-glass ._7yHdaG_panel {
 /* ===================== theme.js ===================== */
 /* ------------------------------------------------------------------ *
  * src/theme.js — 主题检测（initTheme）
- *   本插件（dsh-ui-Beam-Orbs）独立检测主题：深色时应用
+ *   本插件（dsh-ui-beam-orbs）独立检测主题：深色时应用
  *   玻璃拟态 / Border Beam / Thinking Orbs / 任务清单 Pulse；
  *   浅色主题恢复 DSH 官方原版外观（CSS 全部门控在 body[data-ds-dark-theme]）。
  *   背景引擎（极光/鲸鱼/星座）在 dsh-ui-deepseek-bg 插件。
@@ -3564,7 +3564,7 @@ function initShell(shared) {
     function render() {
       collect();
       panel.textContent = [
-        "dsh-ui-Beam-Orbs v1.0.0 diagnostics",
+        "dsh-ui-beam-orbs v1.0.0 diagnostics",
         "theme: " + diag.theme,
         "body bg: " + diag.bodyBg,
         "html bg: " + diag.htmlBg,
@@ -3851,7 +3851,7 @@ function initBoot(shared) {
 /* ===================== index.js ===================== */
 /* ===================================================================== *
  * src/index.js — 客户端入口 apply(ctx)（由 scripts/build.mjs 拼接进工厂闭包）
- *   dsh-ui-Beam-Orbs：UI 皮肤层插件 —— 玻璃拟态 / Border Beam /
+ *   dsh-ui-beam-orbs：UI 皮肤层插件 —— 玻璃拟态 / Border Beam /
  *   Thinking Orbs / 任务清单 Pulse / 发送按钮微动效。
  *   背景引擎（极光/鲸鱼/星座/鼠标跟随）在 dsh-ui-deepseek-bg 插件。
  *   深色主题全部生效；浅色主题恢复 DSH 官方原版（CSS 门控 body[data-ds-dark-theme]）。

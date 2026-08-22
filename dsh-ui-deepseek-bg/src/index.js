@@ -2,7 +2,7 @@
  * src/index.js — 客户端入口 apply(ctx)（由 scripts/build.mjs 拼接进工厂闭包）
  *   本插件只负责背景引擎：极光 / 粒子鲸鱼 / 星座网格 + 鼠标跟随交互
  *   （玻璃拟态 / Border Beam / Thinking Orbs / 任务清单 Pulse 已拆分至
- *    dsh-ui-Beam-Orbs 插件）。
+ *    dsh-ui-beam-orbs 插件）。
  *   创建 shared（media / state / settings / dom / refs），按依赖顺序调用
  *   各子系统的 initX，装配 window.__dshDeepSeekBg 调试句柄，最后按原执行
  *   顺序执行 applyThemeClass → boot。

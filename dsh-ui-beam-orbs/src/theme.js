@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------ *
  * src/theme.js — 主题检测（initTheme）
- *   本插件（dsh-ui-Beam-Orbs）独立检测主题：深色时应用
+ *   本插件（dsh-ui-beam-orbs）独立检测主题：深色时应用
  *   玻璃拟态 / Border Beam / Thinking Orbs / 任务清单 Pulse；
  *   浅色主题恢复 DSH 官方原版外观（CSS 全部门控在 body[data-ds-dark-theme]）。
  *   背景引擎（极光/鲸鱼/星座）在 dsh-ui-deepseek-bg 插件。

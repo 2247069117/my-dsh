@@ -1,6 +1,6 @@
 /* ===================================================================== *
  * src/index.js — 客户端入口 apply(ctx)（由 scripts/build.mjs 拼接进工厂闭包）
- *   dsh-ui-Beam-Orbs：UI 皮肤层插件 —— 玻璃拟态 / Border Beam /
+ *   dsh-ui-beam-orbs：UI 皮肤层插件 —— 玻璃拟态 / Border Beam /
  *   Thinking Orbs / 任务清单 Pulse / 发送按钮微动效。
  *   背景引擎（极光/鲸鱼/星座/鼠标跟随）在 dsh-ui-deepseek-bg 插件。
  *   深色主题全部生效；浅色主题恢复 DSH 官方原版（CSS 门控 body[data-ds-dark-theme]）。

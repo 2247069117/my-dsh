@@ -3,7 +3,7 @@
  *   档位/开关/高级参数 + 设置页「背景特效」面板（React）。
  *   本插件只管理背景引擎四项：极光背景 / 粒子鲸鱼 / 星座网格 /
  *   鼠标跟随交互 + 极光分辨率/帧率/跟手/光线高级参数
- *   （玻璃拟态 / Beam / Orbs 设置在 dsh-ui-Beam-Orbs 插件）。
+ *   （玻璃拟态 / Beam / Orbs 设置在 dsh-ui-beam-orbs 插件）。
  *   创建 shared.settings（loadSettings 结果，各模块经 shared.settings 只读）；
  *   跨模块回调一律走 shared.refs.*（星座唤醒、鲸鱼显隐）。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。

@@ -93,12 +93,12 @@ function build() {
 
   // 4. 组装工厂闭包（产物结构与原 client.js 一致）
   return `/*!
- * dsh-ui-Beam-Orbs 客户端入口（自动生成）
+ * dsh-ui-beam-orbs 客户端入口（自动生成）
  * 由 scripts/build.mjs 从 src/ 拼接生成——请勿直接修改本文件；
  * 修改源码（src/ 下的模块与 CSS）后运行：node scripts/build.mjs
  */
 window.__ModuleLoader__.load({
-  id: "dsh-ui-Beam-Orbs",
+  id: "dsh-ui-beam-orbs",
   factory: (require) => {
     "use strict";
     var module = { exports: {} };

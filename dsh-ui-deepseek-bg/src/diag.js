@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------ *
  * src/diag.js — 背景引擎诊断面板（initDiag，?dshtest=1 时显示）
- *   UI 皮肤诊断（玻璃/Beam/Orbs）在 dsh-ui-Beam-Orbs 插件。
+ *   UI 皮肤诊断（玻璃/Beam/Orbs）在 dsh-ui-beam-orbs 插件。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
  * ------------------------------------------------------------------ */
 function initDiag(shared) {

@@ -39,7 +39,7 @@ function initShell(shared) {
     function render() {
       collect();
       panel.textContent = [
-        "dsh-ui-Beam-Orbs v__PKG_VERSION__ diagnostics",
+        "dsh-ui-beam-orbs v__PKG_VERSION__ diagnostics",
         "theme: " + diag.theme,
         "body bg: " + diag.bodyBg,
         "html bg: " + diag.htmlBg,
