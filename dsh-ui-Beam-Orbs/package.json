@@ -1,0 +1,40 @@
+{
+  "name": "dsh-ui-Beam-Orbs",
+  "description": "DeepSeek 官网风格界面皮肤层：玻璃拟态 + Border Beam + Thinking Orbs + Pulse 任务清单框 + 发送按钮微动效（背景引擎极光/鲸鱼/星座在 dsh-ui-deepseek-bg）",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:check": "node scripts/build.mjs --check && node scripts/check-selectors.mjs",
+    "check": "node scripts/check-selectors.mjs"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": [
+    "lib/",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tttnny/my-dsh.git",
+    "directory": "dsh-ui-Beam-Orbs"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  }
+}

@@ -6,7 +6,8 @@ DeepSeek Harness 插件/补丁/preset 合集 · Collection of DSH plugins, patch
 
 | 插件 | 类型 | 说明 | 安装 |
 | --- | --- | --- | --- |
-| [dsh-client-ui-deepseek-bg](./dsh-client-ui-deepseek-bg) | `dsh.bundle` + `dsh.client/web` | 仿 DeepSeek Harness 官网风格深色皮肤：极光/粒子鲸鱼/星座网格 + 玻璃拟态 + Border Beam + Thinking Orbs + Pulse 任务框，内置「背景特效」GPU 调优面板 | `dsh plugin --profile web add dsh-client-ui-deepseek-bg` |
+| [dsh-ui-deepseek-bg](./dsh-ui-deepseek-bg) | `dsh.bundle` + `dsh.client/web` | 仿 DeepSeek Harness 官网风格背景引擎：极光/粒子鲸鱼/星座网格/鼠标跟随交互，内置「背景特效」GPU 调优面板 | `dsh plugin --profile web add dsh-ui-deepseek-bg` |
+| [dsh-ui-Beam-Orbs](./dsh-ui-Beam-Orbs) | `dsh.bundle` + `dsh.client/web` | 官网风格界面皮肤层：玻璃拟态 + Border Beam + Thinking Orbs + Pulse 任务框 + 发送按钮微动效，内置「界面特效」面板 | `dsh plugin --profile web add dsh-ui-Beam-Orbs` |
 | [dsh-workspace-tree](./dsh-workspace-tree) | `dsh.bundle` + `dsh.client/web` | 工作区树：左侧栏工作区从单层升级为多级文件夹树——文件夹任意嵌套、会话可归入任意文件夹，附带新建/重命名/删除/移动管理 | `dsh plugin --profile web add dsh-workspace-tree` |
 
 ## agent presets
