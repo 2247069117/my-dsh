@@ -1992,12 +1992,13 @@ window.__ModuleLoader__.load({
         opacity: .6;
       }
       .dswt-modalBtnPrimary {
-        background: var(--dsw-alias-brand-primary);
-        border-color: var(--dsw-alias-brand-primary);
-        color: #fff;
+        background: var(--dsw-alias-button-primary-fill, #fff);
+        border-color: var(--dsw-alias-button-primary-fill, #fff);
+        color: var(--dsw-alias-label-primary-foreground, #0f1115);
       }
       .dswt-modalBtnPrimary:hover {
-        filter: brightness(.94);
+        background: var(--dsw-alias-button-primary-hover, #e5e5e5);
+        border-color: var(--dsw-alias-button-primary-hover, #e5e5e5);
       }
       .dswt-modalBtnPrimary:disabled {
         background: var(--dsw-alias-bg-layer-2);
