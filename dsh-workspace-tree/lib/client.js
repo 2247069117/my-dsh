@@ -657,7 +657,6 @@ window.__ModuleLoader__.load({
       }, [renameSession]);
 
       const onArchiveSession = useCallback((sessionId) => {
-        if (!window.confirm("归档该会话？")) return;
         archiveSession(sessionId).catch((error) => {
           window.alert(String((error && error.message) || error));
         });
