@@ -2111,7 +2111,7 @@ function initSettings(shared) {
           sliderItemBlur())),
       h("div", { className: "dsh-bg-foot" },
         h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
-        h("span", { className: "dsh-bg-note" }, "v1.0.1 · 即时生效并自动保存")));
+        h("span", { className: "dsh-bg-note" }, "v1.0.2 · 即时生效并自动保存")));
   }
 
   /** 注册设置页条目（需要 slots 服务；缺 ctx/slots 时静默跳过） */
@@ -3559,7 +3559,7 @@ function initShell(shared) {
     function render() {
       collect();
       panel.textContent = [
-        "dsh-ui-beam-orbs v1.0.1 diagnostics",
+        "dsh-ui-beam-orbs v1.0.2 diagnostics",
         "theme: " + diag.theme,
         "body bg: " + diag.bodyBg,
         "html bg: " + diag.htmlBg,
