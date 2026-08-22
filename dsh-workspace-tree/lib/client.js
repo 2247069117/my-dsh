@@ -284,13 +284,14 @@ window.__ModuleLoader__.load({
       return top;
     }
 
-    /** 可见会话：排除已归档与未选中的空白会话。 */
-    function visibleSessionIds(ids, sessions, archived) {
+    /** 可见会话：排除已归档、已硬删与未选中的空白会话。 */
+    function visibleSessionIds(ids, sessions, archived, hardDeleted) {
       const byId = sessions.byId || {};
       return ids.filter((sid) => {
         const row = byId[sid];
         if (!row) return false;
         if (archived.has(sid)) return false;
+        if (hardDeleted && hardDeleted.has(sid)) return false;
         if (row.blank && sid !== sessions.current) return false;
         return true;
       });
@@ -426,7 +427,7 @@ window.__ModuleLoader__.load({
     }
 
     // ══════════════ 工作区模式：会话行 ══════════════
-    function SessionRow({ sid, sessions, depth, indent, now, onOpen, onRename, onArchive, onFork }) {
+    function SessionRow({ sid, sessions, depth, indent, now, onOpen, onRename, onArchive, onDelete }) {
       const row = sessions.byId[sid];
       if (!row) return null;
       const selected = sid === sessions.current;
@@ -444,18 +445,236 @@ window.__ModuleLoader__.load({
         !row.blank && h("span", { key: "tm", className: "dswt-time" }, timeLabel(row.updatedAt, now)),
         !row.blank && h("span", { key: "ac", className: "dswt-rowActions", onClick: (e) => e.stopPropagation() }, [
           h("button", { key: "rn", type: "button", className: "dswt-iconButton", title: "重命名", onClick: () => onRename(sid, row.displayTitle) }, h(Icon, { name: "edit", size: 14 })),
-          h("button", { key: "fr", type: "button", className: "dswt-iconButton", title: "分叉", onClick: () => onFork(sid) }, h(Icon, { name: "branch", size: 14 })),
+          h("button", { key: "del", type: "button", className: "dswt-iconButton dswt-danger", title: "删除会话（移至归档）", onClick: () => onDelete(sid, row.displayTitle) }, h(Icon, { name: "trash", size: 14 })),
           h("button", { key: "ar", type: "button", className: "dswt-iconButton", title: "归档", onClick: () => onArchive(sid) }, h(Icon, { name: "archive", size: 14 }))
         ])
       ]);
     }
 
+    // ══════════════ 删除确认弹窗（会话） ══════════════
+    function DeleteSessionModal({ open, sessionTitle, busy, onCancel, onConfirm }) {
+      const overlayRef = useRef(null);
+      useEffect(() => {
+        if (!open) return;
+        const onKey = (e) => { if (e.key === "Escape") onCancel(); };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+      }, [open, onCancel]);
+      useEffect(() => {
+        if (!open) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => { document.body.style.overflow = prev; };
+      }, [open]);
+      if (!open) return null;
+      const handleOverlay = (e) => { if (e.target === overlayRef.current) onCancel(); };
+      return h("div", {
+        ref: overlayRef,
+        className: "dswt-modalOverlay",
+        role: "presentation",
+        onClick: handleOverlay
+      }, [
+        h("div", {
+          key: "panel",
+          className: "dswt-modalPanel",
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-labelledby": "dswt-del-title",
+          onClick: (e) => e.stopPropagation()
+        }, [
+          h("div", { key: "t", id: "dswt-del-title", className: "dswt-modalTitle" }, "删除会话"),
+          h("div", { key: "b", className: "dswt-modalBody" }, [
+            "确定要删除会话 ",
+            h("span", { className: "dswt-modalStrong" }, "“" + (sessionTitle || "") + "”"),
+            " 吗？\u000a此操作将把会话移至归档（从列表中移除），可在归档中找回。该操作不可撤销时请谨慎。"
+          ]),
+          h("div", { key: "a", className: "dswt-modalActions" }, [
+            h("button", { key: "c", type: "button", className: "dswt-modalBtn", disabled: !!busy, onClick: onCancel }, "取消"),
+            h("button", { key: "o", type: "button", className: "dswt-modalBtn dswt-modalBtnDanger", disabled: !!busy, onClick: onConfirm }, busy ? "删除中…" : "确认删除")
+          ])
+        ])
+      ]);
+    }
+
+    // ══════════════ 重命名弹窗（会话/工作区 共用） ══════════════
+    function RenameModal({ open, kind, initialTitle, draft, busy, onDraftChange, onCancel, onConfirm }) {
+      const overlayRef = useRef(null);
+      const inputRef = useRef(null);
+      useEffect(() => {
+        if (!open) return;
+        const onKey = (e) => { if (e.key === "Escape") onCancel(); };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+      }, [open, onCancel]);
+      useEffect(() => {
+        if (!open) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => { document.body.style.overflow = prev; };
+      }, [open]);
+      useEffect(() => {
+        if (!open) return;
+        const t = setTimeout(() => { if (inputRef.current) { inputRef.current.focus(); inputRef.current.select(); } }, 20);
+        return () => clearTimeout(t);
+      }, [open, kind]);
+      if (!open) return null;
+      const title = kind === "workspace" ? "重命名工作区" : "重命名会话";
+      const trimmed = (draft || "").trim();
+      const initialTrim = (initialTitle || "").trim();
+      const canConfirm = !busy && trimmed.length > 0 && trimmed !== initialTrim;
+      const handleOverlay = (e) => { if (e.target === overlayRef.current) onCancel(); };
+      const handleKey = (e) => {
+        if (e.key === "Enter" && canConfirm) { e.preventDefault(); onConfirm(); }
+      };
+      return h("div", {
+        ref: overlayRef,
+        className: "dswt-modalOverlay",
+        role: "presentation",
+        onClick: handleOverlay
+      }, [
+        h("div", {
+          key: "panel",
+          className: "dswt-modalPanel",
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-labelledby": "dswt-rename-title",
+          onClick: (e) => e.stopPropagation()
+        }, [
+          h("div", { key: "t", id: "dswt-rename-title", className: "dswt-modalTitle" }, title),
+          h("div", { key: "b", className: "dswt-modalBody" }, kind === "workspace" ? "输入新的工作区名称" : "输入新的会话名称"),
+          h("input", {
+            key: "i",
+            ref: inputRef,
+            className: "dswt-modalInput",
+            value: draft,
+            placeholder: kind === "workspace" ? "工作区名称" : "会话名称",
+            disabled: !!busy,
+            onChange: (e) => onDraftChange(e.target.value),
+            onKeyDown: handleKey
+          }),
+          h("div", { key: "a", className: "dswt-modalActions" }, [
+            h("button", { key: "c", type: "button", className: "dswt-modalBtn", disabled: !!busy, onClick: onCancel }, "取消"),
+            h("button", { key: "o", type: "button", className: "dswt-modalBtn dswt-modalBtnPrimary", disabled: !canConfirm, onClick: onConfirm }, busy ? "保存中…" : "确认")
+          ])
+        ])
+      ]);
+    }
+
+    // ══════════════ 归档视图：会话行 ══════════════
+    function ArchiveSessionRow({ sid, sessions, onRestore, onDelete }) {
+      const row = sessions.byId[sid];
+      if (!row) return null;
+      return h("div", {
+        className: "dswt-session dswt-archivedRow",
+        role: "treeitem",
+        title: row.displayTitle,
+        onClick: () => {}
+      }, [
+        h("span", { key: "st", className: "dswt-slot" }, h(StatusDot, { state: sessionState(row, false) })),
+        h("span", { key: "ti", className: "dswt-title", title: row.displayTitle }, row.displayTitle),
+        h("span", { key: "tm", className: "dswt-time" }, timeLabel(row.updatedAt, Date.now())),
+        h("span", { key: "ac", className: "dswt-rowActions", onClick: (e) => e.stopPropagation() }, [
+          h("button", { key: "rs", type: "button", className: "dswt-iconButton", title: "恢复", onClick: () => onRestore(sid) }, h(Icon, { name: "newChat", size: 14 })),
+          h("button", { key: "del", type: "button", className: "dswt-iconButton dswt-danger", title: "永久删除", onClick: () => onDelete(sid) }, h(Icon, { name: "trash", size: 14 }))
+        ])
+      ]);
+    }
+
+    // ══════════════ 归档确认弹窗（通用） ══════════════
+    function ArchiveConfirmModal({ open, title, desc, confirmText, danger, busy, onCancel, onConfirm }) {
+      const overlayRef = useRef(null);
+      useEffect(() => {
+        if (!open) return;
+        const onKey = (e) => { if (e.key === "Escape") onCancel(); };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+      }, [open, onCancel]);
+      useEffect(() => {
+        if (!open) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => { document.body.style.overflow = prev; };
+      }, [open]);
+      if (!open) return null;
+      const handleOverlay = (e) => { if (e.target === overlayRef.current) onCancel(); };
+      return h("div", { ref: overlayRef, className: "dswt-modalOverlay", role: "presentation", onClick: handleOverlay }, [
+        h("div", { key: "panel", className: "dswt-modalPanel", role: "dialog", "aria-modal": "true", onClick: (e) => e.stopPropagation() }, [
+          h("div", { key: "t", className: "dswt-modalTitle" }, title || "确认"),
+          h("div", { key: "b", className: "dswt-modalBody" }, desc || ""),
+          h("div", { key: "a", className: "dswt-modalActions" }, [
+            h("button", { key: "c", type: "button", className: "dswt-modalBtn", disabled: !!busy, onClick: onCancel }, "取消"),
+            h("button", { key: "o", type: "button", className: "dswt-modalBtn " + (danger ? "dswt-modalBtnDanger" : "dswt-modalBtnPrimary"), disabled: !!busy, onClick: onConfirm }, busy ? "处理中…" : (confirmText || "确认"))
+          ])
+        ])
+      ]);
+    }
+
+    // ══════════════ 归档视图：按工作区分组 ══════════════
+    function ArchiveView({ sessions, workspaces, wsForest, archived, onRestoreOne, onDeleteOne, onRestoreGroup, onDeleteGroup, onRestoreAll, onDeleteAll, busy }) {
+      const archivedSet = archived;
+      // 按 wsForest 结构过滤出含归档的组
+      const byId = sessions.byId || {};
+      const isArchivedVisible = (id) => archivedSet.has(id) && !!byId[id] && !byId[id].blank;
+      const groups = [];
+      const accounted = new Set();
+      for (const node of wsForest) {
+        const sids = (node.w.sessionIds || []).filter(isArchivedVisible);
+        if (sids.length > 0) groups.push({ node, sids });
+        for (const sid of (node.w.sessionIds || [])) accounted.add(sid);
+      }
+      // 递归收集子工作区归档
+      const collectChildren = (node, out) => {
+        for (const child of node.children || []) {
+          const sids = (child.w.sessionIds || []).filter(isArchivedVisible);
+          if (sids.length > 0) out.push({ node: child, sids });
+          collectChildren(child, out);
+        }
+      };
+      const allGroups = [];
+      for (const g of groups) { allGroups.push(g); collectChildren(g.node, allGroups); }
+      // 未分组归档（仅已归档且存在）
+      const ungrouped = (sessions.ids || []).filter((sid) => isArchivedVisible(sid) && !accounted.has(sid));
+      const total = (sessions.ids || []).filter(isArchivedVisible).length;
+      const hasAny = total > 0;
+      return h("div", { className: "dswt-archiveRoot" }, [
+        h("div", { key: "tb", className: "dswt-archiveToolbar" }, [
+          h("div", { key: "top", className: "dswt-archiveToolbarTop" }, [
+            h("span", { key: "ct", className: "dswt-archiveCount" }, hasAny ? "共 " + total + " 条归档" : "暂无归档会话")
+          ]),
+          hasAny && h("div", { key: "actions", className: "dswt-archiveToolbarActions" }, [
+            h("button", { key: "ra", type: "button", className: "dswt-archiveBtn dswt-archiveBtnSecondary", disabled: !!busy, title: "一键恢复所有", onClick: onRestoreAll }, "一键恢复所有"),
+            h("button", { key: "da", type: "button", className: "dswt-archiveBtn dswt-archiveBtnDanger", disabled: !!busy, title: "一键删除所有", onClick: onDeleteAll }, "一键删除所有")
+          ])
+        ]),
+        hasAny ? null : h("div", { key: "empty", className: "dswt-empty" }, "归档为空 — 归档的会话会在此按工作区分组显示"),
+        allGroups.map(({ node, sids }) => h("div", { key: node.w.workspaceId, className: "dswt-groupSection" }, [
+          h("div", { key: "hd", className: "dswt-projectRow" }, [
+            h("span", { key: "ic", className: "dswt-slot dswt-folderIcon" }, h(Icon, { name: "folderOpen", size: 16, className: "dswt-folderSvg" })),
+            h("span", { key: "pt", className: "dswt-projectText" }, h("span", { className: "dswt-title" }, (node.w.title || baseName(node.w.path)) + " · " + sids.length + " 条")),
+            h("span", { key: "ac", className: "dswt-rowActions", style: { display: "inline-flex" } }, [
+              h("button", { key: "rs", type: "button", className: "dswt-iconButton", title: "恢复该工作区全部", disabled: !!busy, onClick: () => onRestoreGroup(node.w.workspaceId) }, h(Icon, { name: "newChat", size: 14 })),
+              h("button", { key: "dl", type: "button", className: "dswt-iconButton dswt-danger", title: "永久删除该工作区全部", disabled: !!busy, onClick: () => onDeleteGroup(node.w.workspaceId) }, h(Icon, { name: "trash", size: 14 }))
+            ])
+          ]),
+          h("div", { key: "bd", className: "dswt-groupBody", style: { "--dswt-line-x": "16px" } }, sids.map((sid) => h(ArchiveSessionRow, { key: sid, sid, sessions, onRestore: onRestoreOne, onDelete: onDeleteOne })))
+        ])),
+        ungrouped.length > 0 && h("div", { key: "ug", className: "dswt-ungrouped" }, [
+          h("div", { key: "t", className: "dswt-ungroupedTitle" }, "未分组归档 · " + ungrouped.length + " 条"),
+          h("div", { key: "ac", className: "dswt-archiveToolbarActions", style: { margin: "4px 0 6px 8px" } }, [
+            h("button", { key: "rs", type: "button", className: "dswt-archiveBtn dswt-archiveBtnSecondary", disabled: !!busy, onClick: () => onRestoreGroup(null) }, "恢复全部"),
+            h("button", { key: "dl", type: "button", className: "dswt-archiveBtn dswt-archiveBtnDanger", disabled: !!busy, onClick: () => onDeleteGroup(null) }, "删除全部")
+          ]),
+          ungrouped.map((sid) => h(ArchiveSessionRow, { key: sid, sid, sessions, onRestore: onRestoreOne, onDelete: onDeleteOne }))
+        ])
+      ]);
+    }
+
     // ══════════════ 工作区模式：组 ══════════════
-    function WorkspaceGroup({ node, depth, indent, showAgg, sessions, archived, expandedGroups, toggleGroup, onNewSession, onRenameWs, onDeleteWs, onOpen, onRenameSession, onArchiveSession, onFork, now }) {
+    function WorkspaceGroup({ node, depth, indent, showAgg, sessions, archived, hardDeleted, expandedGroups, toggleGroup, onNewSession, onRenameWs, onDeleteWs, onOpen, onRenameSession, onArchiveSession, onDeleteSession, now }) {
       const w = node.w;
       const gkey = w.workspaceId;
       const groupOpen = expandedGroups.has(gkey);
-      const sids = visibleSessionIds(w.sessionIds, sessions, archived);
+      const sids = visibleSessionIds(w.sessionIds, sessions, archived, hardDeleted);
       const isRenaming = false; // 重命名行内输入在组头下方渲染，简化用 prompt
       return h("div", {
         className: "dswt-groupSection",
@@ -486,12 +705,12 @@ window.__ModuleLoader__.load({
         groupOpen && h("div", { key: "bd", className: "dswt-groupBody", style: { "--dswt-line-x": (16 + depth * indent) + "px" } }, [
           sids.map((sid) => h(SessionRow, {
             key: "s:" + sid, sid, sessions, depth: depth + 1, indent, now, onOpen,
-            onRename: onRenameSession, onArchive: onArchiveSession, onFork
+            onRename: onRenameSession, onArchive: onArchiveSession, onDelete: onDeleteSession
           })),
           node.children.map((child) => h(WorkspaceGroup, {
-            key: child.w.workspaceId, node: child, depth: depth + 1, indent, showAgg, sessions, archived,
+            key: child.w.workspaceId, node: child, depth: depth + 1, indent, showAgg, sessions, archived, hardDeleted,
             expandedGroups, toggleGroup, onNewSession, onRenameWs, onDeleteWs,
-            onOpen, onRenameSession, onArchiveSession, onFork, now
+            onOpen, onRenameSession, onArchiveSession, onDeleteSession, now
           }))
         ])
       ]);
@@ -509,6 +728,14 @@ window.__ModuleLoader__.load({
       const [navTarget, setNavTarget] = useState(null);
       const [newDirAt, setNewDirAt] = useState(null);
       const [swapFrom, setSwapFrom] = useState(null);
+      const [pendingDelete, setPendingDelete] = useState(null);
+      const [deleteBusy, setDeleteBusy] = useState(false);
+      const [renameTarget, setRenameTarget] = useState(null);
+      const [renameDraft, setRenameDraft] = useState("");
+      const [renameBusy, setRenameBusy] = useState(false);
+      const [archiveConfirm, setArchiveConfirm] = useState(null);
+      const [archiveBusy, setArchiveBusy] = useState(false);
+      const [hardDeleted, setHardDeleted] = useState(() => new Set());
       const [cfg, setCfg] = useState(getConfig);
       const groupsInited = useRef(false);
       const now = Date.now();
@@ -559,8 +786,27 @@ window.__ModuleLoader__.load({
 
       const switchMode = useCallback((m) => {
         setMode(m);
-        try { localStorage.setItem(LS_MODE, m); } catch { /* ignore */ }
+        if (m !== "archive") {
+          try { localStorage.setItem(LS_MODE, m); } catch { /* ignore */ }
+        }
       }, []);
+
+      const toggleArchive = useCallback(() => {
+        if (swapFrom !== null) return;
+        if (mode === "archive") {
+          let back = "workspace";
+          try {
+            const m = localStorage.getItem(LS_MODE);
+            if (m === "folder" || m === "workspace") back = m;
+            else back = getConfig().defaultMode === "folder" ? "folder" : "workspace";
+          } catch { /* ignore */ }
+          setSwapFrom(mode);
+          switchMode(back);
+        } else {
+          setSwapFrom(mode);
+          switchMode("archive");
+        }
+      }, [mode, swapFrom, switchMode]);
 
       /** 文件夹模式点击工作区节点 → 纯导航：切工作区模式 + 展开该组 + 滚动定位。 */
       const navToWorkspace = useCallback((ws) => {
@@ -629,15 +875,51 @@ window.__ModuleLoader__.load({
         }
       }, [createWorkspace]);
 
-      const onRenameWs = useCallback((w) => {
-        const value = window.prompt("重命名工作区", w.title || baseName(w.path));
-        if (value === null) return;
-        const title = value.trim();
-        if (!title || title === (w.title || "")) return;
-        renameWorkspace(w.workspaceId, title).catch((error) => {
+      const onRequestRenameWs = useCallback((w) => {
+        const initial = w.title || baseName(w.path);
+        setRenameTarget({ kind: "workspace", id: w.workspaceId, initial, ws: w });
+        setRenameDraft(initial);
+        setRenameBusy(false);
+      }, []);
+
+      const onRequestRenameSession = useCallback((sessionId, currentTitle) => {
+        const initial = currentTitle || "";
+        setRenameTarget({ kind: "session", id: sessionId, initial });
+        setRenameDraft(initial);
+        setRenameBusy(false);
+      }, []);
+
+      const onCancelRename = useCallback(() => {
+        if (renameBusy) return;
+        setRenameTarget(null);
+      }, [renameBusy]);
+
+      const onConfirmRename = useCallback(async () => {
+        if (!renameTarget) return;
+        const trimmed = (renameDraft || "").trim();
+        const initialTrim = (renameTarget.initial || "").trim();
+        if (!trimmed || trimmed === initialTrim) {
+          if (trimmed === initialTrim) setRenameTarget(null);
+          return;
+        }
+        setRenameBusy(true);
+        try {
+          if (renameTarget.kind === "workspace") {
+            await renameWorkspace(renameTarget.id, trimmed);
+          } else {
+            await renameSession(renameTarget.id, trimmed);
+          }
+          setRenameTarget(null);
+        } catch (error) {
           window.alert(String((error && error.message) || error));
-        });
-      }, [renameWorkspace]);
+        } finally {
+          setRenameBusy(false);
+        }
+      }, [renameTarget, renameDraft, renameWorkspace, renameSession]);
+
+      // 兼容旧命名：供未改造的调用点（若有）仍可用新弹窗
+      const onRenameWs = onRequestRenameWs;
+      const onRenameSession = onRequestRenameSession;
 
       const onDeleteWs = useCallback((w) => {
         if (!window.confirm("删除该工作区注册？目录与会话日志不受影响，会话将落入未分组。")) return;
@@ -646,21 +928,118 @@ window.__ModuleLoader__.load({
         });
       }, [deleteWorkspace]);
 
-      const onRenameSession = useCallback((sessionId, currentTitle) => {
-        const value = window.prompt("重命名会话", currentTitle);
-        if (value === null) return;
-        const title = value.trim();
-        if (!title || title === currentTitle) return;
-        renameSession(sessionId, title).catch((error) => {
-          window.alert(String((error && error.message) || error));
-        });
-      }, [renameSession]);
-
       const onArchiveSession = useCallback((sessionId) => {
         archiveSession(sessionId).catch((error) => {
           window.alert(String((error && error.message) || error));
         });
       }, [archiveSession]);
+
+      const onRequestDeleteSession = useCallback((sessionId, title) => {
+        setPendingDelete({ id: sessionId, title: title || sessionId });
+        setDeleteBusy(false);
+      }, []);
+
+      const onCancelDeleteSession = useCallback(() => {
+        if (deleteBusy) return;
+        setPendingDelete(null);
+      }, [deleteBusy]);
+
+      const onConfirmDeleteSession = useCallback(async () => {
+        if (!pendingDelete) return;
+        setDeleteBusy(true);
+        try {
+          await archiveSession(pendingDelete.id);
+          setPendingDelete(null);
+        } catch (error) {
+          window.alert("删除会话失败: " + String((error && error.message) || error));
+        } finally {
+          setDeleteBusy(false);
+        }
+      }, [pendingDelete, archiveSession]);
+
+      // 归档集合：归档视图与硬删过滤共用（下方回调的依赖数组渲染期即求值，须先于此声明）
+      const archived = new Set(workspaces.archivedSessionIds || []);
+
+      // 归档视图操作：单条 / 按组 / 全部 的恢复与删除（删除=硬删）
+      const onRestoreOne = useCallback((sid) => {
+        const t = (sessions.byId[sid] && sessions.byId[sid].displayTitle) || sid;
+        setArchiveConfirm({ kind: "restoreOne", sessionId: sid, title: t });
+      }, [sessions]);
+      const onDeleteOne = useCallback((sid) => {
+        const t = (sessions.byId[sid] && sessions.byId[sid].displayTitle) || sid;
+        setArchiveConfirm({ kind: "deleteOne", sessionId: sid, title: t });
+      }, [sessions]);
+      const onRestoreGroup = useCallback((workspaceId) => {
+        if (workspaceId === null) {
+          setArchiveConfirm({ kind: "restoreGroup", workspaceId: null, title: "未分组" });
+        } else {
+          const ws = (workspaces.items || []).find((w) => w.workspaceId === workspaceId);
+          const title = ws ? (ws.title || baseName(ws.path)) : workspaceId;
+          setArchiveConfirm({ kind: "restoreGroup", workspaceId, title });
+        }
+      }, [workspaces]);
+      const onDeleteGroup = useCallback((workspaceId) => {
+        if (workspaceId === null) {
+          setArchiveConfirm({ kind: "deleteGroup", workspaceId: null, title: "未分组" });
+        } else {
+          const ws = (workspaces.items || []).find((w) => w.workspaceId === workspaceId);
+          const title = ws ? (ws.title || baseName(ws.path)) : workspaceId;
+          setArchiveConfirm({ kind: "deleteGroup", workspaceId, title });
+        }
+      }, [workspaces]);
+      const onRestoreAll = useCallback(() => setArchiveConfirm({ kind: "restoreAll" }), []);
+      const onDeleteAll = useCallback(() => setArchiveConfirm({ kind: "deleteAll" }), []);
+      const onCancelArchiveConfirm = useCallback(() => { if (archiveBusy) return; setArchiveConfirm(null); }, [archiveBusy]);
+      const onConfirmArchiveConfirm = useCallback(async () => {
+        if (!archiveConfirm) return;
+        setArchiveBusy(true);
+        try {
+          const k = archiveConfirm.kind;
+          let toDelete = [];
+          if (k === "deleteOne") toDelete = [archiveConfirm.sessionId];
+          else if (k === "deleteGroup") {
+            if (archiveConfirm.workspaceId === null) {
+              const accounted = new Set();
+              for (const w of (workspaces.items || [])) for (const sid of (w.sessionIds || [])) accounted.add(String(sid));
+              toDelete = (sessions.ids || []).filter((sid) => archived.has(sid) && !accounted.has(String(sid)));
+            } else {
+              const ws = (workspaces.items || []).find((w) => w.workspaceId === archiveConfirm.workspaceId);
+              toDelete = ((ws && ws.sessionIds) || []).filter((id) => archived.has(id));
+            }
+          } else if (k === "deleteAll") {
+            toDelete = [...archived];
+          }
+          if (k === "restoreOne") {
+            const r = await apiPost("/archive/unarchive", { sessionId: archiveConfirm.sessionId });
+            if (!r.ok) throw new Error(r.error || "恢复失败");
+          } else if (k === "deleteOne") {
+            const r = await apiPost("/archive/delete", { sessionId: archiveConfirm.sessionId });
+            if (!r.ok) throw new Error(r.error || "删除失败");
+            setHardDeleted((prev) => { const n = new Set(prev); for (const id of toDelete) n.add(String(id)); return n; });
+          } else if (k === "restoreGroup") {
+            const r = await apiPost("/archive/unarchiveAll", { workspaceId: archiveConfirm.workspaceId });
+            if (!r.ok) throw new Error(r.error || "恢复失败");
+          } else if (k === "deleteGroup") {
+            const r = await apiPost("/archive/deleteAll", { workspaceId: archiveConfirm.workspaceId });
+            if (!r.ok) throw new Error(r.error || "删除失败");
+            const deleted = Array.isArray(r.deleted) && r.deleted.length ? r.deleted : toDelete;
+            setHardDeleted((prev) => { const n = new Set(prev); for (const id of deleted) n.add(String(id)); return n; });
+          } else if (k === "restoreAll") {
+            const r = await apiPost("/archive/unarchiveAll", {});
+            if (!r.ok) throw new Error(r.error || "恢复失败");
+          } else if (k === "deleteAll") {
+            const r = await apiPost("/archive/deleteAll", {});
+            if (!r.ok) throw new Error(r.error || "删除失败");
+            const deleted = Array.isArray(r.deleted) && r.deleted.length ? r.deleted : toDelete;
+            setHardDeleted((prev) => { const n = new Set(prev); for (const id of deleted) n.add(String(id)); return n; });
+          }
+          setArchiveConfirm(null);
+        } catch (error) {
+          window.alert(String((error && error.message) || error));
+        } finally {
+          setArchiveBusy(false);
+        }
+      }, [archiveConfirm, archived, workspaces, sessions]);
 
       const onAddWorkspace = useCallback(async () => {
         try {
@@ -673,7 +1052,6 @@ window.__ModuleLoader__.load({
       }, [pickDirectory, createWorkspace]);
 
       // 数据准备
-      const archived = new Set(workspaces.archivedSessionIds || []);
       const items = workspaces.items || [];
       // 会话状态向上透传：为目录树与工作区树各节点计算聚合状态（sessions 快照变化时重算）
       const aggCtx = useMemo(() => {
@@ -687,7 +1065,7 @@ window.__ModuleLoader__.load({
       const wsForest = aggCtx.wsForest;
       const accountIds = new Set();
       for (const w of items) for (const sid of w.sessionIds) accountIds.add(sid);
-      const ungroupedIds = visibleSessionIds((sessions.ids || []).filter((sid) => !accountIds.has(sid)), sessions, archived);
+      const ungroupedIds = visibleSessionIds((sessions.ids || []).filter((sid) => !accountIds.has(sid)), sessions, archived, hardDeleted);
 
       // rail 模式：窄图标列
       if (!wide) {
@@ -702,19 +1080,21 @@ window.__ModuleLoader__.load({
         h("div", {
           key: "t",
           className: "dswt-modeTitle",
-          title: "点击切换到" + (mode === "folder" ? "工作区" : "文件夹") + "模式",
+          title: mode === "archive" ? "点击返回工作区" : "点击切换到" + (mode === "folder" ? "工作区" : "文件夹") + "模式",
           onClick: () => {
             if (swapFrom !== null) return;
+            if (mode === "archive") { toggleArchive(); return; }
             setSwapFrom(mode);
             switchMode(mode === "folder" ? "workspace" : "folder");
           }
         }, [
-          swapFrom !== null && h("span", { key: "out", className: "dswt-titleItem dswt-titleOut" }, swapFrom === "folder" ? "文件夹" : "工作区"),
-          h("span", { key: "in" + mode, className: "dswt-titleItem dswt-titleIn" }, mode === "folder" ? "文件夹" : "工作区")
+          swapFrom !== null && h("span", { key: "out", className: "dswt-titleItem dswt-titleOut" }, swapFrom === "folder" ? "文件夹" : swapFrom === "archive" ? "归档" : "工作区"),
+          h("span", { key: "in" + mode, className: "dswt-titleItem dswt-titleIn" }, mode === "archive" ? "归档" : mode === "folder" ? "文件夹" : "工作区")
         ]),
         h("span", { key: "a", className: "dswt-headerActions" }, [
           h("button", { key: "ns", type: "button", className: "dswt-headBtn", title: "新建会话", onClick: () => startSession() }, h(Icon, { name: "newChat", size: 16 })),
-          h("button", { key: "ws", type: "button", className: "dswt-headBtn", title: "添加工作区（原生目录选择）", onClick: onAddWorkspace }, h(Icon, { name: "plus", size: 16 }))
+          h("button", { key: "ws", type: "button", className: "dswt-headBtn", title: "添加工作区（原生目录选择）", onClick: onAddWorkspace }, h(Icon, { name: "plus", size: 16 })),
+          h("button", { key: "ar", type: "button", className: "dswt-headBtn" + (mode === "archive" ? " dswt-headBtnActive" : ""), title: "归档", onClick: toggleArchive }, h(Icon, { name: "archive", size: 16 }))
         ])
       ]);
 
@@ -736,28 +1116,88 @@ window.__ModuleLoader__.load({
           })),
           dirForest.length === 0 && h("div", { key: "e", className: "dswt-empty" }, "尚无工作区——点击上方「添加工作区」或先新建会话")
         ]);
+      } else if (mode === "archive") {
+        body = h("div", { key: "l", className: "dswt-list", role: "tree", "aria-label": "归档" }, [
+          h(ArchiveView, {
+            key: "av",
+            sessions,
+            workspaces,
+            wsForest,
+            archived,
+            onRestoreOne,
+            onDeleteOne,
+            onRestoreGroup,
+            onDeleteGroup,
+            onRestoreAll,
+            onDeleteAll,
+            busy: archiveBusy
+          })
+        ]);
       } else {
         body = h("div", { key: "l", className: "dswt-list", role: "tree", "aria-label": "工作区" }, [
           wsForest.map((node) => h(WorkspaceGroup, {
-            key: node.w.workspaceId, node, depth: 0, indent: cfg.indent, showAgg: cfg.showAgg, sessions, archived,
+            key: node.w.workspaceId, node, depth: 0, indent: cfg.indent, showAgg: cfg.showAgg, sessions, archived, hardDeleted,
             expandedGroups, toggleGroup,
             onNewSession: (wid) => newSessionInDir(wid, node.w.path),
             onRenameWs, onDeleteWs,
-            onOpen: open, onRenameSession, onArchiveSession,
-            onFork: (sid) => forkSession(sid), now
+            onOpen: open, onRenameSession, onArchiveSession, onDeleteSession: onRequestDeleteSession, now
           })),
           ungroupedIds.length > 0 && h("div", { key: "ug", className: "dswt-ungrouped" }, [
             h("div", { key: "t", className: "dswt-ungroupedTitle" }, "未分组会话"),
             ungroupedIds.map((sid) => h(SessionRow, {
               key: "s:" + sid, sid, sessions, depth: 0, indent: cfg.indent, now,
               onOpen: open, onRename: onRenameSession, onArchive: onArchiveSession,
-              onFork: (s) => forkSession(s)
+              onDelete: onRequestDeleteSession
             }))
           ])
         ]);
       }
 
-      return h("div", { className: "dswt-root" }, [header, body]);
+      const archiveModalProps = (() => {
+        if (!archiveConfirm) return { open: false, title: "", desc: "", confirmText: "确认", danger: false };
+        const k = archiveConfirm.kind;
+        if (k === "restoreOne") return { open: true, title: "恢复会话", desc: "确定要恢复会话 “" + (archiveConfirm.title || "") + "” 吗？", confirmText: "恢复", danger: false };
+        if (k === "deleteOne") return { open: true, title: "删除会话", desc: "确定要永久删除会话 “" + (archiveConfirm.title || "") + "” 吗？此操作将删除会话文件，无法恢复。", confirmText: "永久删除", danger: true };
+        if (k === "restoreGroup") return { open: true, title: "恢复工作区归档", desc: "确定要恢复工作区 “" + (archiveConfirm.title || "") + "” 的全部归档会话吗？", confirmText: "恢复全部", danger: false };
+        if (k === "deleteGroup") return { open: true, title: "删除工作区归档", desc: "确定要永久删除工作区 “" + (archiveConfirm.title || "") + "” 的全部归档会话吗？此操作不可恢复。", confirmText: "永久删除", danger: true };
+        if (k === "restoreAll") return { open: true, title: "恢复全部归档", desc: "确定要恢复全部 " + (archived.size || 0) + " 条归档会话吗？", confirmText: "恢复全部", danger: false };
+        if (k === "deleteAll") return { open: true, title: "删除全部归档", desc: "确定要永久删除全部 " + (archived.size || 0) + " 条归档会话吗？此操作不可恢复。", confirmText: "永久删除", danger: true };
+        return { open: false, title: "", desc: "", confirmText: "确认", danger: false };
+      })();
+
+      return h("div", { className: "dswt-root" }, [
+        header, body,
+        h(DeleteSessionModal, {
+          key: "delModal",
+          open: pendingDelete !== null,
+          sessionTitle: pendingDelete ? pendingDelete.title : "",
+          busy: deleteBusy,
+          onCancel: onCancelDeleteSession,
+          onConfirm: onConfirmDeleteSession
+        }),
+        h(RenameModal, {
+          key: "renameModal",
+          open: renameTarget !== null,
+          kind: renameTarget ? renameTarget.kind : "session",
+          initialTitle: renameTarget ? renameTarget.initial : "",
+          draft: renameDraft,
+          busy: renameBusy,
+          onDraftChange: setRenameDraft,
+          onCancel: onCancelRename,
+          onConfirm: onConfirmRename
+        }),
+        h(ArchiveConfirmModal, {
+          key: "arcConfirm",
+          open: archiveModalProps.open,
+          title: archiveModalProps.title,
+          desc: archiveModalProps.desc,
+          confirmText: archiveModalProps.confirmText,
+          danger: archiveModalProps.danger,
+          busy: archiveBusy,
+          onCancel: onCancelArchiveConfirm,
+          onConfirm: onConfirmArchiveConfirm
+        })
+      ]);
     }
 
     // ══════════════ 设置页（设置 > 插件 > 插件配置） ══════════════
@@ -896,6 +1336,20 @@ window.__ModuleLoader__.load({
       .dswt-headerActions { flex: none; align-items: center; gap: 4px; display: flex; }
       .dswt-headBtn { cursor: pointer; width: 28px; height: 28px; color: var(--dsw-alias-label-secondary); background: 0 0; border: none; border-radius: 50%; flex: none; justify-content: center; align-items: center; padding: 0; display: inline-flex; }
       .dswt-headBtn:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+      .dswt-headBtnActive { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-brand-primary); }
+      .dswt-archiveRoot { display: flex; flex-direction: column; gap: 12px; }
+      .dswt-archiveToolbar { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; }
+      .dswt-archiveToolbarTop { display: flex; align-items: center; justify-content: space-between; }
+      .dswt-archiveCount { font-size: 12px; font-weight: 500; color: var(--dsw-alias-label-secondary); }
+      .dswt-archiveToolbarActions { display: flex; gap: 8px; }
+      .dswt-archiveBtn { flex: 1; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); font-size: 12px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
+      .dswt-archiveBtnSecondary { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+      .dswt-archiveBtnSecondary:hover { background: var(--dsw-alias-interactive-bg-hover); }
+      .dswt-archiveBtnDanger { background: var(--dsw-alias-state-error-primary); border-color: var(--dsw-alias-state-error-primary); color: #fff; }
+      .dswt-archiveBtnDanger:hover { filter: brightness(.96); }
+      .dswt-archiveBtn:disabled { opacity: .5; cursor: not-allowed; }
+      .dswt-archivedRow { opacity: .96; }
+      .dswt-archivedRow:hover { opacity: 1; }
       .dswt-list { min-height: 0; margin-left: -4px; margin-right: var(--dsh-session-list-scrollbar-offset, 2px); padding-left: 4px; padding-right: calc(var(--dsh-session-list-edge-inset) - 8px - 2px); scrollbar-gutter: stable; flex: 1; padding-bottom: 16px; overflow-y: auto; }
       .dswt-groupSection { position: relative; }
       .dswt-groupSection + .dswt-groupSection { margin-top: 4px; }
@@ -969,6 +1423,24 @@ window.__ModuleLoader__.load({
       .dswt-configBtn { box-sizing: border-box; height: 32px; padding: 0 14px; cursor: pointer; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px; font-size: 13px; }
       .dswt-configBtn:hover { background: var(--dsw-alias-interactive-bg-hover); }
       .dswt-configSaved { font-size: 12px; color: var(--dsw-alias-label-tertiary); }
+      .dswt-modalOverlay { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.38); backdrop-filter: blur(2px); animation: dswt-modal-in .18s var(--ds-ease-in-out, ease); }
+      .dswt-modalPanel { background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1); border-radius: 14px; min-width: 360px; max-width: 420px; width: calc(100% - 32px); box-shadow: 0 16px 40px rgba(0,0,0,.18); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+      .dswt-modalTitle { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+      .dswt-modalBody { font-size: 13px; line-height: 20px; color: var(--dsw-alias-label-secondary); white-space: pre-wrap; word-break: break-all; }
+      .dswt-modalStrong { color: var(--dsw-alias-label-primary); font-weight: 600; }
+      .dswt-modalActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+      .dswt-modalBtn { height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); cursor: pointer; font-size: 13px; }
+      .dswt-modalBtn:hover { background: var(--dsw-alias-interactive-bg-hover); }
+      .dswt-modalBtnDanger { background: var(--dsw-alias-state-error-primary); border-color: var(--dsw-alias-state-error-primary); color: #fff; }
+      .dswt-modalBtnDanger:hover { filter: brightness(.96); }
+      .dswt-modalBtn:disabled { opacity: .6; cursor: not-allowed; }
+      .dswt-modalInput { box-sizing: border-box; width: 100%; height: 36px; padding: 0 12px; background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px; color: var(--dsw-alias-label-primary); font-size: 14px; outline: none; }
+      .dswt-modalInput:focus { border-color: var(--dsw-alias-brand-primary); background: var(--dsw-alias-bg-layer-1); }
+      .dswt-modalInput:disabled { opacity: .6; }
+      .dswt-modalBtnPrimary { background: var(--dsw-alias-brand-primary); border-color: var(--dsw-alias-brand-primary); color: #fff; }
+      .dswt-modalBtnPrimary:hover { filter: brightness(.96); }
+      .dswt-modalBtnPrimary:disabled { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l1); color: var(--dsw-alias-label-tertiary); filter: none; }
+      @keyframes dswt-modal-in { from { opacity: 0; } to { opacity: 1; } }
       @media (prefers-reduced-motion: reduce) { .dswt-session, .dswt-arrow { transition: none; animation: none; } .dswt-cell { animation: none; opacity: 1; } }
     `;
 
