@@ -1,0 +1,10 @@
+/* ============ 授权/审批卡片与设置弹窗：仅深色主题生效 ============ */
+body[data-ds-dark-theme] .VOzbGW_panel,
+body[data-ds-dark-theme] [data-slot="approval"] > div {
+  background: rgba(13, 15, 19, 0.75) !important;
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  border: 1px solid hsla(0, 0%, 100%, 0.1) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
+  border-radius: 16px !important;
+}

@@ -1,0 +1,64 @@
+/* ============ 消息气泡与代码块玻璃化（与侧边栏/输入框同款材质）============ */
+/* 仅深色主题生效；浅色主题保持官方原版气泡/代码块 */
+
+/* 用户消息气泡 */
+body[data-ds-dark-theme] .gdEzaW_bubble {
+  background: rgba(13, 15, 19, 0.55) !important;
+  /* GPU 优化：气泡数量多且背后是平滑极光；强度跟随设置面板 */
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
+}
+
+/* 代码块容器（终端/阅读/差异/搜索等 DSL 块）+ 复制按钮 + banner */
+body[data-ds-dark-theme] ._block_10eou_7,
+body[data-ds-dark-theme] ._block_biesw_7,
+body[data-ds-dark-theme] ._block_srovd_7,
+body[data-ds-dark-theme] ._block_s66q0_7,
+body[data-ds-dark-theme] ._block_178r4_4,
+body[data-ds-dark-theme] ._block_d4nqi_7,
+body[data-ds-dark-theme] ._body_1ye18_20,
+body[data-ds-dark-theme] ._copyButton_10eou_142,
+body[data-ds-dark-theme] ._bannerWrap_178r4_21 {
+  background: rgba(13, 15, 19, 0.55) !important;
+  /* GPU 优化：代码块数量多；强度跟随设置面板 */
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.08) !important;
+}
+
+/* ============ 工具调用行统一透明与悬浮交互（彻底消除 Bash 等黑框框）============ */
+body[data-ds-dark-theme] .CY-8Ka_card,
+body[data-ds-dark-theme] .o3BgMG_root,
+body[data-ds-dark-theme] .ztWv_q_callRow,
+body[data-ds-dark-theme] .Md3f7G_callRow {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body[data-ds-dark-theme] .CY-8Ka_root,
+body[data-ds-dark-theme] .o3BgMG_row {
+  background: transparent !important;
+  border-radius: 6px !important;
+  transition: background 0.15s ease !important;
+}
+body[data-ds-dark-theme] .CY-8Ka_root:hover,
+body[data-ds-dark-theme] .o3BgMG_row:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 展开后的终端与输出卡片（保持深邃毛玻璃） */
+body[data-ds-dark-theme] .CY-8Ka_terminal,
+body[data-ds-dark-theme] .CY-8Ka_ioCard,
+body[data-ds-dark-theme] .o3BgMG_ioCard {
+  background: rgba(13, 15, 19, 0.65) !important;
+  /* GPU 优化：终端/输出卡片，强度跟随设置面板 */
+  backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  -webkit-backdrop-filter: blur(var(--dsh-bg-blur, 8px)) !important;
+  border: 1px solid hsla(0, 0%, 100%, 0.08) !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.06), 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
