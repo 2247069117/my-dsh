@@ -8,3 +8,9 @@ DeepSeek Harness 插件合集 · Collection of DSH plugins
 | [dsh-workspace-tree](./dsh-workspace-tree) | `dsh.bundle` + `dsh.client/web` | 工作区树：左侧栏工作区从单层升级为多级文件夹树——文件夹任意嵌套、会话可归入任意文件夹，附带新建/重命名/删除/移动管理 | `dsh plugin --profile web add dsh-workspace-tree` |
 | [dsh-escalation-noop](./dsh-escalation-noop) | 手工补丁文档（无 bundle） | 同模式 `sandbox_permissions` 升级错误的本地代码补丁说明（`local patch (user)`） | 按 `README` 手动 patch `@deepseek-ai/dsh-sandbox` |
 | [dsh-presets/ptc-creative-cordis](./dsh-presets/ptc-creative-cordis) | `agent preset` (`preset.yml`+`agent.cordis.yml`) | PTC 创造·混合模式：融合 PTC `code` 能力与动态 Cordis 插件编辑 | 放入 `~/.dsh/.agent-presets/` 或 preset 市场 |
+
+## scripts/ 本地补丁脚本
+
+| 目录 | 说明 |
+| --- | --- |
+| [patch-dsh-finish-reason](./scripts/patch-dsh-finish-reason/) | DSH 本地补丁：修复「流结束不带 `finish_reason`」的端点（如 opencode.ai zen/go 的 `ox-alpha-free`）导致的报错、内容丢弃与整轮重试。详情见其目录内 [README](./scripts/patch-dsh-finish-reason/README.md) |
