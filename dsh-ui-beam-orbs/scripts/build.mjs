@@ -38,14 +38,9 @@ const JS_FILES = [
 
 /** 样式表头（CSS 模板字面量开头的说明块，与原 client.js 一致） */
 const CSS_HEADER = `/*!
- * dsh-deepseek-bg.css
- * DeepSeek 官网首页背景复刻 —— DSH Web GUI 全屏固定背景层 + 外壳透明化。
- *
- * 颜色与蒙版均取自 DeepSeek 官方站点：
- *  - 浅色 hero 渐变:  linear-gradient(180deg, #9cc1e7 0%, rgba(250,250,250,0) 100%)
- *  - 深色 harness 页: 页面底色 #0a0a0a
- *  - canvas 蒙版:      linear-gradient(#000000fc 0%, #000000e8 8.98%, transparent 100%)
- *  - 入场动画:        opacity 0→1 + blur(20px)→0，1.8s ease-out（harness hero 同款）
+ * dsh-ui-beam-orbs.css
+ * DSH Web GUI 界面皮肤层：玻璃拟态 + Border Beam + Thinking Orbs +
+ * Pulse 任务清单框 + 发送按钮微动效。
  *
  * 深色主题：全部界面覆盖生效（body[data-ds-dark-theme]）；
  * 浅色主题：恢复 DSH 官方原版外观，不匹配任何覆盖规则。
