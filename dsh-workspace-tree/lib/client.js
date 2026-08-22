@@ -1,11 +1,13 @@
 /**
- * dsh-workspace-tree — browser half (v3.2 深度修复版)。
+ * dsh-workspace-tree — browser half (v3.3 修复版)。
  *
  * 核心设计（第一性原理对齐）：
  *  - 会话空间归属与归档状态正交。
  *  - 严格过滤 subagent 子会话与非当前空白会话，根除“莫名奇妙出现未分组会话/未分组归档”。
  *  - 目录新建会话自动原子注册工作区，防止孤儿会话产生。
  *  - 归档视图全量树形收集与严格去重。
+ *  - 永久删除会话采用持久化墓碑（localStorage）：官方列表仍返回的已删会话
+ *    无论刷新/跨标签页都不可见，官方列表收敛后墓碑自动清除。
  */
 window.__ModuleLoader__.load({
   id: "dsh-workspace-tree",
@@ -27,6 +29,8 @@ window.__ModuleLoader__.load({
     const LS_DIRS = "dsh-workspace-tree.dirs";
     const LS_GROUPS = "dsh-workspace-tree.groups";
     const LS_CONFIG = "dsh-workspace-tree.config";
+    /** 永久删除会话的墓碑集合（localStorage 持久化，跨刷新/跨标签页生效）。 */
+    const LS_DELETED = "dswt-workspace-tree.deleted";
 
     /** 本插件 Host 路由前缀（避开 /plugins/ 的 client bundle 保留空间）。 */
     const API = "/api/dsh-workspace-tree";
@@ -622,7 +626,7 @@ window.__ModuleLoader__.load({
     }
 
     // ══════════════ 归档视图：按工作区分组（深度递归收集 + 严密过滤） ══════════════
-    function ArchiveView({ sessions, workspaces, wsForest, archived, onRestoreOne, onDeleteOne, onRestoreGroup, onDeleteGroup, onRestoreAll, onDeleteAll, busy }) {
+    function ArchiveView({ sessions, workspaces, wsForest, archived, hardDeleted, onRestoreOne, onDeleteOne, onRestoreGroup, onDeleteGroup, onRestoreAll, onDeleteAll, busy }) {
       const byId = (sessions && sessions.byId) || {};
 
       const accounted = new Set();
@@ -633,7 +637,7 @@ window.__ModuleLoader__.load({
           for (const sid of (node.w.sessionIds || [])) {
             accounted.add(String(sid));
           }
-          const sids = (node.w.sessionIds || []).filter((id) => archivedSessionVisible(byId[id], archived, null));
+          const sids = (node.w.sessionIds || []).filter((id) => archivedSessionVisible(byId[id], archived, hardDeleted));
           if (sids.length > 0) {
             allGroups.push({ node, sids });
           }
@@ -647,7 +651,7 @@ window.__ModuleLoader__.load({
       // 未分组归档：必须满足归档可见性（排除 subagent 和 blank），且不属于任何已注册工作区
       const ungrouped = (sessions.ids || []).filter((sid) => {
         const row = byId[sid];
-        return archivedSessionVisible(row, archived, null) && !accounted.has(String(sid));
+        return archivedSessionVisible(row, archived, hardDeleted) && !accounted.has(String(sid));
       });
       
       const total = allGroups.reduce((acc, g) => acc + g.sids.length, 0) + ungrouped.length;
@@ -734,7 +738,7 @@ window.__ModuleLoader__.load({
 
     // ══════════════ 主组件 ══════════════
     function WorkspaceTreeBrowser(props) {
-      const { wide, useSessions, useWorkspaces, startSession, connectWorkspace, open, renameSession, renameWorkspace, deleteWorkspace, archiveSession, createWorkspace, pickDirectory } = props;
+      const { wide, useSessions, useWorkspaces, startSession, connectWorkspace, open, renameSession, renameWorkspace, deleteWorkspace, archiveSession, createWorkspace, pickDirectory, refreshSessions } = props;
       const sessions = useSessions((s) => s);
       const workspaces = useWorkspaces((s) => s);
 
@@ -749,13 +753,46 @@ window.__ModuleLoader__.load({
       const [renameBusy, setRenameBusy] = useState(false);
       const [archiveConfirm, setArchiveConfirm] = useState(null);
       const [archiveBusy, setArchiveBusy] = useState(false);
-      const [hardDeleted, setHardDeleted] = useState(() => new Set());
+      const [hardDeleted, setHardDeleted] = useState(() => loadSet(LS_DELETED));
       const [cfg, setCfg] = useState(getConfig);
       const groupsInited = useRef(false);
       const now = Date.now();
 
       // 配置订阅：设置页修改后本组件实时刷新
       useEffect(() => subscribeConfig(setCfg), []);
+
+      /**
+       * 永久删除会话的墓碑机制：已删会话仍会被官方 sessions 列表继续返回
+       * （会话仍被 host 持有/打开、或磁盘文件删除失败/被迟到的写入重建），
+       * 而本插件已同步将其移出工作区注册与归档，于是官方投影会把它们当作
+       * “未分组会话”复现。墓碑集合持久化到 localStorage，任何会话一旦删除
+       * 便在任何标签页/刷新后都不可见；仅当官方列表 phase=ready 且已确认
+       * 不再包含该 id（Host 列表已收敛）时才清除墓碑（uuid 不复用，故安全）。
+       */
+      useEffect(() => {
+        if (sessions.phase !== "ready" || hardDeleted.size === 0) return;
+        setHardDeleted((prev) => {
+          if (prev.size === 0) return prev;
+          const listed = sessions.ids || [];
+          const next = new Set(prev);
+          for (const sid of prev) {
+            if (!listed.includes(sid)) next.delete(sid);
+          }
+          if (next.size === prev.size) return prev;
+          saveSet(LS_DELETED, next);
+          return next;
+        });
+      }, [sessions.ids, sessions.phase, hardDeleted]);
+
+      /** 记录已永久删除的会话 id（本地持久化，跨刷新生效）。 */
+      const rememberDeleted = useCallback((ids) => {
+        setHardDeleted((prev) => {
+          const next = new Set(prev);
+          for (const id of ids || []) next.add(String(id));
+          saveSet(LS_DELETED, next);
+          return next;
+        });
+      }, []);
 
       // 首次进入工作区模式：默认展开所有组
       useEffect(() => {
@@ -1010,7 +1047,8 @@ window.__ModuleLoader__.load({
           } else if (k === "deleteOne") {
             const r = await apiPost("/archive/delete", { sessionId: archiveConfirm.sessionId });
             if (!r.ok) throw new Error(r.error || "删除失败");
-            setHardDeleted((prev) => { const n = new Set(prev); for (const id of toDelete) n.add(String(id)); return n; });
+            rememberDeleted(toDelete);
+            refreshSessions();
           } else if (k === "restoreGroup") {
             const r = await apiPost("/archive/unarchiveAll", { workspaceId: archiveConfirm.workspaceId });
             if (!r.ok) throw new Error(r.error || "恢复失败");
@@ -1018,7 +1056,8 @@ window.__ModuleLoader__.load({
             const r = await apiPost("/archive/deleteAll", { workspaceId: archiveConfirm.workspaceId });
             if (!r.ok) throw new Error(r.error || "删除失败");
             const deleted = Array.isArray(r.deleted) && r.deleted.length ? r.deleted : toDelete;
-            setHardDeleted((prev) => { const n = new Set(prev); for (const id of deleted) n.add(String(id)); return n; });
+            rememberDeleted(deleted);
+            refreshSessions();
           } else if (k === "restoreAll") {
             const r = await apiPost("/archive/unarchiveAll", {});
             if (!r.ok) throw new Error(r.error || "恢复失败");
@@ -1026,7 +1065,8 @@ window.__ModuleLoader__.load({
             const r = await apiPost("/archive/deleteAll", {});
             if (!r.ok) throw new Error(r.error || "删除失败");
             const deleted = Array.isArray(r.deleted) && r.deleted.length ? r.deleted : toDelete;
-            setHardDeleted((prev) => { const n = new Set(prev); for (const id of deleted) n.add(String(id)); return n; });
+            rememberDeleted(deleted);
+            refreshSessions();
           }
           setArchiveConfirm(null);
         } catch (error) {
@@ -1034,7 +1074,7 @@ window.__ModuleLoader__.load({
         } finally {
           setArchiveBusy(false);
         }
-      }, [archiveConfirm, archived, workspaces, sessions]);
+      }, [archiveConfirm, archived, workspaces, sessions, rememberDeleted, refreshSessions]);
 
       const onAddWorkspace = useCallback(async () => {
         try {
@@ -1133,6 +1173,7 @@ window.__ModuleLoader__.load({
             workspaces,
             wsForest,
             archived,
+            hardDeleted,
             onRestoreOne,
             onDeleteOne,
             onRestoreGroup,
@@ -1326,7 +1367,12 @@ window.__ModuleLoader__.load({
             await ctx.workspaces.archiveSession(sessionId);
           },
           createWorkspace: (input) => ctx.workspaces.create(input),
-          pickDirectory: () => ctx.workspaces.pickDirectory()
+          pickDirectory: () => ctx.workspaces.pickDirectory(),
+          refreshSessions: () => {
+            try {
+              if (typeof ctx.sessions.refresh === "function") ctx.sessions.refresh();
+            } catch { /* ignore */ }
+          }
         })
       }, (props) => h(ErrorBoundary, null, h(WorkspaceTreeBrowser, props))));
     }
