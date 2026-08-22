@@ -141,6 +141,7 @@ window.__ModuleLoader__.load({
         ]
       },
       branch: { vb: "0 0 16 16", d: "M13.0762 1.37207C14.0846 1.37228 14.9021 2.19077 14.9023 3.19922C14.9022 4.20772 14.0847 5.02518 13.0762 5.02539C12.2967 5.02539 11.6325 4.53691 11.3701 3.84961H4.35547C4.79397 4.26458 5.15861 4.7644 5.41699 5.33496L7.10645 9.06738C7.88526 10.7875 9.55104 11.9228 11.4189 12.0371C11.7085 11.4109 12.3411 10.9756 13.0762 10.9756C14.0843 10.9759 14.9023 11.7936 14.9023 12.8018C14.9023 13.81 14.0843 14.6277 13.0762 14.6279C12.2534 14.6279 11.5574 14.0832 11.3291 13.335C8.9868 13.1879 6.89981 11.7612 5.92285 9.60352L4.23242 5.87109C3.67503 4.64033 2.44878 3.84961 1.09766 3.84961V2.54883C1.10665 2.54883 1.11601 2.54975 1.125 2.5498L11.3701 2.54883C11.6326 1.86151 12.2969 1.37207 13.0762 1.37207ZM13.0762 12.2764C12.7858 12.2764 12.5508 12.5114 12.5508 12.8018C12.5508 13.0921 12.7858 13.3281 13.0762 13.3281C13.3664 13.3279 13.6025 13.092 13.6025 12.8018C13.6025 12.5115 13.3664 12.2766 13.0762 12.2764ZM13.0762 2.67285C12.7855 2.67285 12.55 2.90861 12.5498 3.19922C12.5499 3.48987 12.7855 3.72559 13.0762 3.72559C13.3667 3.72538 13.6024 3.48975 13.6025 3.19922C13.6023 2.90874 13.3666 2.67306 13.0762 2.67285Z", fillRule: "evenodd" },
+      restore: { vb: "0 0 16 16", d: "M8 3a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5h-1.5A3.5 3.5 0 0 1 8 11.5 3.5 3.5 0 0 1 4.5 8 3.5 3.5 0 0 1 8 4.5V3l3 3-3 3V7H8V3Z" },
       newChat: { vb: "0 0 16 16", d: "M8.00003 0.3237C3.76075 0.3237 0.32373 3.76072 0.32373 8C0.32373 9.17603 0.589121 10.2922 1.0632 11.2901L1.35291 11.8989L2.5705 11.3205L2.28079 10.7117C1.89079 9.89074 1.67301 8.97167 1.67301 8C1.67301 4.50546 4.50549 1.67298 8.00003 1.67298C11.4946 1.67298 14.3271 4.50546 14.3271 8C14.3271 11.4945 11.4946 14.327 8.00003 14.327C7.28473 14.327 6.76077 14.277 6.29621 14.1487C5.83857 14.0224 5.40441 13.8109 4.88514 13.4488C4.12569 12.919 3.03778 12.7316 2.141 13.2978L2.12682 13.307L2.11264 13.3171L1.34886 13.854L1.79659 15.188L2.86122 14.4384C3.19068 14.2305 3.68325 14.2542 4.11326 14.5539C4.72789 14.9826 5.30042 15.2724 5.93762 15.4484C6.56803 15.6224 7.22776 15.6763 8.00003 15.6763C12.2393 15.6763 15.6763 12.2393 15.6763 8C15.6763 3.76072 12.2393 0.3237 8.00003 0.3237ZM7.32033 4.82535V7.32536H4.82538V8.67464H7.32033V11.1747H8.6696V8.67464H11.1747V7.32536H8.6696V4.82535H7.32033Z" },
       /** 新建文件夹：官方 folder_close + 右下角加号（自绘组合）。 */
       folderPlus: {
@@ -574,7 +575,7 @@ window.__ModuleLoader__.load({
         h("span", { key: "ti", className: "dswt-title", title: row.displayTitle }, row.displayTitle),
         h("span", { key: "tm", className: "dswt-time" }, timeLabel(row.updatedAt, Date.now())),
         h("span", { key: "ac", className: "dswt-rowActions", onClick: (e) => e.stopPropagation() }, [
-          h("button", { key: "rs", type: "button", className: "dswt-iconButton", title: "恢复", onClick: () => onRestore(sid) }, h(Icon, { name: "newChat", size: 14 })),
+          h("button", { key: "rs", type: "button", className: "dswt-iconButton", title: "恢复", onClick: () => onRestore(sid) }, h(Icon, { name: "restore", size: 14 })),
           h("button", { key: "del", type: "button", className: "dswt-iconButton dswt-danger", title: "永久删除", onClick: () => onDelete(sid) }, h(Icon, { name: "trash", size: 14 }))
         ])
       ]);
@@ -652,7 +653,7 @@ window.__ModuleLoader__.load({
             h("span", { key: "ic", className: "dswt-slot dswt-folderIcon" }, h(Icon, { name: "folderOpen", size: 16, className: "dswt-folderSvg" })),
             h("span", { key: "pt", className: "dswt-projectText" }, h("span", { className: "dswt-title" }, (node.w.title || baseName(node.w.path)) + " · " + sids.length + " 条")),
             h("span", { key: "ac", className: "dswt-rowActions", style: { display: "inline-flex" } }, [
-              h("button", { key: "rs", type: "button", className: "dswt-iconButton", title: "恢复该工作区全部", disabled: !!busy, onClick: () => onRestoreGroup(node.w.workspaceId) }, h(Icon, { name: "newChat", size: 14 })),
+              h("button", { key: "rs", type: "button", className: "dswt-iconButton", title: "恢复该工作区全部", disabled: !!busy, onClick: () => onRestoreGroup(node.w.workspaceId) }, h(Icon, { name: "restore", size: 14 })),
               h("button", { key: "dl", type: "button", className: "dswt-iconButton dswt-danger", title: "永久删除该工作区全部", disabled: !!busy, onClick: () => onDeleteGroup(node.w.workspaceId) }, h(Icon, { name: "trash", size: 14 }))
             ])
           ]),
@@ -1429,17 +1430,18 @@ window.__ModuleLoader__.load({
       .dswt-modalBody { font-size: 13px; line-height: 20px; color: var(--dsw-alias-label-secondary); white-space: pre-wrap; word-break: break-all; }
       .dswt-modalStrong { color: var(--dsw-alias-label-primary); font-weight: 600; }
       .dswt-modalActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-      .dswt-modalBtn { height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); cursor: pointer; font-size: 13px; }
-      .dswt-modalBtn:hover { background: var(--dsw-alias-interactive-bg-hover); }
-      .dswt-modalBtnDanger { background: var(--dsw-alias-state-error-primary); border-color: var(--dsw-alias-state-error-primary); color: #fff; }
-      .dswt-modalBtnDanger:hover { filter: brightness(.96); }
-      .dswt-modalBtn:disabled { opacity: .6; cursor: not-allowed; }
-      .dswt-modalInput { box-sizing: border-box; width: 100%; height: 36px; padding: 0 12px; background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px; color: var(--dsw-alias-label-primary); font-size: 14px; outline: none; }
-      .dswt-modalInput:focus { border-color: var(--dsw-alias-brand-primary); background: var(--dsw-alias-bg-layer-1); }
+      .dswt-modalBtn { box-sizing: border-box; height: 32px; min-width: 64px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l1, #444) !important; background: var(--dsw-alias-bg-layer-2, #262626) !important; color: var(--dsw-alias-label-primary, #fff) !important; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; user-select: none; }
+      .dswt-modalBtn:hover { background: var(--dsw-alias-interactive-bg-hover, #333) !important; }
+      .dswt-modalBtnDanger { background: var(--dsw-alias-state-error-primary, #ff4d4f) !important; border-color: var(--dsw-alias-state-error-primary, #ff4d4f) !important; color: #fff !important; }
+      .dswt-modalBtnDanger:hover { filter: brightness(.94); }
+      .dswt-modalBtn:disabled { opacity: .55 !important; cursor: not-allowed !important; }
+      .dswt-modalInput { box-sizing: border-box; width: 100%; height: 36px; padding: 0 12px; background: var(--dsw-alias-bg-layer-2, #1f1f1f) !important; border: 1px solid var(--dsw-alias-border-l1, #444) !important; border-radius: 8px; color: var(--dsw-alias-label-primary, #fff) !important; font-size: 14px; outline: none; }
+      .dswt-modalInput:focus { border-color: var(--dsw-alias-brand-primary, #1677ff) !important; background: var(--dsw-alias-bg-layer-1, #141414) !important; }
       .dswt-modalInput:disabled { opacity: .6; }
-      .dswt-modalBtnPrimary { background: var(--dsw-alias-brand-primary); border-color: var(--dsw-alias-brand-primary); color: #fff; }
-      .dswt-modalBtnPrimary:hover { filter: brightness(.96); }
-      .dswt-modalBtnPrimary:disabled { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l1); color: var(--dsw-alias-label-tertiary); filter: none; }
+      .dswt-modalBtnPrimary { background: var(--dsw-alias-brand-primary, #1677ff) !important; border-color: var(--dsw-alias-brand-primary, #1677ff) !important; color: #fff !important; }
+      .dswt-modalBtnPrimary:hover { filter: brightness(.94); }
+      .dswt-modalBtnPrimary:disabled { background: var(--dsw-alias-bg-layer-2, #262626) !important; border-color: var(--dsw-alias-border-l1, #444) !important; color: var(--dsw-alias-label-tertiary, #888) !important; filter: none; }
+      .dswt-modalBtnPrimary:active { filter: brightness(.9); }
       @keyframes dswt-modal-in { from { opacity: 0; } to { opacity: 1; } }
       @media (prefers-reduced-motion: reduce) { .dswt-session, .dswt-arrow { transition: none; animation: none; } .dswt-cell { animation: none; opacity: 1; } }
     `;
