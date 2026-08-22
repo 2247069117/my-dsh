@@ -1,6 +1,6 @@
-# dsh 同模式沙箱升级 no-op 补丁（纯代码补丁说明）
+# patch-dsh-escalation-noop — dsh-sandbox 同模式沙箱升级 no-op 补丁
 
-修复 dsh 工具调用报错，**以手工代码补丁形式提供**（无插件、无 npm 包——包已下架）：
+修复 dsh 工具调用报错，**以幂等脚本形式自动打补丁**（无插件、无 npm 包——包已下架）：
 
 ```
 Error: sandbox escalation to "danger-full-access" is not strictly wider than this call's current "danger-full-access" mode
@@ -11,6 +11,17 @@ Error: sandbox escalation to "danger-full-access" is not strictly wider than thi
 - 会话沙箱模式为 `danger-full-access`（`~/.dsh/settings.yaml` → `permission.defaultPreset`）时本来就不受限，但 `bash` / `fs` 等工具的 schema 仍暴露 `sandbox_permissions` 参数，模型（尤其 gpt-5.6-luna）会反复传它。
 - `@deepseek-ai/dsh-sandbox` 的 `approveEscalation()` 对「请求模式 == 当前模式」（同模式，非严格更宽）直接抛上述错误，导致每次工具调用失败。
 - 纯提示词（系统提示词、preset persona 禁令）拦不住 luna（实测 3/3 照传），只能从代码层根治。
+
+## 用法
+
+```bash
+bash patch-dsh-escalation-noop.sh            # 自动定位全局 DSH
+DSH_ROOT=/path/to/dsh bash patch-dsh-escalation-noop.sh   # 或显式指定
+```
+
+- 幂等：以 marker `local patch (user)` 检测，已补丁自动跳过。
+- 首次打补丁前自动备份原文件到 `~/.dsh/patches/dsh-sandbox.index.js.orig`。
+- 打完补丁需重启 `dsh web` 服务使新代码加载。
 
 ## 补丁内容
 
@@ -32,7 +43,7 @@ Error: sandbox escalation to "danger-full-access" is not strictly wider than thi
 
 ## 升级后需重新应用
 
-`npm update -g @deepseek-ai/dsh` 等升级会抹掉 node_modules 里的手工改动（vendor 文件被还原成官方版），需重新打补丁。
+`npm update -g @deepseek-ai/dsh` 等升级会抹掉 node_modules 里的手工改动（vendor 文件被还原成官方版），重跑本脚本即可（备份与 settings 不受影响）。
 
 ## 回滚
 
@@ -41,4 +52,4 @@ cp ~/.dsh/patches/dsh-sandbox.index.js.orig \
    "$(node -e "console.log(require('node:module').createRequire(process.cwd()+'/x.js').resolve('@deepseek-ai/dsh-sandbox/package.json'))" | sed 's|package.json|lib/index.js|')"
 ```
 
-> 提示：`~/.dsh/patches/dsh-sandbox.index.js.orig` 是打补丁前的原文件备份；本仓库不包含 vendor 文件副本。
+> 提示：`~/.dsh/patches/dsh-sandbox.index.js.orig` 是脚本首次打补丁前的原文件备份；本仓库不包含 vendor 文件副本。
