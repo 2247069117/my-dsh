@@ -21,7 +21,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tttnny/my-dsh.git",
-    "directory": "dsh-oil-sticky-prompt"
+    "directory": "plugins/dsh-oil-sticky-prompt"
   },
   "homepage": "https://github.com/tttnny/my-dsh#readme",
   "bugs": {
