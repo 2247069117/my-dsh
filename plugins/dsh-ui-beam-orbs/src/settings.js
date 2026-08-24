@@ -1,7 +1,7 @@
 /* ===================================================================== *
  * src/settings.js — 界面特效设置（initSettings）
  *   玻璃拟态（侧边栏/气泡/代码块等）、Border Beam 光效、Thinking Orbs
- *   （Orbs 为核心交互特性，始终开启）+ 高级：玻璃模糊强度。
+ *   （Orbs 为工具调用状态几何动效，可在设置页关闭以降载省电）+ 高级：玻璃模糊强度。
  *   即时生效、localStorage 持久化（dsh-bg-glass-settings）。
  *   背景引擎设置（极光/鲸鱼/星座/鼠标）在 dsh-ui-deepseek-bg 插件。
  *   由 scripts/build.mjs 拼接进 lib/client.js 的工厂闭包。
@@ -10,20 +10,19 @@ function initSettings(shared) {
   var ctx = shared.ctx;
 
   var SETTINGS_KEY = "dsh-bg-glass-settings";
-  var DEFAULTS = { beam: true, glass: true, blur: 12 };
+  var DEFAULTS = { beam: true, glass: true, orbs: true, blur: 12 };
 
   function loadSettings() {
-    var d = { beam: true, glass: true, blur: 12 };
+    var d = { beam: true, glass: true, orbs: true, blur: 12 };
     var parsed = null;
     try {
       var raw = localStorage.getItem(SETTINGS_KEY);
       if (raw) parsed = JSON.parse(raw);
     } catch (e) {}
     if (parsed && typeof parsed === "object") {
-      var allowed = { beam:1, glass:1, blur:1 };
+      var allowed = { beam:1, glass:1, blur:1, orbs:1 };
       for (var k in parsed) if (Object.prototype.hasOwnProperty.call(parsed, k) && allowed[k]) d[k] = parsed[k];
     }
-    d.orbs = true; // Thinking Orbs 核心交互特性，始终保持开启
     return d;
   }
   shared.settings = loadSettings();
@@ -39,7 +38,7 @@ function initSettings(shared) {
   }
   function snapshotSettings() {
     return {
-      beam: !!bgSettings.beam, glass: !!bgSettings.glass, orbs: true,
+      beam: !!bgSettings.beam, glass: !!bgSettings.glass, orbs: !!bgSettings.orbs,
       blur: Number(bgSettings.blur) || 8,
       gpu: estimateGpu()
     };
@@ -51,12 +50,11 @@ function initSettings(shared) {
     return function () { var i = settingsListeners.indexOf(fn); if (i >= 0) settingsListeners.splice(i, 1); };
   }
   function updateSetting(key, value) {
-    if (key === "orbs") return;
     bgSettings[key] = value;
     saveSettings(); applyBgSettings(); notifySettings();
   }
   function resetSettings() {
-    bgSettings.beam = DEFAULTS.beam; bgSettings.glass = DEFAULTS.glass; bgSettings.blur = DEFAULTS.blur;
+    bgSettings.beam = DEFAULTS.beam; bgSettings.glass = DEFAULTS.glass; bgSettings.orbs = DEFAULTS.orbs; bgSettings.blur = DEFAULTS.blur;
     saveSettings(); applyBgSettings(); notifySettings();
   }
 
@@ -126,7 +124,10 @@ function initSettings(shared) {
     ".dsh-bg-reset{cursor:pointer;border:1px solid rgba(128,128,128,.25);background:transparent;color:inherit;border-radius:8px;padding:6px 14px;font-size:12px;font-family:inherit;transition:background .15s,border-color .15s;}",
     ".dsh-bg-reset:hover{background:rgba(128,128,128,.1);border-color:rgba(128,128,128,.4);}",
     ".dsh-bg-note{font-size:11px;opacity:.55;line-height:1.5;}",
-    "@media (prefers-reduced-motion: reduce){.dsh-bg-meter>div{transition:none;}}"
+    "@media (prefers-reduced-motion: reduce){.dsh-bg-meter>div{transition:none;}}",
+    /* 设置页「界面特效」专属导航图标：Sparkles 闪烁星芒光效，替代默认齿轮 */
+    "[data-dsh-beam-orbs-settings-nav] > svg:first-child{display:none!important;}",
+    "[data-dsh-beam-orbs-settings-nav]::before{content:'';flex:none;width:16px;height:16px;background:currentColor;-webkit-mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z'/%3E%3Cpath d='M5 3v4'/%3E%3Cpath d='M7 5H3'/%3E%3Cpath d='M19 17v4'/%3E%3Cpath d='M21 19h-4'/%3E%3C/svg%3E\") center / contain no-repeat;mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z'/%3E%3Cpath d='M5 3v4'/%3E%3Cpath d='M7 5H3'/%3E%3Cpath d='M19 17v4'/%3E%3Cpath d='M21 19h-4'/%3E%3C/svg%3E\") center / contain no-repeat;}"
   ].join("\n");
 
   function injectSettingsCss() {
@@ -153,7 +154,8 @@ function initSettings(shared) {
     var meterColor = gpu < 35 ? "#4ade80" : (gpu < 60 ? "#facc15" : "#fb7185");
     var rows = [
       { key: "beam", title: "Border Beam 光效", desc: "输入框边界旋转光晕与打字呼吸", level: "mid" },
-      { key: "glass", title: "玻璃拟态", desc: "侧边栏/气泡/代码块/计划/任务/审批卡片的 backdrop blur", level: "mid" }
+      { key: "glass", title: "玻璃拟态", desc: "侧边栏/气泡/代码块/计划/任务/审批卡片的 backdrop blur", level: "mid" },
+      { key: "orbs", title: "Thinking Orbs 动态指示器", desc: "工具调用状态的几何动效（低性能设备可关闭以省电）", level: "low" }
     ];
     var levelText = { high: "高", mid: "中", low: "低" };
     function switchBtn(key) {
@@ -201,11 +203,6 @@ function initSettings(shared) {
         h("div", { className: "dsh-bg-div" }),
         h("div", { className: "dsh-bg-sec-title" }, "特效开关"),
         rows.map(rowEl),
-        h("div", { className: "dsh-bg-row" },
-          h("div", { className: "dsh-bg-row-info" },
-            h("div", { className: "dsh-bg-row-title" }, "Thinking Orbs",
-              h("span", { className: "dsh-bg-chip", "data-level": "low" }, "低负载")),
-            h("div", { className: "dsh-bg-row-desc" }, "状态栏 3D 点阵活动指示器 · 核心交互特性，始终开启"))),
         h("div", { className: "dsh-bg-div" }),
         h("details", { className: "dsh-bg-adv dsh-bg-card" },
           h("summary", null, "渲染质量（高级）"),
@@ -213,6 +210,25 @@ function initSettings(shared) {
       h("div", { className: "dsh-bg-foot" },
         h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
         h("span", { className: "dsh-bg-note" }, "v__PKG_VERSION__ · 即时生效并自动保存")));
+  }
+
+  var SETTINGS_NAV_MARKER = "data-dsh-beam-orbs-settings-nav";
+
+  function syncSettingsNavIcon() {
+    try {
+      var buttons = document.querySelectorAll('[role="dialog"] nav button, .VOzbGW_navCell, [class*="navCell"]');
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        var txt = btn.textContent ? btn.textContent.trim() : "";
+        if (txt === "界面特效" || txt.indexOf("界面特效") !== -1) {
+          if (!btn.hasAttribute(SETTINGS_NAV_MARKER)) {
+            btn.setAttribute(SETTINGS_NAV_MARKER, "");
+          }
+        } else if (btn.hasAttribute(SETTINGS_NAV_MARKER)) {
+          btn.removeAttribute(SETTINGS_NAV_MARKER);
+        }
+      }
+    } catch (e) {}
   }
 
   /** 注册设置页条目（需要 slots 服务；缺 ctx/slots 时静默跳过） */
@@ -230,6 +246,15 @@ function initSettings(shared) {
           label: function () { return "界面特效"; }
         }, BgSettingsSection);
       });
+      // 监听设置弹窗挂载，标记「界面特效」导航项以展示专属 Sparkles 光效图标
+      syncSettingsNavIcon();
+      if (shared.refs.subscribeCoalesced) {
+        shared.refs.subscribeCoalesced(syncSettingsNavIcon);
+      }
+      if (window.MutationObserver && document.body) {
+        var navObs = new MutationObserver(syncSettingsNavIcon);
+        navObs.observe(document.body, { childList: true, subtree: true, characterData: true });
+      }
     } catch (e) {}
   }
 

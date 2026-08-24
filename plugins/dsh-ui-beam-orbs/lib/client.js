@@ -85,6 +85,21 @@ body[data-ds-dark-theme] .qDHVXG_fade {
   background: transparent !important;
 }
 
+/* ============ 设置页「界面特效」专属导航图标：Sparkles 闪烁星芒 ============ */
+[data-dsh-beam-orbs-settings-nav] > svg:first-child {
+  display: none !important;
+}
+
+[data-dsh-beam-orbs-settings-nav]::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z'/%3E%3Cpath d='M5 3v4'/%3E%3Cpath d='M7 5H3'/%3E%3Cpath d='M19 17v4'/%3E%3Cpath d='M21 19h-4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z'/%3E%3Cpath d='M5 3v4'/%3E%3Cpath d='M7 5H3'/%3E%3Cpath d='M19 17v4'/%3E%3Cpath d='M21 19h-4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
 /* ============ 消息气泡与代码块玻璃化（与侧边栏/输入框同款材质）============ */
 /* 仅深色主题生效；浅色主题保持官方原版气泡/代码块 */
 
@@ -2025,7 +2040,10 @@ function initSettings(shared) {
     ".dsh-bg-reset{cursor:pointer;border:1px solid rgba(128,128,128,.25);background:transparent;color:inherit;border-radius:8px;padding:6px 14px;font-size:12px;font-family:inherit;transition:background .15s,border-color .15s;}",
     ".dsh-bg-reset:hover{background:rgba(128,128,128,.1);border-color:rgba(128,128,128,.4);}",
     ".dsh-bg-note{font-size:11px;opacity:.55;line-height:1.5;}",
-    "@media (prefers-reduced-motion: reduce){.dsh-bg-meter>div{transition:none;}}"
+    "@media (prefers-reduced-motion: reduce){.dsh-bg-meter>div{transition:none;}}",
+    /* 设置页「界面特效」专属导航图标：Sparkles 闪烁星芒光效，替代默认齿轮 */
+    "[data-dsh-beam-orbs-settings-nav] > svg:first-child{display:none!important;}",
+    "[data-dsh-beam-orbs-settings-nav]::before{content:'';flex:none;width:16px;height:16px;background:currentColor;-webkit-mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z'/%3E%3Cpath d='M5 3v4'/%3E%3Cpath d='M7 5H3'/%3E%3Cpath d='M19 17v4'/%3E%3Cpath d='M21 19h-4'/%3E%3C/svg%3E\") center / contain no-repeat;mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z'/%3E%3Cpath d='M5 3v4'/%3E%3Cpath d='M7 5H3'/%3E%3Cpath d='M19 17v4'/%3E%3Cpath d='M21 19h-4'/%3E%3C/svg%3E\") center / contain no-repeat;}"
   ].join("\n");
 
   function injectSettingsCss() {
@@ -2114,6 +2132,25 @@ function initSettings(shared) {
         h("span", { className: "dsh-bg-note" }, "v1.0.2 · 即时生效并自动保存")));
   }
 
+  var SETTINGS_NAV_MARKER = "data-dsh-beam-orbs-settings-nav";
+
+  function syncSettingsNavIcon() {
+    try {
+      var buttons = document.querySelectorAll('[role="dialog"] nav button, .VOzbGW_navCell, [class*="navCell"]');
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        var txt = btn.textContent ? btn.textContent.trim() : "";
+        if (txt === "界面特效" || txt.indexOf("界面特效") !== -1) {
+          if (!btn.hasAttribute(SETTINGS_NAV_MARKER)) {
+            btn.setAttribute(SETTINGS_NAV_MARKER, "");
+          }
+        } else if (btn.hasAttribute(SETTINGS_NAV_MARKER)) {
+          btn.removeAttribute(SETTINGS_NAV_MARKER);
+        }
+      }
+    } catch (e) {}
+  }
+
   /** 注册设置页条目（需要 slots 服务；缺 ctx/slots 时静默跳过） */
   function setupSettingsUi(ctx) {
     if (!react) return;
@@ -2129,6 +2166,15 @@ function initSettings(shared) {
           label: function () { return "界面特效"; }
         }, BgSettingsSection);
       });
+      // 监听设置弹窗挂载，标记「界面特效」导航项以展示专属 Sparkles 光效图标
+      syncSettingsNavIcon();
+      if (shared.refs.subscribeCoalesced) {
+        shared.refs.subscribeCoalesced(syncSettingsNavIcon);
+      }
+      if (window.MutationObserver && document.body) {
+        var navObs = new MutationObserver(syncSettingsNavIcon);
+        navObs.observe(document.body, { childList: true, subtree: true, characterData: true });
+      }
     } catch (e) {}
   }
 
