@@ -1,6 +1,6 @@
 import { defineConfig } from "tsdown";
 
-const PLUGIN_ID = "dsh-oil-sticky-prompt";
+const PLUGIN_ID = "@lynn123411/dsh-oil-sticky-prompt";
 const CLIENT_EXTERNALS = [
   "@deepseek-ai/dsh-client-runtime/client",
 ] as const;

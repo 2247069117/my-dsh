@@ -4,7 +4,7 @@
  * 修改源码（src/ 下的模块与 CSS）后运行：node scripts/build.mjs
  */
 window.__ModuleLoader__.load({
-  id: "dsh-ui-beam-orbs",
+  id: "@lynn123411/dsh-ui-beam-orbs",
   factory: (require) => {
     "use strict";
     var module = { exports: {} };

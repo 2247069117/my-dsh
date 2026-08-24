@@ -10,7 +10,7 @@
  *    无论刷新/跨标签页都不可见，官方列表收敛后墓碑自动清除。
  */
 window.__ModuleLoader__.load({
-  id: "dsh-workspace-tree",
+  id: "@lynn123411/dsh-workspace-tree",
   factory: (require) => {
     "use strict";
     var module = { exports: {} };

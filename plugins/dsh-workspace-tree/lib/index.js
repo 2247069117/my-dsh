@@ -14,7 +14,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { homedir } from "node:os";
 
 /** Cordis 插件名（patch 行 id）。 */
-const name = "dsh-workspace-tree";
+const name = "@lynn123411/dsh-workspace-tree";
 /** 依赖的服务。 */
 const inject = ["webServer", "storageDomain"];
 

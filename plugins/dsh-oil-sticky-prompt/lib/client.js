@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-	id: "dsh-oil-sticky-prompt",
+	id: "@lynn123411/dsh-oil-sticky-prompt",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;

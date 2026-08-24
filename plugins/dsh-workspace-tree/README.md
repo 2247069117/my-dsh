@@ -1,4 +1,4 @@
-# dsh-workspace-tree
+# @lynn123411/dsh-workspace-tree
 
 DSH 工作区树：把左侧栏工作区从「工作区→会话」单层结构升级为基于真实文件系统推导的智能多级树形浏览器——会话环境严格隔离（会话 cwd = 所在目录），支持文件夹与工作区双模式、会话全局重命名、归档管理与物理彻底删除。
 
@@ -13,5 +13,5 @@ DSH 工作区树：把左侧栏工作区从「工作区→会话」单层结构�
 ## 安装
 
 ```bash
-dsh plugin --profile web add dsh-workspace-tree
+dsh plugin --profile web add @lynn123411/dsh-workspace-tree
 ```

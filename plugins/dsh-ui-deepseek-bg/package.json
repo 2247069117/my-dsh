@@ -1,6 +1,6 @@
 {
-  "name": "dsh-ui-deepseek-bg",
-  "description": "DeepSeek Harness 官网风格背景引擎：极光/粒子鲸鱼/星座网格/鼠标跟随交互 + 背景特效设置面板（界面皮肤层玻璃/Beam/Orbs 在 dsh-ui-beam-orbs）",
+  "name": "@lynn123411/dsh-ui-deepseek-bg",
+  "description": "DeepSeek Harness 官网风格背景引擎：极光/粒子鲸鱼/星座网格/鼠标跟随交互 + 背景特效设置面板（界面皮肤层玻璃/Beam/Orbs 在 @lynn123411/dsh-ui-beam-orbs）",
   "version": "1.13.1",
   "type": "module",
   "main": "lib/index.js",
