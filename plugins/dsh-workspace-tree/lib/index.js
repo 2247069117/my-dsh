@@ -10,6 +10,8 @@
  *  - POST /archive/deleteAll   永久删除批量会话及其实体文件 { workspaceId? }
  */
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { homedir } from "node:os";
 
@@ -131,6 +133,223 @@ async function handleMkdir(req, res) {
 
   await mkdir(target, { recursive: true });
   sendJson(res, 200, { ok: true, path: target });
+}
+
+/** 解析 IDE 执行路径（跨平台多路径智能探测）。 */
+function resolveExecutable(ideKey, customCommand) {
+  if (ideKey === "custom") {
+    return (customCommand || "").trim() || "code";
+  }
+
+  const osPlatform = process.platform;
+  const home = homedir();
+  const env = process.env;
+
+  const map = {
+    vscode: {
+      cmd: "code",
+      darwin: [
+        "/usr/local/bin/code",
+        "/opt/homebrew/bin/code",
+        "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+        join(home, "Applications/Visual Studio Code.app/Contents/Resources/app/bin/code")
+      ],
+      win32: [
+        join(env.LOCALAPPDATA || "", "Programs", "Microsoft VS Code", "bin", "code.cmd"),
+        join(env.LOCALAPPDATA || "", "Programs", "Microsoft VS Code", "Code.exe"),
+        join(env.ProgramFiles || "C:\\Program Files", "Microsoft VS Code", "bin", "code.cmd"),
+        join(env.ProgramFiles || "C:\\Program Files", "Microsoft VS Code", "Code.exe"),
+        join(env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Microsoft VS Code", "bin", "code.cmd"),
+        join(env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Microsoft VS Code", "Code.exe")
+      ]
+    },
+    codebuddy: {
+      cmd: "buddycn",
+      darwin: [
+        "/Applications/CodeBuddy CN.app/Contents/Resources/app/bin/code",
+        "/Applications/CodeBuddy.app/Contents/Resources/app/bin/code",
+        join(home, "Applications/CodeBuddy CN.app/Contents/Resources/app/bin/code"),
+        "/usr/local/bin/buddycn",
+        "/opt/homebrew/bin/buddycn",
+        "/usr/local/bin/codebuddy",
+        "/opt/homebrew/bin/codebuddy"
+      ],
+      win32: [
+        join(env.LOCALAPPDATA || "", "Programs", "CodeBuddy CN", "bin", "code.cmd"),
+        join(env.LOCALAPPDATA || "", "Programs", "CodeBuddy CN", "CodeBuddy.exe"),
+        join(env.ProgramFiles || "C:\\Program Files", "CodeBuddy CN", "bin", "code.cmd"),
+        join(env.ProgramFiles || "C:\\Program Files", "CodeBuddy CN", "CodeBuddy.exe")
+      ]
+    },
+    cursor: {
+      cmd: "cursor",
+      darwin: [
+        "/usr/local/bin/cursor",
+        "/opt/homebrew/bin/cursor",
+        "/Applications/Cursor.app/Contents/Resources/app/bin/cursor",
+        join(home, "Applications/Cursor.app/Contents/Resources/app/bin/cursor")
+      ],
+      win32: [
+        join(env.LOCALAPPDATA || "", "Programs", "cursor", "Cursor.exe"),
+        join(env.LOCALAPPDATA || "", "Programs", "cursor", "resources", "app", "bin", "cursor.cmd")
+      ]
+    },
+    windsurf: {
+      cmd: "windsurf",
+      darwin: [
+        "/usr/local/bin/windsurf",
+        "/opt/homebrew/bin/windsurf",
+        "/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf",
+        join(home, "Applications/Windsurf.app/Contents/Resources/app/bin/windsurf")
+      ],
+      win32: [
+        join(env.LOCALAPPDATA || "", "Programs", "Windsurf", "Windsurf.exe"),
+        join(env.LOCALAPPDATA || "", "Programs", "Windsurf", "resources", "app", "bin", "windsurf.cmd")
+      ]
+    },
+    trae: {
+      cmd: "trae",
+      darwin: [
+        "/usr/local/bin/trae",
+        "/opt/homebrew/bin/trae",
+        "/Applications/Trae.app/Contents/Resources/app/bin/trae",
+        join(home, "Applications/Trae.app/Contents/Resources/app/bin/trae")
+      ],
+      win32: [
+        join(env.LOCALAPPDATA || "", "Programs", "Trae", "Trae.exe"),
+        join(env.LOCALAPPDATA || "", "Programs", "Trae", "resources", "app", "bin", "trae.cmd")
+      ]
+    },
+    webstorm: {
+      cmd: "webstorm",
+      darwin: [
+        "/usr/local/bin/webstorm",
+        "/opt/homebrew/bin/webstorm",
+        "/Applications/WebStorm.app/Contents/MacOS/webstorm"
+      ],
+      win32: [
+        join(env.ProgramFiles || "C:\\Program Files", "JetBrains", "WebStorm", "bin", "webstorm64.exe")
+      ]
+    },
+    idea: {
+      cmd: "idea",
+      darwin: [
+        "/usr/local/bin/idea",
+        "/opt/homebrew/bin/idea",
+        "/Applications/IntelliJ IDEA.app/Contents/MacOS/idea",
+        "/Applications/IntelliJ IDEA Ultimate.app/Contents/MacOS/idea",
+        "/Applications/IntelliJ IDEA Community Edition.app/Contents/MacOS/idea"
+      ],
+      win32: [
+        join(env.ProgramFiles || "C:\\Program Files", "JetBrains", "IntelliJ IDEA", "bin", "idea64.exe"),
+        join(env.ProgramFiles || "C:\\Program Files", "JetBrains", "IntelliJ IDEA Community Edition", "bin", "idea64.exe")
+      ]
+    },
+    pycharm: {
+      cmd: "pycharm",
+      darwin: [
+        "/usr/local/bin/pycharm",
+        "/opt/homebrew/bin/pycharm",
+        "/Applications/PyCharm.app/Contents/MacOS/pycharm",
+        "/Applications/PyCharm CE.app/Contents/MacOS/pycharm"
+      ],
+      win32: [
+        join(env.ProgramFiles || "C:\\Program Files", "JetBrains", "PyCharm", "bin", "pycharm64.exe"),
+        join(env.ProgramFiles || "C:\\Program Files", "JetBrains", "PyCharm Community Edition", "bin", "pycharm64.exe")
+      ]
+    },
+    zed: {
+      cmd: "zed",
+      darwin: [
+        "/usr/local/bin/zed",
+        "/opt/homebrew/bin/zed",
+        "/Applications/Zed.app/Contents/MacOS/cli",
+        join(home, "Applications/Zed.app/Contents/MacOS/cli")
+      ],
+      win32: [
+        join(env.LOCALAPPDATA || "", "Programs", "Zed", "zed.exe")
+      ]
+    },
+    sublime: {
+      cmd: "subl",
+      darwin: [
+        "/usr/local/bin/subl",
+        "/opt/homebrew/bin/subl",
+        "/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"
+      ],
+      win32: [
+        join(env.ProgramFiles || "C:\\Program Files", "Sublime Text", "subl.exe"),
+        join(env.ProgramFiles || "C:\\Program Files", "Sublime Text 3", "subl.exe")
+      ]
+    }
+  };
+
+  const def = map[ideKey] || { cmd: ideKey || "code" };
+  const candidates = (osPlatform === "darwin" ? def.darwin : osPlatform === "win32" ? def.win32 : []) || [];
+  for (const c of candidates) {
+    if (c && existsSync(c)) return c;
+  }
+  return def.cmd;
+}
+
+/** 启动外部 IDE 打开指定目录。 */
+function launchEditor(executable, targetPath) {
+  return new Promise((resolveLaunch, rejectLaunch) => {
+    let settled = false;
+    const isWinCmd = process.platform === "win32" && (executable.toLowerCase().endsWith(".cmd") || executable.toLowerCase().endsWith(".bat"));
+    const child = spawn(executable, [targetPath], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: false,
+      shell: isWinCmd
+    });
+    child.once("error", (error) => {
+      if (settled) return;
+      settled = true;
+      const hint = error.code === "ENOENT"
+        ? `未找到命令「${executable}」，请确保已安装相应 IDE 的命令行工具，或在设置中指定可执行文件的完整绝对路径。`
+        : error.message;
+      rejectLaunch(new Error(hint));
+    });
+    child.once("spawn", () => {
+      if (settled) return;
+      settled = true;
+      child.unref();
+      resolveLaunch();
+    });
+  });
+}
+
+/** 在 IDE 中打开目录。 */
+async function handleOpenIde(req, res) {
+  const raw = await parseJsonBody(req);
+  const targetPathRaw = typeof raw.path === "string" ? raw.path.trim() : "";
+  if (!targetPathRaw) {
+    return sendJson(res, 200, { ok: false, error: "path 必填" });
+  }
+  const targetPath = resolve(targetPathRaw);
+  if (!isAbsolute(targetPath)) {
+    return sendJson(res, 200, { ok: false, error: "path 必须为绝对路径" });
+  }
+  try {
+    const s = await stat(targetPath);
+    if (!s.isDirectory() && !s.isFile()) {
+      return sendJson(res, 200, { ok: false, error: "目标路径不是有效文件或目录" });
+    }
+  } catch (err) {
+    return sendJson(res, 200, { ok: false, error: `路径不存在: ${String(err.message || err)}` });
+  }
+
+  const ide = typeof raw.ide === "string" ? raw.ide.trim() : "vscode";
+  const customCommand = typeof raw.customCommand === "string" ? raw.customCommand.trim() : "";
+  const executable = resolveExecutable(ide, customCommand);
+
+  try {
+    await launchEditor(executable, targetPath);
+    sendJson(res, 200, { ok: true });
+  } catch (err) {
+    sendJson(res, 200, { ok: false, error: err.message || String(err) });
+  }
 }
 
 // ───── 归档域 helpers ─────
@@ -343,6 +562,7 @@ function apply(ctx) {
       try {
         if (head === "debug" && (req.method === "GET" || req.method === "HEAD")) return await handleDebug(ctx, req, res);
         if (head === "mkdir" && req.method === "POST") return await handleMkdir(req, res);
+        if (head === "open-ide" && req.method === "POST") return await handleOpenIde(req, res);
         if (head === "archive" && req.method === "POST") {
           const sub = rest[1];
           if (sub === "unarchive") return await handleUnarchive(ctx, req, res);

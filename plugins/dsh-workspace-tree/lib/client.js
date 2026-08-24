@@ -41,7 +41,9 @@ window.__ModuleLoader__.load({
       indent: 16,
       defaultMode: "workspace",
       showAgg: true,
-      showCount: true
+      showCount: true,
+      defaultIde: "vscode",
+      customIdeCommand: ""
     };
     let configState = null;
     const configListeners = new Set();
@@ -148,6 +150,14 @@ window.__ModuleLoader__.load({
         paths: [
           { d: "M5.05582 0.518756L4.50669 0.86654L5.05582 0.518756ZM13 9.4837L13.65 9.4837L13.65 3.53962L13 3.53962L12.35 3.53962L12.35 9.4837L13 9.4837ZM11.3264 1.86603L11.3264 1.21603L6.52313 1.21603L6.52313 1.86603L6.52313 2.51603L11.3264 2.51603L11.3264 1.86603ZM5.58054 1.34727L6.12968 0.999489L5.60495 0.170972L5.05582 0.518756L4.50669 0.86654L5.03141 1.69506L5.58054 1.34727ZM4.11323 1.23058e-13L4.11323 -0.65L1.67359 -0.65L1.67359 5.00699e-14L1.67359 0.65L4.11323 0.65L4.11323 1.23058e-13ZM0 1.67359L-0.65 1.67359L-0.65 9.4837L0 9.4837L0.65 9.4837L0.65 1.67359L0 1.67359ZM11.3264 11.1573L11.3264 10.5073L1.67359 10.5073L1.67359 11.1573L1.67359 11.8073L11.3264 11.8073L11.3264 11.1573ZM0 9.4837L-0.65 9.4837C-0.65 10.767 0.390308 11.8073 1.67359 11.8073L1.67359 11.1573L1.67359 10.5073C1.10828 10.5073 0.65 10.049 0.65 9.4837L0 9.4837ZM1.67359 5.00699e-14L1.67359 -0.65C0.390307 -0.65 -0.65 0.390309 -0.65 1.67359L0 1.67359L0.65 1.67359C0.65 1.10828 1.10828 0.65 1.67359 0.65L1.67359 5.00699e-14ZM5.05582 0.518756L5.60495 0.170972C5.28121 -0.340193 4.71829 -0.65 4.11323 -0.65L4.11323 1.23058e-13L4.11323 0.65C4.27282 0.65 4.4213 0.731715 4.50669 0.86654L5.05582 0.518756ZM6.52313 1.86603L6.52313 1.21603C6.36354 1.21603 6.21507 1.13431 6.12968 0.999489L5.58054 1.34727L5.03141 1.69506C5.35515 2.20622 5.91808 2.51603 6.52313 2.51603L6.52313 1.86603ZM13 3.53962L13.65 3.53962C13.65 2.25634 12.6097 1.21603L11.3264 1.21603L11.3264 1.86603L11.3264 2.51603C11.8917 2.51603 12.35 2.97431 12.35 3.53962L13 3.53962ZM13 9.4837L12.35 9.4837C12.35 10.049 11.8917 10.5073 11.3264 10.5073L11.3264 11.1573L11.3264 11.8073C12.6097 11.8073 13.65 10.767 13.65 9.4837L13 9.4837Z", transform: "translate(1.5 2.429)" },
           { d: "M12 10.8v1.2h1.9v1.2H12v1.2h-1.2v-1.2H8.9v-1.2h1.9v-1.2H12z" }
+        ]
+      },
+      ide: {
+        vb: "0 0 16 16",
+        paths: [
+          { d: "M5.7 3.3C5.3 2.9 4.7 2.9 4.3 3.3L1.5 6.8C1.1 7.2 1.1 7.8 1.5 8.2L4.3 11.7C4.7 12.1 5.3 12.1 5.7 11.7C6.1 11.3 6.1 10.7 5.7 10.3L3.4 7.5L5.7 4.7C6.1 4.3 6.1 3.7 5.7 3.3Z" },
+          { d: "M10.3 3.3C9.9 3.7 9.9 4.3 10.3 4.7L12.6 7.5L10.3 10.3C9.9 10.7 9.9 11.3 10.3 11.7C10.7 12.1 11.3 12.1 11.7 11.7L14.5 8.2C14.9 7.8 14.9 7.2 14.5 6.8L11.7 3.3C11.3 2.9 10.7 2.9 10.3 3.3Z" },
+          { d: "M6.3 12.3C6.1 12.3 5.9 12.2 5.8 12C5.6 11.6 5.8 11.1 6.2 10.9L9.2 3.7C9.4 3.3 9.9 3.1 10.3 3.3C10.7 3.5 10.9 4 10.7 4.4L7.7 11.6C7.5 12 7.1 12.3 6.7 12.3H6.3Z" }
         ]
       }
     };
@@ -423,7 +433,7 @@ window.__ModuleLoader__.load({
     }
 
     // ══════════════ 文件夹模式：目录节点 ══════════════
-    function DirNode({ node, depth, indent, showAgg, showCount, expandedDirs, toggleDir, onNavToWorkspace, onNewSessionInDir, onAddWorkspaceDir, onNewDir, onCancelNewDir, newDirAt, onRenameWs, onDeleteWs, sessions, archived, hardDeleted }) {
+    function DirNode({ node, depth, indent, showAgg, showCount, expandedDirs, toggleDir, onNavToWorkspace, onNewSessionInDir, onAddWorkspaceDir, onOpenInIde, onNewDir, onCancelNewDir, newDirAt, onRenameWs, onDeleteWs, sessions, archived, hardDeleted }) {
       const isWs = node.ws !== null;
       const open = expandedDirs.has(node.path);
       const hasChildren = node.children && node.children.length > 0;
@@ -451,11 +461,13 @@ window.__ModuleLoader__.load({
             h("button", { key: "nd", type: "button", className: "dswt-iconButton", title: "新建子文件夹（自动注册为工作区）", onClick: () => onNewDir(node.path) }, h(Icon, { name: "folderPlus", size: 14 })),
             isWs
               ? [
+                  h("button", { key: "ide", type: "button", className: "dswt-iconButton", title: "在 IDE 中打开此工作区", onClick: () => onOpenInIde && onOpenInIde(node.path) }, h(Icon, { name: "ide", size: 14 })),
                   h("button", { key: "ns", type: "button", className: "dswt-iconButton", title: "新建会话（cwd=该目录）", onClick: () => onNewSessionInDir(node.ws.workspaceId, node.path) }, h(Icon, { name: "newChat", size: 14 })),
                   h("button", { key: "rn", type: "button", className: "dswt-iconButton", title: "重命名工作区", onClick: () => onRenameWs(node.ws) }, h(Icon, { name: "edit", size: 14 })),
                   h("button", { key: "dl", type: "button", className: "dswt-iconButton dswt-danger", title: "删除工作区", onClick: () => onDeleteWs(node.ws) }, h(Icon, { name: "trash", size: 14 }))
                 ]
               : [
+                  h("button", { key: "ide", type: "button", className: "dswt-iconButton", title: "在 IDE 中打开此目录", onClick: () => onOpenInIde && onOpenInIde(node.path) }, h(Icon, { name: "ide", size: 14 })),
                   h("button", { key: "ns", type: "button", className: "dswt-iconButton", title: "新建会话（自动注册工作区，cwd=该目录）", onClick: () => onNewSessionInDir(null, node.path) }, h(Icon, { name: "newChat", size: 14 })),
                   h("button", { key: "aw", type: "button", className: "dswt-iconButton", title: "添加为工作区", onClick: () => onAddWorkspaceDir(node.path) }, h(Icon, { name: "folderOpen", size: 14 }))
                 ]
@@ -480,6 +492,7 @@ window.__ModuleLoader__.load({
           onNavToWorkspace,
           onNewSessionInDir,
           onAddWorkspaceDir,
+          onOpenInIde,
           onNewDir,
           onCancelNewDir,
           newDirAt,
@@ -599,27 +612,64 @@ window.__ModuleLoader__.load({
       ]);
     }
 
-    // ══════════════ 归档确认弹窗（通用） ══════════════
-    function ArchiveConfirmModal({ open, title, desc, confirmText, danger, busy, onCancel, onConfirm }) {
+    // ══════════════ 统一内部确认弹窗 ══════════════
+    function ConfirmModal({ open, title, desc, confirmText, cancelText, danger, busy, onCancel, onConfirm }) {
       const overlayRef = useRef(null);
+      const confirmBtnRef = useRef(null);
       useModalScrollLock(open);
 
       useEffect(() => {
         if (!open) return;
-        const onKey = (e) => { if (e.key === "Escape") onCancel(); };
+        confirmBtnRef.current?.focus();
+        const onKey = (e) => {
+          if (e.key === "Escape" && !busy) onCancel();
+          if (e.key === "Enter" && !busy) { e.preventDefault(); onConfirm(); }
+        };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-      }, [open, onCancel]);
+      }, [open, busy, onCancel, onConfirm]);
 
       if (!open) return null;
-      const handleOverlay = (e) => { if (e.target === overlayRef.current) onCancel(); };
+      const handleOverlay = (e) => { if (e.target === overlayRef.current && !busy) onCancel(); };
       return h("div", { ref: overlayRef, className: "dswt-modalOverlay", role: "presentation", onClick: handleOverlay }, [
         h("div", { key: "panel", className: "dswt-modalPanel", role: "dialog", "aria-modal": "true", onClick: (e) => e.stopPropagation() }, [
           h("div", { key: "t", className: "dswt-modalTitle" }, title || "确认"),
           h("div", { key: "b", className: "dswt-modalBody" }, desc || ""),
           h("div", { key: "a", className: "dswt-modalActions" }, [
-            h("button", { key: "c", type: "button", className: "dswt-modalBtn", disabled: !!busy, onClick: onCancel }, "取消"),
-            h("button", { key: "o", type: "button", className: "dswt-modalBtn " + (danger ? "dswt-modalBtnDanger" : "dswt-modalBtnPrimary"), disabled: !!busy, onClick: onConfirm }, busy ? "处理中…" : (confirmText || "确认"))
+            h("button", { key: "c", type: "button", className: "dswt-modalBtn", disabled: !!busy, onClick: onCancel }, cancelText || "取消"),
+            h("button", { ref: confirmBtnRef, key: "o", type: "button", className: "dswt-modalBtn " + (danger ? "dswt-modalBtnDanger" : "dswt-modalBtnPrimary"), disabled: !!busy, onClick: onConfirm }, busy ? "处理中…" : (confirmText || "确认"))
+          ])
+        ])
+      ]);
+    }
+
+    // ══════════════ 统一内部提示/通知弹窗 ══════════════
+    function AlertModal({ open, title, desc, onConfirm }) {
+      const overlayRef = useRef(null);
+      const btnRef = useRef(null);
+      useModalScrollLock(open);
+
+      useEffect(() => {
+        if (!open) return;
+        btnRef.current?.focus();
+        const onKey = (e) => {
+          if (e.key === "Escape" || e.key === "Enter") {
+            e.preventDefault();
+            onConfirm();
+          }
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+      }, [open, onConfirm]);
+
+      if (!open) return null;
+      const handleOverlay = (e) => { if (e.target === overlayRef.current) onConfirm(); };
+      return h("div", { ref: overlayRef, className: "dswt-modalOverlay", role: "presentation", onClick: handleOverlay }, [
+        h("div", { key: "panel", className: "dswt-modalPanel", role: "dialog", "aria-modal": "true", onClick: (e) => e.stopPropagation() }, [
+          h("div", { key: "t", className: "dswt-modalTitle" }, title || "提示"),
+          h("div", { key: "b", className: "dswt-modalBody" }, desc || ""),
+          h("div", { key: "a", className: "dswt-modalActions" }, [
+            h("button", { ref: btnRef, key: "o", type: "button", className: "dswt-modalBtn dswt-modalBtnPrimary", onClick: onConfirm }, "知道了")
           ])
         ])
       ]);
@@ -691,7 +741,7 @@ window.__ModuleLoader__.load({
     }
 
     // ══════════════ 工作区模式：组 ══════════════
-    function WorkspaceGroup({ node, depth, indent, showAgg, sessions, archived, hardDeleted, expandedGroups, toggleGroup, onNewSession, onRenameWs, onDeleteWs, onOpen, onRenameSession, onArchiveSession, now }) {
+    function WorkspaceGroup({ node, depth, indent, showAgg, sessions, archived, hardDeleted, expandedGroups, toggleGroup, onNewSession, onOpenInIde, onRenameWs, onDeleteWs, onOpen, onRenameSession, onArchiveSession, now }) {
       const w = node.w;
       const gkey = w.workspaceId;
       const groupOpen = expandedGroups.has(gkey);
@@ -717,6 +767,7 @@ window.__ModuleLoader__.load({
           h("span", { key: "pt", className: "dswt-projectText" }, h("span", { className: "dswt-title" }, w.title || baseName(w.path))),
           showAgg && node.aggState && h("span", { key: "ag", className: "dswt-slot dswt-aggSlot", title: node.aggState === "warning" ? "有待处理交互" : node.aggState === "ongoing" ? "有会话运行中" : "有会话已完成" }, h(StatusDot, { state: node.aggState, size: 8 })),
           h("span", { key: "ac", className: "dswt-rowActions", onClick: (e) => e.stopPropagation() }, [
+            h("button", { key: "ide", type: "button", className: "dswt-iconButton", title: "在 IDE 中打开此工作区", onClick: () => onOpenInIde && onOpenInIde(w.path) }, h(Icon, { name: "ide", size: 14 })),
             h("button", { key: "ns", type: "button", className: "dswt-iconButton", title: "新建会话", onClick: () => onNewSession(w.workspaceId) }, h(Icon, { name: "newChat", size: 14 })),
             h("button", { key: "rn", type: "button", className: "dswt-iconButton", title: "重命名工作区", onClick: () => onRenameWs(w) }, h(Icon, { name: "edit", size: 14 })),
             h("button", { key: "dl", type: "button", className: "dswt-iconButton dswt-danger", title: "删除工作区", onClick: () => onDeleteWs(w) }, h(Icon, { name: "trash", size: 14 }))
@@ -729,7 +780,7 @@ window.__ModuleLoader__.load({
           })),
           (node.children || []).map((child) => h(WorkspaceGroup, {
             key: child.w.workspaceId, node: child, depth: depth + 1, indent, showAgg, sessions, archived, hardDeleted,
-            expandedGroups, toggleGroup, onNewSession, onRenameWs, onDeleteWs,
+            expandedGroups, toggleGroup, onNewSession, onOpenInIde, onRenameWs, onDeleteWs,
             onOpen, onRenameSession, onArchiveSession, now
           }))
         ])
@@ -753,8 +804,14 @@ window.__ModuleLoader__.load({
       const [renameBusy, setRenameBusy] = useState(false);
       const [archiveConfirm, setArchiveConfirm] = useState(null);
       const [archiveBusy, setArchiveBusy] = useState(false);
+      const [deleteWsConfirm, setDeleteWsConfirm] = useState(null);
+      const [alertInfo, setAlertInfo] = useState(null);
       const [hardDeleted, setHardDeleted] = useState(() => loadSet(LS_DELETED));
       const [cfg, setCfg] = useState(getConfig);
+
+      const showAlert = useCallback((desc, title = "提示") => {
+        setAlertInfo({ title, desc: String(desc || "") });
+      }, []);
       const groupsInited = useRef(false);
       const now = Date.now();
 
@@ -900,17 +957,34 @@ window.__ModuleLoader__.load({
           const sid = await connectWorkspace(wid);
           open(sid);
         } catch (error) {
-          window.alert("新建会话失败: " + String((error && error.message) || error));
+          showAlert("新建会话失败: " + String((error && error.message) || error), "新建会话失败");
         }
-      }, [createWorkspace, connectWorkspace, open]);
+      }, [createWorkspace, connectWorkspace, open, showAlert]);
 
       const addWorkspaceDir = useCallback(async (dirPath) => {
         try {
           await createWorkspace({ path: dirPath });
         } catch (error) {
-          window.alert("添加工作区失败: " + String((error && error.message) || error));
+          showAlert("添加工作区失败: " + String((error && error.message) || error), "添加工作区失败");
         }
-      }, [createWorkspace]);
+      }, [createWorkspace, showAlert]);
+
+      const openInIde = useCallback(async (dirPath) => {
+        if (!dirPath) return;
+        try {
+          const currentCfg = getConfig();
+          const res = await apiPost("/open-ide", {
+            path: dirPath,
+            ide: currentCfg.defaultIde || "vscode",
+            customCommand: currentCfg.customIdeCommand || ""
+          });
+          if (!res || res.ok !== true) {
+            showAlert("打开 IDE 失败: " + (res?.error || "未知错误"), "打开 IDE 失败");
+          }
+        } catch (error) {
+          showAlert("打开 IDE 失败: " + String(error?.message || error), "打开 IDE 失败");
+        }
+      }, [showAlert]);
 
       const commitNewDir = useCallback(async (parentPath, name) => {
         try {
@@ -925,9 +999,9 @@ window.__ModuleLoader__.load({
           });
           setNewDirAt(null);
         } catch (error) {
-          window.alert("新建文件夹失败: " + String((error && error.message) || error));
+          showAlert("新建文件夹失败: " + String((error && error.message) || error), "新建文件夹失败");
         }
-      }, [createWorkspace]);
+      }, [createWorkspace, showAlert]);
 
       const onRequestRenameWs = useCallback((w) => {
         const initial = w.title || baseName(w.path);
@@ -965,24 +1039,38 @@ window.__ModuleLoader__.load({
           }
           setRenameTarget(null);
         } catch (error) {
-          window.alert(String((error && error.message) || error));
+          showAlert(String((error && error.message) || error), "重命名失败");
         } finally {
           setRenameBusy(false);
         }
-      }, [renameTarget, renameDraft, renameWorkspace, renameSession]);
+      }, [renameTarget, renameDraft, renameWorkspace, renameSession, showAlert]);
 
-      const onDeleteWs = useCallback((w) => {
-        if (!window.confirm("删除该工作区注册？目录与会话日志不受影响，会话将落入未分组。")) return;
-        deleteWorkspace(w.workspaceId).catch((error) => {
-          window.alert(String((error && error.message) || error));
-        });
-      }, [deleteWorkspace]);
+      const onRequestDeleteWs = useCallback((w) => {
+        setDeleteWsConfirm({ ws: w, busy: false });
+      }, []);
+
+      const onCancelDeleteWs = useCallback(() => {
+        if (deleteWsConfirm?.busy) return;
+        setDeleteWsConfirm(null);
+      }, [deleteWsConfirm]);
+
+      const onConfirmDeleteWs = useCallback(async () => {
+        if (!deleteWsConfirm || !deleteWsConfirm.ws) return;
+        setDeleteWsConfirm((prev) => prev ? { ...prev, busy: true } : null);
+        try {
+          await deleteWorkspace(deleteWsConfirm.ws.workspaceId);
+          setDeleteWsConfirm(null);
+        } catch (error) {
+          showAlert(String((error && error.message) || error), "删除工作区失败");
+          setDeleteWsConfirm((prev) => prev ? { ...prev, busy: false } : null);
+        }
+      }, [deleteWsConfirm, deleteWorkspace, showAlert]);
 
       const onArchiveSession = useCallback((sessionId) => {
         archiveSession(sessionId).catch((error) => {
-          window.alert(String((error && error.message) || error));
+          showAlert(String((error && error.message) || error), "归档会话失败");
         });
-      }, [archiveSession]);
+      }, [archiveSession, showAlert]);
 
       const archived = useMemo(() => new Set((workspaces.archivedSessionIds || []).map(String)), [workspaces.archivedSessionIds]);
 
@@ -1070,11 +1158,11 @@ window.__ModuleLoader__.load({
           }
           setArchiveConfirm(null);
         } catch (error) {
-          window.alert(String((error && error.message) || error));
+          showAlert(String((error && error.message) || error), "操作失败");
         } finally {
           setArchiveBusy(false);
         }
-      }, [archiveConfirm, archived, workspaces, sessions, rememberDeleted, refreshSessions]);
+      }, [archiveConfirm, archived, workspaces, sessions, rememberDeleted, refreshSessions, showAlert]);
 
       const onAddWorkspace = useCallback(async () => {
         try {
@@ -1082,9 +1170,9 @@ window.__ModuleLoader__.load({
           if (path === null) return;
           await createWorkspace({ path });
         } catch (error) {
-          window.alert("添加工作区失败: " + String((error && error.message) || error));
+          showAlert("添加工作区失败: " + String((error && error.message) || error), "添加工作区失败");
         }
-      }, [pickDirectory, createWorkspace]);
+      }, [pickDirectory, createWorkspace, showAlert]);
 
       // 数据投影计算
       const items = workspaces.items || [];
@@ -1155,13 +1243,14 @@ window.__ModuleLoader__.load({
             expandedDirs, toggleDir,
             onNavToWorkspace: navToWorkspace, onNewSessionInDir: newSessionInDir,
             onAddWorkspaceDir: addWorkspaceDir,
+            onOpenInIde: openInIde,
             onNewDir: (p, name) => {
               if (name === void 0) setNewDirAt(p === newDirAt ? null : p);
               else commitNewDir(p, name);
             },
             onCancelNewDir: () => setNewDirAt(null),
             newDirAt,
-            onRenameWs: onRequestRenameWs, onDeleteWs, sessions, archived, hardDeleted
+            onRenameWs: onRequestRenameWs, onDeleteWs: onRequestDeleteWs, sessions, archived, hardDeleted
           })),
           dirForest.length === 0 && h("div", { key: "e", className: "dswt-empty" }, "尚无工作区——点击上方「添加工作区」或先新建会话")
         ]);
@@ -1189,7 +1278,8 @@ window.__ModuleLoader__.load({
             key: node.w.workspaceId, node, depth: 0, indent: cfg.indent, showAgg: cfg.showAgg, sessions, archived, hardDeleted,
             expandedGroups, toggleGroup,
             onNewSession: (wid) => newSessionInDir(wid, node.w.path),
-            onRenameWs: onRequestRenameWs, onDeleteWs,
+            onOpenInIde: openInIde,
+            onRenameWs: onRequestRenameWs, onDeleteWs: onRequestDeleteWs,
             onOpen: open, onRenameSession: onRequestRenameSession, onArchiveSession, now
           })),
           ungroupedIds.length > 0 && h("div", { key: "ug", className: "dswt-ungrouped" }, [
@@ -1227,7 +1317,18 @@ window.__ModuleLoader__.load({
           onCancel: onCancelRename,
           onConfirm: onConfirmRename
         }),
-        h(ArchiveConfirmModal, {
+        h(ConfirmModal, {
+          key: "deleteWsConfirmModal",
+          open: deleteWsConfirm !== null,
+          title: "删除工作区注册",
+          desc: deleteWsConfirm && deleteWsConfirm.ws ? ("确定删除工作区 “" + (deleteWsConfirm.ws.title || baseName(deleteWsConfirm.ws.path)) + "” 的注册吗？\n\n目录文件与会话日志不受影响，所属会话将落入未分组。") : "",
+          confirmText: "删除",
+          danger: true,
+          busy: deleteWsConfirm ? deleteWsConfirm.busy : false,
+          onCancel: onCancelDeleteWs,
+          onConfirm: onConfirmDeleteWs
+        }),
+        h(ConfirmModal, {
           key: "arcConfirm",
           open: archiveModalProps.open,
           title: archiveModalProps.title,
@@ -1237,6 +1338,13 @@ window.__ModuleLoader__.load({
           busy: archiveBusy,
           onCancel: onCancelArchiveConfirm,
           onConfirm: onConfirmArchiveConfirm
+        }),
+        h(AlertModal, {
+          key: "alertModal",
+          open: alertInfo !== null,
+          title: alertInfo ? alertInfo.title : "提示",
+          desc: alertInfo ? alertInfo.desc : "",
+          onConfirm: () => setAlertInfo(null)
         })
       ]);
     }
@@ -1258,6 +1366,20 @@ window.__ModuleLoader__.load({
         h("div", { className: "dswt-configControl" }, children)
       ]);
     }
+    const IDE_OPTIONS = [
+      ["vscode", "VS Code (code)"],
+      ["codebuddy", "CodeBuddy CN (腾讯 CodeBuddy)"],
+      ["cursor", "Cursor (cursor)"],
+      ["windsurf", "Windsurf (windsurf)"],
+      ["trae", "Trae (trae)"],
+      ["webstorm", "WebStorm (webstorm)"],
+      ["idea", "IntelliJ IDEA (idea)"],
+      ["pycharm", "PyCharm (pycharm)"],
+      ["zed", "Zed (zed)"],
+      ["sublime", "Sublime Text (subl)"],
+      ["custom", "自定义命令…"]
+    ];
+
     function ConfigPanel() {
       const [cfg, setCfgState] = useState(getConfig);
       useEffect(() => subscribeConfig(setCfgState), []);
@@ -1277,6 +1399,61 @@ window.__ModuleLoader__.load({
             select(cfg.indent, [[8, "紧凑（8px）"], [16, "标准（16px）"], [24, "宽松（24px）"]], (v) => upd({ indent: Number(v) }))),
           h(ConfigRow, { label: "默认模式", hint: "打开侧栏时优先显示的模式（手动切换后会记住）" },
             select(cfg.defaultMode, [["folder", "文件夹模式"], ["workspace", "工作区模式"]], (v) => upd({ defaultMode: v }))),
+          h(ConfigRow, { label: "默认 IDE", hint: "点击工作区按钮栏「在 IDE 中打开」时调用的编辑器" },
+            select(cfg.defaultIde || "vscode", IDE_OPTIONS, (v) => upd({ defaultIde: v }))),
+          cfg.defaultIde === "custom" && h("div", {
+            className: "dswt-customIdeBox",
+            style: {
+              background: "var(--dsw-alias-bg-layer-2)",
+              border: "1px solid var(--dsw-alias-border-l1)",
+              borderRadius: "10px",
+              padding: "12px 14px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px"
+            }
+          }, [
+            h("div", {
+              style: {
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "var(--dsw-alias-label-primary)"
+              }
+            }, "自定义 IDE 可执行文件路径 / 命令"),
+            h("input", {
+              type: "text",
+              className: "dswt-inline",
+              style: {
+                width: "100%",
+                maxWidth: "100%",
+                margin: "0",
+                boxSizing: "border-box",
+                fontFamily: "var(--ds-font-family-code, monospace)",
+                fontSize: "12px",
+                padding: "6px 8px"
+              },
+              placeholder: "例如: /Applications/CodeBuddy CN.app/Contents/Resources/app/bin/code",
+              value: cfg.customIdeCommand || "",
+              onChange: (e) => upd({ customIdeCommand: e.target.value })
+            }),
+            h("div", {
+              style: {
+                fontSize: "12px",
+                lineHeight: "18px",
+                color: "var(--dsw-alias-label-secondary)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "3px"
+              }
+            }, [
+              h("div", { style: { fontWeight: 500, color: "var(--dsw-alias-label-primary)" } }, "💡 填写格式说明："),
+              h("div", { style: { color: "var(--dsw-alias-label-secondary)" } }, "• 仅输入可执行文件的绝对路径或命令名，系统会在点击打开时自动在末尾追加工作区路径。"),
+              h("div", { style: { color: "var(--dsw-alias-label-secondary)" } }, "• 勿加引号：带空格的路径直接复制输入即可，不要包裹双引号。"),
+              h("div", { style: { color: "var(--dsw-alias-label-secondary)" } }, "• 勿加参数与点：不要在末尾加 . 或其他路径参数。"),
+              h("div", { style: { color: "var(--dsw-alias-label-tertiary)", marginTop: "2px" } }, "示例（macOS App 内部 CLI）：/Applications/CodeBuddy CN.app/Contents/Resources/app/bin/code"),
+              h("div", { style: { color: "var(--dsw-alias-label-tertiary)" } }, "示例（系统 PATH 中的命令）：code-insiders 或 buddycn 或 nvim")
+            ])
+          ]),
           h(ConfigRow, { label: "状态向上透传", hint: "目录/组头显示子树内会话的聚合状态点（运行/等待/完成）" },
             h(ConfigToggle, { checked: cfg.showAgg, onChange: (v) => upd({ showAgg: v }), label: "显示" })),
           h(ConfigRow, { label: "会话计数角标", hint: "文件夹模式工作区节点旁的会话数" },
