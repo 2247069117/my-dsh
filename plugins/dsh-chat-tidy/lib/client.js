@@ -635,17 +635,14 @@ var LS_PREFIX = "dsh-chat-tidy:";
 var LS_ENABLED = `${LS_PREFIX}enabled`;
 var LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
 var LS_CHANNELS = `${LS_PREFIX}channels`;
-var LS_GATEWAY_URL = `${LS_PREFIX}gateway-url`;
-var LS_GATEWAY_ENGINE = `${LS_PREFIX}gateway-engine`;
 var CHANNEL_NAMES = {
   siliconflow: "\u7845\u57FA\u6D41\u52A8 (Qwen2.5-7B)",
   zhipu: "\u667A\u8C31 AI (glm-4-flash)",
   bing: "\u5FAE\u8F6F Bing \u7F51\u9875\u7FFB\u8BD1 (\u514DKey\u76F4\u8FDE)",
-  gateway: "\u672C\u5730\u7FFB\u8BD1\u7F51\u5173 (DeepLX \u517C\u5BB9)",
   mymemory: "MyMemory \u514D\u8D39\u673A\u5668\u7FFB\u8BD1 (\u514DKey)",
   builtin: "\u79BB\u7EBF\u6280\u672F\u8BCD\u5178 (0ms\u515C\u5E95)"
 };
-var ALL_CHANNELS = ["siliconflow", "zhipu", "bing", "gateway", "mymemory", "builtin"];
+var ALL_CHANNELS = ["siliconflow", "zhipu", "bing", "mymemory", "builtin"];
 var SettingsStore = class {
   state = {
     enabled: true,
@@ -654,10 +651,7 @@ var SettingsStore = class {
     siliconflowKey: "",
     zhipuKey: "",
     hasSiliconflowKey: false,
-    hasZhipuKey: false,
-    gatewayUrl: "",
-    gatewayEngine: "bing",
-    hasGatewayUrl: false
+    hasZhipuKey: false
   };
   listeners = /* @__PURE__ */ new Set();
   constructor() {
@@ -682,22 +676,13 @@ var SettingsStore = class {
       if (channelsRaw !== null) {
         const arr = JSON.parse(channelsRaw);
         if (Array.isArray(arr) && arr.length > 0) {
-          const migrated = arr.map((x) => x === "google" ? "gateway" : x);
-          const filtered = migrated.filter((x) => ALL_CHANNELS.includes(x));
+          const retired = /* @__PURE__ */ new Set(["google", "gateway"]);
+          const filtered = arr.filter((x) => !retired.has(x) && ALL_CHANNELS.includes(x));
           for (const ch of ALL_CHANNELS) {
             if (!filtered.includes(ch)) filtered.push(ch);
           }
           this.state.channels = filtered;
         }
-      }
-      const gatewayUrlRaw = localStorage.getItem(LS_GATEWAY_URL);
-      if (gatewayUrlRaw !== null) {
-        this.state.gatewayUrl = gatewayUrlRaw;
-        this.state.hasGatewayUrl = gatewayUrlRaw.trim().length > 0;
-      }
-      const gatewayEngineRaw = localStorage.getItem(LS_GATEWAY_ENGINE);
-      if (gatewayEngineRaw === "google" || gatewayEngineRaw === "bing") {
-        this.state.gatewayEngine = gatewayEngineRaw;
       }
     } catch {
     }
@@ -711,12 +696,8 @@ var SettingsStore = class {
         concurrency: config.concurrency ?? this.state.concurrency,
         channels: config.channels ?? this.state.channels,
         hasSiliconflowKey: !!config.hasSiliconflowKey,
-        hasZhipuKey: !!config.hasZhipuKey,
-        hasGatewayUrl: !!config.hasGatewayUrl
+        hasZhipuKey: !!config.hasZhipuKey
       };
-      if (typeof config.gatewayEngine === "string" && (config.gatewayEngine === "bing" || config.gatewayEngine === "google")) {
-        this.state.gatewayEngine = config.gatewayEngine;
-      }
       chatTranslateObserver.setEnabled(this.state.enabled);
       this.notify();
     }
@@ -762,26 +743,11 @@ var SettingsStore = class {
       } catch {
       }
     }
-    if (typeof partial.gatewayUrl === "string") {
-      try {
-        localStorage.setItem(LS_GATEWAY_URL, partial.gatewayUrl);
-      } catch {
-      }
-      this.state.hasGatewayUrl = partial.gatewayUrl.trim().length > 0;
-    }
-    if (partial.gatewayEngine === "bing" || partial.gatewayEngine === "google") {
-      try {
-        localStorage.setItem(LS_GATEWAY_ENGINE, partial.gatewayEngine);
-      } catch {
-      }
-    }
     this.notify();
     const serverPayload = {
       enabled: this.state.enabled,
       concurrency: this.state.concurrency,
-      channels: this.state.channels,
-      gatewayUrl: this.state.gatewayUrl,
-      gatewayEngine: this.state.gatewayEngine
+      channels: this.state.channels
     };
     if (typeof partial.siliconflowKey === "string") {
       serverPayload.siliconflowKey = partial.siliconflowKey;
@@ -793,7 +759,6 @@ var SettingsStore = class {
     if (updated) {
       this.state.hasSiliconflowKey = !!updated.hasSiliconflowKey;
       this.state.hasZhipuKey = !!updated.hasZhipuKey;
-      this.state.hasGatewayUrl = !!updated.hasGatewayUrl;
       this.notify();
     }
   }
@@ -1118,12 +1083,6 @@ function TidySettingsPanel() {
     newChannels[targetIndex] = temp;
     settingsStore.update({ channels: newChannels });
   };
-  const handleSaveGatewayUrl = () => {
-    settingsStore.update({ gatewayUrl: state.gatewayUrl.trim() });
-  };
-  const handleGatewayEngine = (val) => {
-    settingsStore.update({ gatewayEngine: val });
-  };
   const handleConcurrencyChange = (val) => {
     settingsStore.update({ concurrency: val });
   };
@@ -1213,43 +1172,6 @@ function TidySettingsPanel() {
             )
           ] }),
           testResults.zhipu && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-desc", style: { color: testResults.zhipu.startsWith("\u6210\u529F") ? "#22c55e" : "#ef4444" }, children: testResults.zhipu })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-input-group", style: { marginTop: "8px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-label", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u672C\u5730\u7FFB\u8BD1\u7F51\u5173 (DeepLX \u517C\u5BB9 \xB7 \u53EF\u9009)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: state.hasGatewayUrl ? "dsh-tidy-badge dsh-tidy-badge-ok" : "dsh-tidy-badge dsh-tidy-badge-none", children: state.hasGatewayUrl ? "\u5DF2\u914D\u7F6E" : "\u672A\u914D\u7F6E" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-input-row", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "input",
-              {
-                type: "text",
-                className: "dsh-tidy-input",
-                placeholder: "http://127.0.0.1:6060/api",
-                value: state.gatewayUrl,
-                onChange: (e) => settingsStore.update({ gatewayUrl: e.target.value }),
-                onBlur: handleSaveGatewayUrl,
-                autoComplete: "off"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-              "select",
-              {
-                className: "dsh-tidy-select",
-                value: state.gatewayEngine,
-                onChange: (e) => handleGatewayEngine(e.target.value),
-                children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "bing", children: "Bing / \u5FAE\u8F6F (\u56FD\u5185\u76F4\u8FDE)" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "google", children: "Google (\u9700\u53CD\u4EE3)" })
-                ]
-              }
-            )
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-desc", children: [
-            "\u90E8\u7F72 ",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "Translate_Api_Free" }),
-            "\uFF08github.com/17Yuns/Translate_Api_Free\uFF09\u540E\u586B\u5199\u7F51\u5173\u5730\u5740\uFF1BBing \u901A\u9053\u56FD\u5185\u514D Key \u76F4\u8FDE\u3001\u4E0D\u8D70\u7B2C\u4E09\u65B9\u3002\u672A\u914D\u7F6E\u65F6\u81EA\u52A8\u8DF3\u8FC7\u8BE5\u901A\u9053\u3002"
-          ] })
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [

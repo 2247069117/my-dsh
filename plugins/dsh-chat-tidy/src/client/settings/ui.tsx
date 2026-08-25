@@ -68,14 +68,6 @@ export function TidySettingsPanel(): React.ReactElement {
     settingsStore.update({ channels: newChannels });
   };
 
-  const handleSaveGatewayUrl = (): void => {
-    settingsStore.update({ gatewayUrl: state.gatewayUrl.trim() });
-  };
-
-  const handleGatewayEngine = (val: 'bing' | 'google'): void => {
-    settingsStore.update({ gatewayEngine: val });
-  };
-
   const handleConcurrencyChange = (val: number): void => {
     settingsStore.update({ concurrency: val });
   };
@@ -174,37 +166,6 @@ export function TidySettingsPanel(): React.ReactElement {
                   {testResults.zhipu}
                 </div>
               )}
-            </div>
-          {/* 本地翻译网关 (DeepLX 兼容) */}
-            <div className="dsh-tidy-input-group" style={{ marginTop: '8px' }}>
-              <div className="dsh-tidy-label">
-                <span>本地翻译网关 (DeepLX 兼容 · 可选)</span>
-                <span className={state.hasGatewayUrl ? 'dsh-tidy-badge dsh-tidy-badge-ok' : 'dsh-tidy-badge dsh-tidy-badge-none'}>
-                  {state.hasGatewayUrl ? '已配置' : '未配置'}
-                </span>
-              </div>
-              <div className="dsh-tidy-input-row">
-                <input
-                  type="text"
-                  className="dsh-tidy-input"
-                  placeholder="http://127.0.0.1:6060/api"
-                  value={state.gatewayUrl}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => settingsStore.update({ gatewayUrl: e.target.value })}
-                  onBlur={handleSaveGatewayUrl}
-                  autoComplete="off"
-                />
-                <select
-                  className="dsh-tidy-select"
-                  value={state.gatewayEngine}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleGatewayEngine(e.target.value as 'bing' | 'google')}
-                >
-                  <option value="bing">Bing / 微软 (国内直连)</option>
-                  <option value="google">Google (需反代)</option>
-                </select>
-              </div>
-              <div className="dsh-tidy-desc">
-                部署 <code>Translate_Api_Free</code>（github.com/17Yuns/Translate_Api_Free）后填写网关地址；Bing 通道国内免 Key 直连、不走第三方。未配置时自动跳过该通道。
-              </div>
             </div>
           </div>
 

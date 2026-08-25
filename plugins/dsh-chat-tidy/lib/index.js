@@ -2,16 +2,14 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
-var KNOWN_CHANNELS = ["siliconflow", "zhipu", "bing", "gateway", "mymemory", "builtin"];
+var KNOWN_CHANNELS = ["siliconflow", "zhipu", "bing", "mymemory", "builtin"];
 var DEFAULT_CONFIG = {
   enabled: true,
   concurrency: 3,
   timeoutMs: 2e3,
   channels: [...KNOWN_CHANNELS],
   siliconflowKey: "",
-  zhipuKey: "",
-  gatewayUrl: "",
-  gatewayEngine: "bing"
+  zhipuKey: ""
 };
 var ConfigManager = class {
   config = { ...DEFAULT_CONFIG };
@@ -31,7 +29,8 @@ var ConfigManager = class {
     } catch {
       this.config = { ...DEFAULT_CONFIG };
     }
-    let merged = this.config.channels.map((ch) => ch === "google" ? "gateway" : ch);
+    const retired = /* @__PURE__ */ new Set(["google", "gateway"]);
+    const merged = this.config.channels.filter((ch) => !retired.has(ch));
     for (const ch of KNOWN_CHANNELS) {
       if (!merged.includes(ch)) merged.push(ch);
     }
@@ -53,8 +52,7 @@ var ConfigManager = class {
       siliconflowKeyMasked: maskKey(this.config.siliconflowKey),
       zhipuKeyMasked: maskKey(this.config.zhipuKey),
       hasSiliconflowKey: !!(this.config.siliconflowKey && this.config.siliconflowKey.trim().length > 0),
-      hasZhipuKey: !!(this.config.zhipuKey && this.config.zhipuKey.trim().length > 0),
-      hasGatewayUrl: !!(this.config.gatewayUrl && this.config.gatewayUrl.trim().length > 0)
+      hasZhipuKey: !!(this.config.zhipuKey && this.config.zhipuKey.trim().length > 0)
     };
   }
   async updateConfig(partial) {
@@ -67,9 +65,6 @@ var ConfigManager = class {
     }
     if (typeof next.timeoutMs === "number") {
       next.timeoutMs = Math.min(Math.max(Math.round(next.timeoutMs), 500), 1e4);
-    }
-    if (next.gatewayEngine !== "bing" && next.gatewayEngine !== "google") {
-      next.gatewayEngine = "bing";
     }
     this.config = next;
     await this.save();
@@ -323,42 +318,6 @@ var BingWebAdapter = class {
   }
 };
 
-// src/server/adapters/gateway.ts
-var GatewayAdapter = class {
-  id = "gateway";
-  name = "\u672C\u5730\u7FFB\u8BD1\u7F51\u5173 (DeepLX \u517C\u5BB9)";
-  isAvailable(config) {
-    return !!(config.gatewayUrl && config.gatewayUrl.trim().length > 0);
-  }
-  async translate(text, signal, config) {
-    const base = (config.gatewayUrl ?? "").trim().replace(/\/+$/, "");
-    if (!base) {
-      throw new Error("Local translation gateway URL is not configured");
-    }
-    const engine = config.gatewayEngine === "google" ? "Google" : "Bing";
-    const response = await fetch(`${base}/${engine}/translate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        source_lang: "en",
-        target_lang: "zh",
-        text
-      }),
-      signal
-    });
-    if (!response.ok) {
-      throw new Error(`Local gateway (${engine}) responded with status ${response.status}`);
-    }
-    const json = await response.json();
-    if (json.code !== 200 || typeof json.data !== "string" || !json.data.trim()) {
-      throw new Error(`Local gateway (${engine}) returned: ${json.message ?? "no data"}`);
-    }
-    return json.data.trim();
-  }
-};
-
 // src/server/adapters/mymemory.ts
 function unescapeHtml(html) {
   return html.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'").replace(/&#x2F;/g, "/");
@@ -477,7 +436,6 @@ var TranslationDispatcher = class {
     this.registerAdapter(new SiliconFlowAdapter());
     this.registerAdapter(new ZhipuAdapter());
     this.registerAdapter(new BingWebAdapter());
-    this.registerAdapter(new GatewayAdapter());
     this.registerAdapter(new MyMemoryAdapter());
     this.registerAdapter(new BuiltinDictAdapter());
   }
