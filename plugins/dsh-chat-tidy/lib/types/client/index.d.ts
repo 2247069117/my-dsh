@@ -1,8 +1,11 @@
 /** Client plugin name, shared with the browser bundle id. */
 export declare const name = "dsh-chat-tidy";
+/** Declare dependency on slots for settings section */
+export declare const inject: string[];
 interface ClientContext {
     effect(factory: () => void | (() => void), label: string): void;
     get?(serviceName: string): any;
+    slots?: any;
 }
 /**
  * Mount Tidy Chat's conversation stylesheet, tool title translation observer, and settings UI.

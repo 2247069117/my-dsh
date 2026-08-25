@@ -26,6 +26,7 @@ __export(index_exports, {
   adoptStyles: () => adoptStyles,
   apply: () => apply,
   chatTranslateObserver: () => chatTranslateObserver,
+  inject: () => inject,
   name: () => name,
   setupSettingsUi: () => setupSettingsUi
 });
@@ -1225,7 +1226,7 @@ function TidySettingsPanel() {
 function setupSettingsUi(ctx) {
   if (typeof window === "undefined") return;
   try {
-    const slots = ctx?.get ? ctx.get("slots") : null;
+    const slots = ctx?.slots || (ctx?.get ? ctx.get("slots") : null);
     if (!slots || typeof slots.inject !== "function") return;
     slots.inject("settings.section", () => {
       return slots.register(
@@ -1245,6 +1246,7 @@ function setupSettingsUi(ctx) {
 
 // src/client/index.ts
 var name = "dsh-chat-tidy";
+var inject = ["slots"];
 function apply(ctx) {
   ctx.effect(() => adoptStyles(document), "dsh-chat-tidy: stylesheet");
   ctx.effect(() => chatTranslateObserver.start(document), "dsh-chat-tidy: title translate observer");

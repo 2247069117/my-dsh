@@ -240,7 +240,7 @@ export function TidySettingsPanel(): React.ReactElement {
 export function setupSettingsUi(ctx: any): void {
   if (typeof window === 'undefined') return;
   try {
-    const slots = ctx?.get ? ctx.get('slots') : null;
+    const slots = ctx?.slots || (ctx?.get ? ctx.get('slots') : null);
     if (!slots || typeof slots.inject !== 'function') return;
 
     slots.inject('settings.section', () => {

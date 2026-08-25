@@ -5,9 +5,13 @@ import { setupSettingsUi } from './settings/ui.tsx';
 /** Client plugin name, shared with the browser bundle id. */
 export const name = 'dsh-chat-tidy';
 
+/** Declare dependency on slots for settings section */
+export const inject = ['slots'];
+
 interface ClientContext {
   effect(factory: () => void | (() => void), label: string): void;
   get?(serviceName: string): any;
+  slots?: any;
 }
 
 /**
