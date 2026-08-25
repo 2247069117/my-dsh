@@ -437,9 +437,17 @@ var TOOL_TITLE_SELECTOR = [
 ].join(", ");
 var TOOL_ERROR_OUT_SELECTOR = [
   '[data-variant][data-state="error"] [class*="ioText"]',
-  '[data-variant][data-state="aborted"] [class*="ioText"]'
+  '[data-variant][data-state="aborted"] [class*="ioText"]',
+  '[class*="ioText"][data-error]',
+  '[class*="terminalBody"], [class*="terminalBodyWrap"]'
 ].join(", ");
-var ERROR_OUT_CHUNK_MAX = 600;
+var ERROR_LINE_RE = /error|fail(?:ed|ure)?|cannot|unable|no such|not found|denied|fatal|command not found|exit code|exited with|aborted|timed? ?out|exception|permission|killed|enoent|eacces|unreachable|refused/i;
+function isErrorLine(t) {
+  if (CHINESE_CHAR_REGEX.test(t)) return false;
+  if (t.trim().length < 4) return false;
+  if (t.length > 40 && !/\s/.test(t.trim())) return false;
+  return ERROR_LINE_RE.test(t);
+}
 function isToolSummarySpan(span) {
   if (span.hasAttribute("aria-hidden")) return false;
   const cls = span.className || "";
@@ -457,11 +465,12 @@ function isToolSummarySpan(span) {
 }
 function isErrorOutNode(span) {
   if (span.hasAttribute("aria-hidden")) return false;
-  const card = span.closest('[data-variant][data-state="error"], [data-variant][data-state="aborted"]');
-  if (!card) return false;
   if (span.closest('pre, code, [class*="ioCard"] [class*="markdown"], [class*="_file_"]')) return false;
   const cls = span.className || "";
-  if (/ioText|ioSection|ioCard/i.test(cls)) return true;
+  if (/terminalBody/i.test(cls)) return true;
+  if (/ioText/i.test(cls)) {
+    return span.hasAttribute("data-error") || !!span.closest('[data-variant][data-state="error"], [data-variant][data-state="aborted"]');
+  }
   return false;
 }
 function isTranslateableErrorText(t) {
@@ -471,42 +480,48 @@ function isTranslateableErrorText(t) {
   if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) return false;
   return true;
 }
-function chunkLines(text, max) {
-  const lines = text.split("\n");
-  const chunks = [];
-  let cur = "";
-  for (const line of lines) {
-    const candidate = cur ? `${cur}
-${line}` : line;
-    if (candidate.length > max && cur) {
-      chunks.push(cur);
-      cur = line;
-    } else {
-      cur = candidate;
-    }
-  }
-  if (cur) chunks.push(cur);
-  return chunks;
-}
 var translatingErrorOuts = /* @__PURE__ */ new WeakSet();
 var errorOutEnabled = true;
 async function translateErrorOut(span) {
   if (translatingErrorOuts.has(span)) return;
+  if (span.dataset.tidyTranslated === "true") return;
   const raw = span.textContent ?? "";
-  if (!isTranslateableErrorText(raw)) {
+  const lines = raw.split("\n");
+  const targets = [];
+  lines.forEach((ln, i) => {
+    const t = ln.trim();
+    if (isErrorLine(t) && isTranslateableErrorText(t)) {
+      targets.push({ idx: i, text: t });
+    }
+  });
+  if (targets.length === 0) {
     if (CHINESE_CHAR_REGEX.test(raw)) span.dataset.tidyTranslated = "true";
     return;
   }
-  if (span.dataset.tidyTranslated === "true") return;
+  const uniqueLines = Array.from(new Set(targets.map((x) => x.text)));
+  const results = await requestTranslateBatch(uniqueLines.slice(0, 80));
+  const byText = /* @__PURE__ */ new Map();
+  results.forEach((r) => {
+    if (r && r.translated && r.translated !== r.original) byText.set(r.original, r.translated);
+  });
   translatingErrorOuts.add(span);
   try {
-    const chunks = chunkLines(raw, ERROR_OUT_CHUNK_MAX);
-    const results = await requestTranslateBatch(chunks);
-    const merged = results.map((r) => r.translated ?? r.original).join("\n");
-    if (errorOutEnabled && merged && merged !== raw) {
+    let changed = false;
+    for (const t of targets) {
+      const translated = byText.get(t.text);
+      if (translated) {
+        lines[t.idx] = translated;
+        changed = true;
+      }
+    }
+    const merged = lines.join("\n");
+    if (errorOutEnabled && changed && merged !== raw) {
       span.dataset.tidyTranslated = "true";
       span.dataset.original = raw;
       span.textContent = merged;
+      span.querySelectorAll("*").forEach((el) => {
+        el.dataset.tidyTranslated = "true";
+      });
     }
   } catch {
   } finally {

@@ -17,10 +17,23 @@ const TOOL_TITLE_SELECTOR = [
 const TOOL_ERROR_OUT_SELECTOR = [
   '[data-variant][data-state="error"] [class*="ioText"]',
   '[data-variant][data-state="aborted"] [class*="ioText"]',
+  '[class*="ioText"][data-error]',
+  '[class*="terminalBody"], [class*="terminalBodyWrap"]',
 ].join(', ');
 
 /** Max characters per line-group chunk sent to the translation API. */
 const ERROR_OUT_CHUNK_MAX = 600;
+
+/** Lines that carry an error semantics — the only lines worth translating. */
+const ERROR_LINE_RE =
+  /error|fail(?:ed|ure)?|cannot|unable|no such|not found|denied|fatal|command not found|exit code|exited with|aborted|timed? ?out|exception|permission|killed|enoent|eacces|unreachable|refused/i;
+
+function isErrorLine(t: string): boolean {
+  if (CHINESE_CHAR_REGEX.test(t)) return false;
+  if (t.trim().length < 4) return false;
+  if (t.length > 40 && !/\s/.test(t.trim())) return false;
+  return ERROR_LINE_RE.test(t);
+}
 
 function isToolSummarySpan(span: HTMLElement): boolean {
   if (span.hasAttribute('aria-hidden')) return false;
@@ -45,12 +58,14 @@ function isToolSummarySpan(span: HTMLElement): boolean {
 
 function isErrorOutNode(span: HTMLElement): boolean {
   if (span.hasAttribute('aria-hidden')) return false;
-  const card = span.closest('[data-variant][data-state="error"], [data-variant][data-state="aborted"]');
-  if (!card) return false;
   // Never touch code blocks / rich output — only plain IO preview text.
   if (span.closest('pre, code, [class*="ioCard"] [class*="markdown"], [class*="_file_"]')) return false;
   const cls = span.className || '';
-  if (/ioText|ioSection|ioCard/i.test(cls)) return true;
+  if (/terminalBody/i.test(cls)) return true;
+  if (/ioText/i.test(cls)) {
+    return span.hasAttribute('data-error') ||
+      !!span.closest('[data-variant][data-state="error"], [data-variant][data-state="aborted"]');
+  }
   return false;
 }
 
@@ -88,22 +103,49 @@ let errorOutEnabled = true;
 
 async function translateErrorOut(span: HTMLElement): Promise<void> {
   if (translatingErrorOuts.has(span)) return;
+  if (span.dataset.tidyTranslated === 'true') return;
   const raw = span.textContent ?? '';
-  if (!isTranslateableErrorText(raw)) {
+  // Per-line mode: only error-semantic lines are translated; plain stdout,
+  // commands and paths stay byte-identical.
+  const lines = raw.split('\n');
+  const targets: Array<{ idx: number; text: string }> = [];
+  lines.forEach((ln, i) => {
+    const t = ln.trim();
+    if (isErrorLine(t) && isTranslateableErrorText(t)) {
+      targets.push({ idx: i, text: t });
+    }
+  });
+  if (targets.length === 0) {
     if (CHINESE_CHAR_REGEX.test(raw)) span.dataset.tidyTranslated = 'true';
     return;
   }
-  if (span.dataset.tidyTranslated === 'true') return;
+  // Translate a line exactly once per error-out element (dedup via Set).
+  const uniqueLines = Array.from(new Set(targets.map((x) => x.text)));
+  const results = await requestTranslateBatch(uniqueLines.slice(0, 80));
+  const byText = new Map<string, string>();
+  results.forEach((r) => {
+    if (r && r.translated && r.translated !== r.original) byText.set(r.original, r.translated);
+  });
 
   translatingErrorOuts.add(span);
   try {
-    const chunks = chunkLines(raw, ERROR_OUT_CHUNK_MAX);
-    const results = await requestTranslateBatch(chunks);
-    const merged = results.map((r) => r.translated ?? r.original).join('\n');
-    if (errorOutEnabled && merged && merged !== raw) {
+    let changed = false;
+    for (const t of targets) {
+      const translated = byText.get(t.text);
+      if (translated) {
+        lines[t.idx] = translated;
+        changed = true;
+      }
+    }
+    const merged = lines.join('\n');
+    if (errorOutEnabled && changed && merged !== raw) {
       span.dataset.tidyTranslated = 'true';
       span.dataset.original = raw;
       span.textContent = merged;
+      // Mark descendants too so nested text nodes are skipped on re-scans.
+      span.querySelectorAll('*').forEach((el) => {
+        (el as HTMLElement).dataset.tidyTranslated = 'true';
+      });
     }
   } catch {
     // Silent — keep the original error output
