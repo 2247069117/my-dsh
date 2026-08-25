@@ -3,11 +3,14 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import type { PluginConfig, MaskedPluginConfig } from './types.ts';
 
+/** All known channel ids, in the order the dispatcher tries them by default. */
+const KNOWN_CHANNELS = ['siliconflow', 'zhipu', 'google', 'mymemory', 'builtin'];
+
 const DEFAULT_CONFIG: PluginConfig = {
   enabled: true,
   concurrency: 3,
   timeoutMs: 2000,
-  channels: ['siliconflow', 'zhipu', 'mymemory', 'builtin'],
+  channels: [...KNOWN_CHANNELS],
   siliconflowKey: '',
   zhipuKey: '',
 };
@@ -32,6 +35,13 @@ export class ConfigManager {
     } catch {
       this.config = { ...DEFAULT_CONFIG };
     }
+    // Merge in any adapter channels the config predates (e.g. 'google'), so a
+    // persisted order from an older release keeps working with new channels.
+    const merged = [...this.config.channels];
+    for (const ch of KNOWN_CHANNELS) {
+      if (!merged.includes(ch)) merged.push(ch);
+    }
+    this.config.channels = merged;
   }
 
   getConfig(): PluginConfig {

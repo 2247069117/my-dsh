@@ -638,10 +638,11 @@ var LS_CHANNELS = `${LS_PREFIX}channels`;
 var CHANNEL_NAMES = {
   siliconflow: "\u7845\u57FA\u6D41\u52A8 (Qwen2.5-7B)",
   zhipu: "\u667A\u8C31 AI (glm-4-flash)",
+  google: "\u8C37\u6B4C\u7FFB\u8BD1 (\u514D\u8D39\u63A5\u53E3)",
   mymemory: "MyMemory \u514D\u8D39\u673A\u5668\u7FFB\u8BD1 (\u514DKey)",
   builtin: "\u79BB\u7EBF\u6280\u672F\u8BCD\u5178 (0ms\u515C\u5E95)"
 };
-var ALL_CHANNELS = ["siliconflow", "zhipu", "mymemory", "builtin"];
+var ALL_CHANNELS = ["siliconflow", "zhipu", "google", "mymemory", "builtin"];
 var SettingsStore = class {
   state = {
     enabled: true,
@@ -675,7 +676,11 @@ var SettingsStore = class {
       if (channelsRaw !== null) {
         const arr = JSON.parse(channelsRaw);
         if (Array.isArray(arr) && arr.length > 0) {
-          this.state.channels = arr.filter((x) => ALL_CHANNELS.includes(x));
+          const filtered = arr.filter((x) => ALL_CHANNELS.includes(x));
+          for (const ch of ALL_CHANNELS) {
+            if (!filtered.includes(ch)) filtered.push(ch);
+          }
+          this.state.channels = filtered;
         }
       }
     } catch {

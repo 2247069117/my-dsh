@@ -19,11 +19,12 @@ const LS_CHANNELS = `${LS_PREFIX}channels`;
 export const CHANNEL_NAMES: Record<string, string> = {
   siliconflow: '硅基流动 (Qwen2.5-7B)',
   zhipu: '智谱 AI (glm-4-flash)',
+  google: '谷歌翻译 (免费接口)',
   mymemory: 'MyMemory 免费机器翻译 (免Key)',
   builtin: '离线技术词典 (0ms兜底)',
 };
 
-export const ALL_CHANNELS = ['siliconflow', 'zhipu', 'mymemory', 'builtin'];
+export const ALL_CHANNELS = ['siliconflow', 'zhipu', 'google', 'mymemory', 'builtin'];
 
 class SettingsStore {
   private state: ClientSettingsState = {
@@ -61,7 +62,12 @@ class SettingsStore {
       if (channelsRaw !== null) {
         const arr = JSON.parse(channelsRaw);
         if (Array.isArray(arr) && arr.length > 0) {
-          this.state.channels = arr.filter((x) => ALL_CHANNELS.includes(x));
+          const filtered = arr.filter((x) => ALL_CHANNELS.includes(x));
+          // Merge in channels added by newer releases (e.g. 'google').
+          for (const ch of ALL_CHANNELS) {
+            if (!filtered.includes(ch)) filtered.push(ch);
+          }
+          this.state.channels = filtered;
         }
       }
     } catch {
