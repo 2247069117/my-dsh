@@ -5,12 +5,15 @@ export interface PluginConfig {
     channels: string[];
     siliconflowKey?: string;
     zhipuKey?: string;
+    gatewayUrl?: string;
+    gatewayEngine?: 'bing' | 'google';
 }
-export interface MaskedPluginConfig extends Omit<PluginConfig, 'siliconflowKey' | 'zhipuKey'> {
+export interface MaskedPluginConfig extends Omit<PluginConfig, 'siliconflowKey' | 'zhipuKey' | 'gatewayUrl'> {
     siliconflowKeyMasked?: string;
     zhipuKeyMasked?: string;
     hasSiliconflowKey: boolean;
     hasZhipuKey: boolean;
+    hasGatewayUrl: boolean;
 }
 export interface TranslateItemResult {
     original: string;

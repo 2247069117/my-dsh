@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import type { PluginConfig, MaskedPluginConfig } from './types.ts';
 
 /** All known channel ids, in the order the dispatcher tries them by default. */
-const KNOWN_CHANNELS = ['siliconflow', 'zhipu', 'google', 'mymemory', 'builtin'];
+const KNOWN_CHANNELS = ['siliconflow', 'zhipu', 'gateway', 'mymemory', 'builtin'];
 
 const DEFAULT_CONFIG: PluginConfig = {
   enabled: true,
@@ -13,6 +13,8 @@ const DEFAULT_CONFIG: PluginConfig = {
   channels: [...KNOWN_CHANNELS],
   siliconflowKey: '',
   zhipuKey: '',
+  gatewayUrl: '',
+  gatewayEngine: 'bing',
 };
 
 export class ConfigManager {
@@ -35,9 +37,10 @@ export class ConfigManager {
     } catch {
       this.config = { ...DEFAULT_CONFIG };
     }
-    // Merge in any adapter channels the config predates (e.g. 'google'), so a
-    // persisted order from an older release keeps working with new channels.
-    const merged = [...this.config.channels];
+    // Migrate the retired 'google' channel id to the local gateway channel,
+    // then merge in any adapter channels the config predates, so a persisted
+    // order from an older release keeps working with new channels.
+    let merged = this.config.channels.map((ch) => (ch === 'google' ? 'gateway' : ch));
     for (const ch of KNOWN_CHANNELS) {
       if (!merged.includes(ch)) merged.push(ch);
     }
@@ -63,6 +66,7 @@ export class ConfigManager {
       zhipuKeyMasked: maskKey(this.config.zhipuKey),
       hasSiliconflowKey: !!(this.config.siliconflowKey && this.config.siliconflowKey.trim().length > 0),
       hasZhipuKey: !!(this.config.zhipuKey && this.config.zhipuKey.trim().length > 0),
+      hasGatewayUrl: !!(this.config.gatewayUrl && this.config.gatewayUrl.trim().length > 0),
     };
   }
 
@@ -79,6 +83,9 @@ export class ConfigManager {
     }
     if (typeof next.timeoutMs === 'number') {
       next.timeoutMs = Math.min(Math.max(Math.round(next.timeoutMs), 500), 10000);
+    }
+    if (next.gatewayEngine !== 'bing' && next.gatewayEngine !== 'google') {
+      next.gatewayEngine = 'bing';
     }
 
     this.config = next;

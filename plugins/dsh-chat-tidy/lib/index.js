@@ -2,14 +2,16 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
-var KNOWN_CHANNELS = ["siliconflow", "zhipu", "google", "mymemory", "builtin"];
+var KNOWN_CHANNELS = ["siliconflow", "zhipu", "gateway", "mymemory", "builtin"];
 var DEFAULT_CONFIG = {
   enabled: true,
   concurrency: 3,
   timeoutMs: 2e3,
   channels: [...KNOWN_CHANNELS],
   siliconflowKey: "",
-  zhipuKey: ""
+  zhipuKey: "",
+  gatewayUrl: "",
+  gatewayEngine: "bing"
 };
 var ConfigManager = class {
   config = { ...DEFAULT_CONFIG };
@@ -29,7 +31,7 @@ var ConfigManager = class {
     } catch {
       this.config = { ...DEFAULT_CONFIG };
     }
-    const merged = [...this.config.channels];
+    let merged = this.config.channels.map((ch) => ch === "google" ? "gateway" : ch);
     for (const ch of KNOWN_CHANNELS) {
       if (!merged.includes(ch)) merged.push(ch);
     }
@@ -51,7 +53,8 @@ var ConfigManager = class {
       siliconflowKeyMasked: maskKey(this.config.siliconflowKey),
       zhipuKeyMasked: maskKey(this.config.zhipuKey),
       hasSiliconflowKey: !!(this.config.siliconflowKey && this.config.siliconflowKey.trim().length > 0),
-      hasZhipuKey: !!(this.config.zhipuKey && this.config.zhipuKey.trim().length > 0)
+      hasZhipuKey: !!(this.config.zhipuKey && this.config.zhipuKey.trim().length > 0),
+      hasGatewayUrl: !!(this.config.gatewayUrl && this.config.gatewayUrl.trim().length > 0)
     };
   }
   async updateConfig(partial) {
@@ -64,6 +67,9 @@ var ConfigManager = class {
     }
     if (typeof next.timeoutMs === "number") {
       next.timeoutMs = Math.min(Math.max(Math.round(next.timeoutMs), 500), 1e4);
+    }
+    if (next.gatewayEngine !== "bing" && next.gatewayEngine !== "google") {
+      next.gatewayEngine = "bing";
     }
     this.config = next;
     await this.save();
@@ -244,35 +250,39 @@ var ZhipuAdapter = class {
   }
 };
 
-// src/server/adapters/google.ts
-var GoogleTranslateAdapter = class {
-  id = "google";
-  name = "\u8C37\u6B4C\u7FFB\u8BD1 (\u514D\u8D39\u63A5\u53E3)";
-  isAvailable(_config) {
-    return true;
+// src/server/adapters/gateway.ts
+var GatewayAdapter = class {
+  id = "gateway";
+  name = "\u672C\u5730\u7FFB\u8BD1\u7F51\u5173 (DeepLX \u517C\u5BB9)";
+  isAvailable(config) {
+    return !!(config.gatewayUrl && config.gatewayUrl.trim().length > 0);
   }
-  async translate(text, signal, _config) {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
-    const response = await fetch(url, {
+  async translate(text, signal, config) {
+    const base = (config.gatewayUrl ?? "").trim().replace(/\/+$/, "");
+    if (!base) {
+      throw new Error("Local translation gateway URL is not configured");
+    }
+    const engine = config.gatewayEngine === "google" ? "Google" : "Bing";
+    const response = await fetch(`${base}/${engine}/translate`, {
+      method: "POST",
       headers: {
-        "User-Agent": "dsh-chat-tidy/0.3.0",
-        Accept: "application/json"
+        "Content-Type": "application/json"
       },
+      body: JSON.stringify({
+        source_lang: "en",
+        target_lang: "zh",
+        text
+      }),
       signal
     });
     if (!response.ok) {
-      throw new Error(`Google Translate responded with status ${response.status}`);
+      throw new Error(`Local gateway (${engine}) responded with status ${response.status}`);
     }
     const json = await response.json();
-    const segments = Array.isArray(json) && Array.isArray(json[0]) ? json[0] : null;
-    if (!segments) {
-      throw new Error("Google Translate returned an unexpected response");
+    if (json.code !== 200 || typeof json.data !== "string" || !json.data.trim()) {
+      throw new Error(`Local gateway (${engine}) returned: ${json.message ?? "no data"}`);
     }
-    const translated = segments.filter((seg) => Array.isArray(seg) && typeof seg[0] === "string").map((seg) => seg[0]).join("").trim();
-    if (!translated) {
-      throw new Error("Google Translate returned an empty translation");
-    }
-    return translated;
+    return json.data.trim();
   }
 };
 
@@ -393,7 +403,7 @@ var TranslationDispatcher = class {
     this.cache = cache;
     this.registerAdapter(new SiliconFlowAdapter());
     this.registerAdapter(new ZhipuAdapter());
-    this.registerAdapter(new GoogleTranslateAdapter());
+    this.registerAdapter(new GatewayAdapter());
     this.registerAdapter(new MyMemoryAdapter());
     this.registerAdapter(new BuiltinDictAdapter());
   }

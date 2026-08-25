@@ -3,7 +3,7 @@ import type { ConfigManager } from './config.ts';
 import type { LruDiskCache } from './cache.ts';
 import { SiliconFlowAdapter } from './adapters/siliconflow.ts';
 import { ZhipuAdapter } from './adapters/zhipu.ts';
-import { GoogleTranslateAdapter } from './adapters/google.ts';
+import { GatewayAdapter } from './adapters/gateway.ts';
 import { MyMemoryAdapter } from './adapters/mymemory.ts';
 import { BuiltinDictAdapter } from './adapters/builtin.ts';
 
@@ -28,7 +28,7 @@ export class TranslationDispatcher {
     this.cache = cache;
     this.registerAdapter(new SiliconFlowAdapter());
     this.registerAdapter(new ZhipuAdapter());
-    this.registerAdapter(new GoogleTranslateAdapter());
+    this.registerAdapter(new GatewayAdapter());
     this.registerAdapter(new MyMemoryAdapter());
     this.registerAdapter(new BuiltinDictAdapter());
   }

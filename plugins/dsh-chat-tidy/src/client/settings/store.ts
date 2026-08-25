@@ -9,22 +9,27 @@ export interface ClientSettingsState {
   zhipuKey: string;
   hasSiliconflowKey: boolean;
   hasZhipuKey: boolean;
+  gatewayUrl: string;
+  gatewayEngine: 'bing' | 'google';
+  hasGatewayUrl: boolean;
 }
 
 const LS_PREFIX = 'dsh-chat-tidy:';
 const LS_ENABLED = `${LS_PREFIX}enabled`;
 const LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
 const LS_CHANNELS = `${LS_PREFIX}channels`;
+const LS_GATEWAY_URL = `${LS_PREFIX}gateway-url`;
+const LS_GATEWAY_ENGINE = `${LS_PREFIX}gateway-engine`;
 
 export const CHANNEL_NAMES: Record<string, string> = {
   siliconflow: '硅基流动 (Qwen2.5-7B)',
   zhipu: '智谱 AI (glm-4-flash)',
-  google: '谷歌翻译 (免费接口)',
+  gateway: '本地翻译网关 (DeepLX 兼容)',
   mymemory: 'MyMemory 免费机器翻译 (免Key)',
   builtin: '离线技术词典 (0ms兜底)',
 };
 
-export const ALL_CHANNELS = ['siliconflow', 'zhipu', 'google', 'mymemory', 'builtin'];
+export const ALL_CHANNELS = ['siliconflow', 'zhipu', 'gateway', 'mymemory', 'builtin'];
 
 class SettingsStore {
   private state: ClientSettingsState = {
@@ -35,6 +40,9 @@ class SettingsStore {
     zhipuKey: '',
     hasSiliconflowKey: false,
     hasZhipuKey: false,
+    gatewayUrl: '',
+    gatewayEngine: 'bing',
+    hasGatewayUrl: false,
   };
 
   private listeners = new Set<() => void>();
@@ -62,13 +70,24 @@ class SettingsStore {
       if (channelsRaw !== null) {
         const arr = JSON.parse(channelsRaw);
         if (Array.isArray(arr) && arr.length > 0) {
-          const filtered = arr.filter((x) => ALL_CHANNELS.includes(x));
-          // Merge in channels added by newer releases (e.g. 'google').
+          // Migrate the retired 'google' channel id to the local gateway.
+          const migrated = arr.map((x: string) => (x === 'google' ? 'gateway' : x));
+          const filtered = migrated.filter((x: string) => ALL_CHANNELS.includes(x));
+          // Merge in channels added by newer releases.
           for (const ch of ALL_CHANNELS) {
             if (!filtered.includes(ch)) filtered.push(ch);
           }
           this.state.channels = filtered;
         }
+      }
+      const gatewayUrlRaw = localStorage.getItem(LS_GATEWAY_URL);
+      if (gatewayUrlRaw !== null) {
+        this.state.gatewayUrl = gatewayUrlRaw;
+        this.state.hasGatewayUrl = gatewayUrlRaw.trim().length > 0;
+      }
+      const gatewayEngineRaw = localStorage.getItem(LS_GATEWAY_ENGINE);
+      if (gatewayEngineRaw === 'google' || gatewayEngineRaw === 'bing') {
+        this.state.gatewayEngine = gatewayEngineRaw;
       }
     } catch {
       // Ignore
@@ -85,7 +104,11 @@ class SettingsStore {
         channels: config.channels ?? this.state.channels,
         hasSiliconflowKey: !!config.hasSiliconflowKey,
         hasZhipuKey: !!config.hasZhipuKey,
+        hasGatewayUrl: !!config.hasGatewayUrl,
       };
+      if (typeof config.gatewayEngine === 'string' && (config.gatewayEngine === 'bing' || config.gatewayEngine === 'google')) {
+        this.state.gatewayEngine = config.gatewayEngine;
+      }
       chatTranslateObserver.setEnabled(this.state.enabled);
       this.notify();
     }
@@ -135,6 +158,19 @@ class SettingsStore {
       } catch {}
     }
 
+    if (typeof partial.gatewayUrl === 'string') {
+      try {
+        localStorage.setItem(LS_GATEWAY_URL, partial.gatewayUrl);
+      } catch {}
+      this.state.hasGatewayUrl = partial.gatewayUrl.trim().length > 0;
+    }
+
+    if (partial.gatewayEngine === 'bing' || partial.gatewayEngine === 'google') {
+      try {
+        localStorage.setItem(LS_GATEWAY_ENGINE, partial.gatewayEngine);
+      } catch {}
+    }
+
     this.notify();
 
     // Sync to host
@@ -142,6 +178,8 @@ class SettingsStore {
       enabled: this.state.enabled,
       concurrency: this.state.concurrency,
       channels: this.state.channels,
+      gatewayUrl: this.state.gatewayUrl,
+      gatewayEngine: this.state.gatewayEngine,
     };
     if (typeof partial.siliconflowKey === 'string') {
       serverPayload.siliconflowKey = partial.siliconflowKey;
@@ -154,6 +192,7 @@ class SettingsStore {
     if (updated) {
       this.state.hasSiliconflowKey = !!updated.hasSiliconflowKey;
       this.state.hasZhipuKey = !!updated.hasZhipuKey;
+      this.state.hasGatewayUrl = !!updated.hasGatewayUrl;
       this.notify();
     }
   }

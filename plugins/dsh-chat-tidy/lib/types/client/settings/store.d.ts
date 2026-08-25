@@ -6,6 +6,9 @@ export interface ClientSettingsState {
     zhipuKey: string;
     hasSiliconflowKey: boolean;
     hasZhipuKey: boolean;
+    gatewayUrl: string;
+    gatewayEngine: 'bing' | 'google';
+    hasGatewayUrl: boolean;
 }
 export declare const CHANNEL_NAMES: Record<string, string>;
 export declare const ALL_CHANNELS: string[];
