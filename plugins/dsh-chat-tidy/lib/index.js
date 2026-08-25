@@ -8,7 +8,8 @@ var DEFAULT_CONFIG = {
   enabled: true,
   concurrency: 3,
   timeoutMs: 2e3,
-  channels: [...KNOWN_CHANNELS]
+  channels: [...KNOWN_CHANNELS],
+  translateThinking: false
 };
 var ConfigManager = class {
   config = { ...DEFAULT_CONFIG };
@@ -43,7 +44,8 @@ var ConfigManager = class {
       enabled: this.config.enabled,
       concurrency: this.config.concurrency,
       timeoutMs: this.config.timeoutMs,
-      channels: [...this.config.channels]
+      channels: [...this.config.channels],
+      translateThinking: this.config.translateThinking === true
     };
   }
   async updateConfig(partial) {

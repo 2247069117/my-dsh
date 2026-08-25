@@ -3,12 +3,14 @@ export interface PluginConfig {
     concurrency: number;
     timeoutMs: number;
     channels: string[];
+    translateThinking?: boolean;
 }
 export interface MaskedPluginConfig {
     enabled: boolean;
     concurrency: number;
     timeoutMs: number;
     channels: string[];
+    translateThinking: boolean;
 }
 export interface TranslateItemResult {
     original: string;

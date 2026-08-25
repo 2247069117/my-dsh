@@ -448,15 +448,20 @@ function isErrorLine(t) {
   if (t.length > 40 && !/\s/.test(t.trim())) return false;
   return ERROR_LINE_RE.test(t);
 }
-function isToolSummarySpan(span) {
+function isThinkSpan(span) {
+  return !!span.closest(
+    '[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row'
+  );
+}
+function isToolSummarySpan(span, translateThinking) {
   if (span.hasAttribute("aria-hidden")) return false;
   const cls = span.className || "";
   if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
-  if (span.closest('[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row')) {
-    return false;
-  }
-  if (span.parentElement && span.parentElement.textContent?.includes("Think")) {
-    return false;
+  if (!translateThinking) {
+    if (isThinkSpan(span)) return false;
+    if (span.parentElement && span.parentElement.textContent?.includes("Think")) {
+      return false;
+    }
   }
   if (span.closest('[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool]')) {
     return true;
@@ -532,6 +537,19 @@ var ChatTranslateObserver = class {
   observer = null;
   rootElement = null;
   isEnabled = true;
+  translateThinking = false;
+  /**
+   * Toggle Think/reasoning translation. Turning it on scans immediately;
+   * turning it off restores already-translated think nodes right away.
+   */
+  setTranslateThinking(enabled) {
+    this.translateThinking = enabled;
+    if (enabled) {
+      if (this.rootElement) this.scanContainer(this.rootElement);
+    } else {
+      this.restoreThinkOriginals();
+    }
+  }
   constructor() {
     this.handleMutations = this.handleMutations.bind(this);
   }
@@ -618,7 +636,7 @@ var ChatTranslateObserver = class {
   scanContainer(container) {
     const spans = container.querySelectorAll(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {
-      if (isToolSummarySpan(span)) {
+      if (isToolSummarySpan(span, this.translateThinking)) {
         this.processSpan(span);
       }
     });
@@ -630,7 +648,7 @@ var ChatTranslateObserver = class {
     });
   }
   scanNode(node) {
-    if (node.tagName === "SPAN" && isToolSummarySpan(node)) {
+    if (node.tagName === "SPAN" && isToolSummarySpan(node, this.translateThinking)) {
       this.processSpan(node);
       return;
     }
@@ -640,7 +658,7 @@ var ChatTranslateObserver = class {
     }
     const spans = node.querySelectorAll(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {
-      if (isToolSummarySpan(span)) {
+      if (isToolSummarySpan(span, this.translateThinking)) {
         this.processSpan(span);
       }
     });
@@ -654,6 +672,9 @@ var ChatTranslateObserver = class {
   processSpan(span) {
     const text = span.textContent?.trim() || "";
     if (!text) return;
+    if (this.translateThinking && isThinkSpan(span)) {
+      span.dataset.tidyThink = "true";
+    }
     if (CHINESE_CHAR_REGEX.test(text)) {
       span.dataset.tidyTranslated = "true";
       return;
@@ -676,6 +697,20 @@ var ChatTranslateObserver = class {
     }
     lazyQueue.observe(span, text);
   }
+  /** Restore think-translated nodes (used when the thinking toggle goes off). */
+  restoreThinkOriginals() {
+    const scope = this.rootElement ?? document;
+    const spans = scope.querySelectorAll('[data-tidy-think="true"]');
+    for (const span of spans) {
+      const original = span.dataset.original;
+      if (original && original !== span.textContent) {
+        span.textContent = original;
+      }
+      delete span.dataset.original;
+      delete span.dataset.tidyTranslated;
+      delete span.dataset.tidyThink;
+    }
+  }
   disconnect() {
     if (this.observer) {
       this.observer.disconnect();
@@ -694,10 +729,12 @@ var import_react = require("react");
 var LS_PREFIX = "dsh-chat-tidy:";
 var LS_ENABLED = `${LS_PREFIX}enabled`;
 var LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
+var LS_TRANSLATE_THINKING = `${LS_PREFIX}translate-thinking`;
 var SettingsStore = class {
   state = {
     enabled: true,
-    concurrency: 3
+    concurrency: 3,
+    translateThinking: false
   };
   listeners = /* @__PURE__ */ new Set();
   constructor() {
@@ -717,6 +754,10 @@ var SettingsStore = class {
         if (!isNaN(c) && c >= 1 && c <= 100) {
           this.state.concurrency = c;
         }
+      }
+      const thinkRaw = localStorage.getItem(LS_TRANSLATE_THINKING);
+      if (thinkRaw !== null) {
+        this.state.translateThinking = thinkRaw === "true";
       }
     } catch {
     }
@@ -771,14 +812,23 @@ var SettingsStore = class {
       } catch {
       }
     }
+    if (typeof partial.translateThinking === "boolean") {
+      try {
+        localStorage.setItem(LS_TRANSLATE_THINKING, String(partial.translateThinking));
+      } catch {
+      }
+      chatTranslateObserver.setTranslateThinking(partial.translateThinking);
+    }
     this.notify();
     const updated = await updateServerConfig({
       enabled: this.state.enabled,
-      concurrency: this.state.concurrency
+      concurrency: this.state.concurrency,
+      translateThinking: this.state.translateThinking
     });
     if (updated) {
       this.state.enabled = updated.enabled ?? this.state.enabled;
       this.state.concurrency = updated.concurrency ?? this.state.concurrency;
+      this.state.translateThinking = updated.translateThinking ?? this.state.translateThinking;
       this.notify();
     }
   }
@@ -1067,6 +1117,9 @@ function TidySettingsPanel() {
   const handleToggleEnabled = () => {
     settingsStore.update({ enabled: !state.enabled });
   };
+  const handleToggleThinking = () => {
+    settingsStore.update({ translateThinking: !state.translateThinking });
+  };
   const handleConcurrencyChange = (val) => {
     if (Number.isNaN(val)) return;
     settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 100) });
@@ -1093,26 +1146,45 @@ function TidySettingsPanel() {
         "\uFF09\u81EA\u52A8\u7FFB\u8BD1\u8986\u76D6\u4E3A\u7B80\u6D01\u4E2D\u6587\u3002\u4E0D\u89E6\u78B0\u6B63\u6587\u4E0E\u601D\u8003\u5757\uFF0C\u4E0D\u5360\u4E0A\u4E0B\u6587\u7A97\u53E3\u3002"
       ] })
     ] }),
-    state.enabled && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u5386\u53F2\u4F1A\u8BDD\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u63A8\u8350 3\uFF09\u3002" })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "input",
-        {
-          type: "number",
-          className: "dsh-tidy-input",
-          min: 1,
-          max: 100,
-          step: 1,
-          value: state.concurrency,
-          onChange: (e) => handleConcurrencyChange(parseInt(e.target.value, 10)),
-          style: { width: "88px" },
-          "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
-        }
-      )
-    ] }) }) })
+    state.enabled && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u7FFB\u8BD1\u601D\u7EF4\u94FE\uFF08Think \u5757\uFF09" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u5F00\u542F\u540E\u5C06\u601D\u8003\u5757\u5185\u5BB9\uFF08reasoning\uFF09\u4E5F\u7FFB\u8BD1\u4E3A\u4E2D\u6587\uFF1B\u9ED8\u8BA4\u5173\u95ED\uFF0C\u4FDD\u6301\u601D\u8003\u539F\u6587\u3002" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            type: "button",
+            className: "dsh-tidy-switch",
+            role: "switch",
+            "aria-checked": state.translateThinking,
+            onClick: handleToggleThinking,
+            "aria-label": "\u7FFB\u8BD1\u601D\u7EF4\u94FE"
+          }
+        )
+      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u5386\u53F2\u4F1A\u8BDD\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u63A8\u8350 3\uFF09\u3002" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "input",
+          {
+            type: "number",
+            className: "dsh-tidy-input",
+            min: 1,
+            max: 100,
+            step: 1,
+            value: state.concurrency,
+            onChange: (e) => handleConcurrencyChange(parseInt(e.target.value, 10)),
+            style: { width: "88px" },
+            "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
+          }
+        )
+      ] }) })
+    ] })
   ] });
 }
 function setupSettingsUi(ctx) {

@@ -28,6 +28,10 @@ export function TidySettingsPanel(): React.ReactElement {
     settingsStore.update({ enabled: !state.enabled });
   };
 
+  const handleToggleThinking = (): void => {
+    settingsStore.update({ translateThinking: !state.translateThinking });
+  };
+
   const handleConcurrencyChange = (val: number): void => {
     if (Number.isNaN(val)) return;
     settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 100) });
@@ -55,7 +59,27 @@ export function TidySettingsPanel(): React.ReactElement {
 
       {state.enabled && (
         <>
-          {/* 4. 并发控制 */}
+          {/* 2. 翻译思维链开关 */}
+          <div className="dsh-tidy-card">
+            <div className="dsh-tidy-row">
+              <div className="dsh-tidy-row-info">
+                <div className="dsh-tidy-row-title">翻译思维链（Think 块）</div>
+                <div className="dsh-tidy-row-desc">
+                  开启后将思考块内容（reasoning）也翻译为中文；默认关闭，保持思考原文。
+                </div>
+              </div>
+              <button
+                type="button"
+                className="dsh-tidy-switch"
+                role="switch"
+                aria-checked={state.translateThinking}
+                onClick={handleToggleThinking}
+                aria-label="翻译思维链"
+              />
+            </div>
+          </div>
+
+          {/* 3. 并发控制 */}
           <div className="dsh-tidy-card">
             <div className="dsh-tidy-row">
               <div className="dsh-tidy-row-info">

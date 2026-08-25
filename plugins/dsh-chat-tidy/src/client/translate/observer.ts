@@ -35,18 +35,24 @@ function isErrorLine(t: string): boolean {
   return ERROR_LINE_RE.test(t);
 }
 
-function isToolSummarySpan(span: HTMLElement): boolean {
+function isThinkSpan(span: HTMLElement): boolean {
+  return !!span.closest(
+    '[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row'
+  );
+}
+
+function isToolSummarySpan(span: HTMLElement, translateThinking: boolean): boolean {
   if (span.hasAttribute('aria-hidden')) return false;
   // Never touch tool-name badges / icons / leading elements — only the
   // description summary line (e.g. `.CY-8Ka_summary`) is translated.
   const cls = span.className || '';
   if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
-  // Exclude think / reasoning blocks
-  if (span.closest('[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row')) {
-    return false;
-  }
-  if (span.parentElement && span.parentElement.textContent?.includes('Think')) {
-    return false;
+  // Think / reasoning blocks are skipped unless "translate thinking chain" is on.
+  if (!translateThinking) {
+    if (isThinkSpan(span)) return false;
+    if (span.parentElement && span.parentElement.textContent?.includes('Think')) {
+      return false;
+    }
   }
   
   // Must belong to tool call
@@ -158,6 +164,20 @@ export class ChatTranslateObserver {
   private observer: MutationObserver | null = null;
   private rootElement: HTMLElement | null = null;
   private isEnabled = true;
+  private translateThinking = false;
+
+  /**
+   * Toggle Think/reasoning translation. Turning it on scans immediately;
+   * turning it off restores already-translated think nodes right away.
+   */
+  setTranslateThinking(enabled: boolean): void {
+    this.translateThinking = enabled;
+    if (enabled) {
+      if (this.rootElement) this.scanContainer(this.rootElement);
+    } else {
+      this.restoreThinkOriginals();
+    }
+  }
 
   constructor() {
     this.handleMutations = this.handleMutations.bind(this);
@@ -267,7 +287,7 @@ export class ChatTranslateObserver {
   private scanContainer(container: HTMLElement): void {
     const spans = container.querySelectorAll<HTMLElement>(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {
-      if (isToolSummarySpan(span)) {
+      if (isToolSummarySpan(span, this.translateThinking)) {
         this.processSpan(span);
       }
     });
@@ -280,7 +300,7 @@ export class ChatTranslateObserver {
   }
 
   private scanNode(node: HTMLElement): void {
-    if (node.tagName === 'SPAN' && isToolSummarySpan(node)) {
+    if (node.tagName === 'SPAN' && isToolSummarySpan(node, this.translateThinking)) {
       this.processSpan(node);
       return;
     }
@@ -291,7 +311,7 @@ export class ChatTranslateObserver {
 
     const spans = node.querySelectorAll<HTMLElement>(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {
-      if (isToolSummarySpan(span)) {
+      if (isToolSummarySpan(span, this.translateThinking)) {
         this.processSpan(span);
       }
     });
@@ -306,6 +326,12 @@ export class ChatTranslateObserver {
   private processSpan(span: HTMLElement): void {
     const text = span.textContent?.trim() || '';
     if (!text) return;
+
+    // Pre-mark think nodes so "translate thinking" can be toggled off and
+    // restore them independently of the main switch (covers cache-hit paths too).
+    if (this.translateThinking && isThinkSpan(span)) {
+      span.dataset.tidyThink = 'true';
+    }
 
     // Check if already in Chinese
     if (CHINESE_CHAR_REGEX.test(text)) {
@@ -335,6 +361,21 @@ export class ChatTranslateObserver {
 
     // Send to viewport lazy queue
     lazyQueue.observe(span, text);
+  }
+
+  /** Restore think-translated nodes (used when the thinking toggle goes off). */
+  private restoreThinkOriginals(): void {
+    const scope = this.rootElement ?? document;
+    const spans = scope.querySelectorAll<HTMLElement>('[data-tidy-think="true"]');
+    for (const span of spans) {
+      const original = span.dataset.original;
+      if (original && original !== span.textContent) {
+        span.textContent = original;
+      }
+      delete span.dataset.original;
+      delete span.dataset.tidyTranslated;
+      delete span.dataset.tidyThink;
+    }
   }
 
   disconnect(): void {

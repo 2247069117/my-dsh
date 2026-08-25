@@ -14,6 +14,7 @@ const DEFAULT_CONFIG: PluginConfig = {
   concurrency: 3,
   timeoutMs: 2000,
   channels: [...KNOWN_CHANNELS],
+  translateThinking: false,
 };
 
 export class ConfigManager {
@@ -57,6 +58,7 @@ export class ConfigManager {
       concurrency: this.config.concurrency,
       timeoutMs: this.config.timeoutMs,
       channels: [...this.config.channels],
+      translateThinking: this.config.translateThinking === true,
     };
   }
 

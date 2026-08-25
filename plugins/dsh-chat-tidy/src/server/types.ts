@@ -3,6 +3,7 @@ export interface PluginConfig {
   concurrency: number; // 1-6, default 3
   timeoutMs: number; // default 2000
   channels: string[]; // ['bing']
+  translateThinking?: boolean; // translate Think/reasoning blocks (default off)
 }
 
 export interface MaskedPluginConfig {
@@ -10,6 +11,7 @@ export interface MaskedPluginConfig {
   concurrency: number;
   timeoutMs: number;
   channels: string[];
+  translateThinking: boolean;
 }
 
 export interface TranslateItemResult {

@@ -2,6 +2,12 @@ export declare class ChatTranslateObserver {
     private observer;
     private rootElement;
     private isEnabled;
+    private translateThinking;
+    /**
+     * Toggle Think/reasoning translation. Turning it on scans immediately;
+     * turning it off restores already-translated think nodes right away.
+     */
+    setTranslateThinking(enabled: boolean): void;
     constructor();
     setEnabled(enabled: boolean): void;
     /**
@@ -14,6 +20,8 @@ export declare class ChatTranslateObserver {
     private scanContainer;
     private scanNode;
     private processSpan;
+    /** Restore think-translated nodes (used when the thinking toggle goes off). */
+    private restoreThinkOriginals;
     disconnect(): void;
 }
 export declare const chatTranslateObserver: ChatTranslateObserver;

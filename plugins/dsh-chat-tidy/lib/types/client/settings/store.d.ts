@@ -1,6 +1,7 @@
 export interface ClientSettingsState {
     enabled: boolean;
     concurrency: number;
+    translateThinking: boolean;
 }
 declare class SettingsStore {
     private state;

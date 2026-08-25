@@ -4,16 +4,19 @@ import { chatTranslateObserver } from '../translate/observer.ts';
 export interface ClientSettingsState {
   enabled: boolean;
   concurrency: number;
+  translateThinking: boolean;
 }
 
 const LS_PREFIX = 'dsh-chat-tidy:';
 const LS_ENABLED = `${LS_PREFIX}enabled`;
 const LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
+const LS_TRANSLATE_THINKING = `${LS_PREFIX}translate-thinking`;
 
 class SettingsStore {
   private state: ClientSettingsState = {
     enabled: true,
     concurrency: 3,
+    translateThinking: false,
   };
 
   private listeners = new Set<() => void>();
@@ -36,6 +39,10 @@ class SettingsStore {
         if (!isNaN(c) && c >= 1 && c <= 100) {
           this.state.concurrency = c;
         }
+      }
+      const thinkRaw = localStorage.getItem(LS_TRANSLATE_THINKING);
+      if (thinkRaw !== null) {
+        this.state.translateThinking = thinkRaw === 'true';
       }
     } catch {
       // Ignore
@@ -97,16 +104,25 @@ class SettingsStore {
       } catch {}
     }
 
+    if (typeof partial.translateThinking === 'boolean') {
+      try {
+        localStorage.setItem(LS_TRANSLATE_THINKING, String(partial.translateThinking));
+      } catch {}
+      chatTranslateObserver.setTranslateThinking(partial.translateThinking);
+    }
+
     this.notify();
 
     // Sync to host
     const updated = await updateServerConfig({
       enabled: this.state.enabled,
       concurrency: this.state.concurrency,
+      translateThinking: this.state.translateThinking,
     });
     if (updated) {
       this.state.enabled = updated.enabled ?? this.state.enabled;
       this.state.concurrency = updated.concurrency ?? this.state.concurrency;
+      this.state.translateThinking = updated.translateThinking ?? this.state.translateThinking;
       this.notify();
     }
   }
