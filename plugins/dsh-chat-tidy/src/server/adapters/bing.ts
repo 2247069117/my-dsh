@@ -94,7 +94,10 @@ export class BingWebAdapter implements ITranslationAdapter {
     const json = (await response.json()) as Array<{ translations?: Array<{ text?: string }> }>;
     const translated = json?.[0]?.translations?.[0]?.text?.trim();
     if (!translated) {
-      return text; // No usable result — return the original unchanged
+      // Empty result usually means a stale token or an API change — treat as
+      // failure (triggers circuit breaker) and force a token re-fetch.
+      cachedTokens = null;
+      throw new Error('Bing translate returned an empty result');
     }
     return translated;
   }

@@ -1,8 +1,15 @@
 const CACHE_KEY = 'dsh-chat-tidy:cache';
 const MAX_LOCAL_ENTRIES = 500;
+/** Entries older than this are treated as expired. */
+const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+interface CacheEntry {
+  t: number; // epoch ms; 0 = legacy entry without timestamp
+  v: string;
+}
 
 class ClientCache {
-  private memCache = new Map<string, string>();
+  private memCache = new Map<string, CacheEntry>();
   private dirty = false;
   private saveTimer: number | null = null;
 
@@ -17,9 +24,12 @@ class ClientCache {
       if (raw) {
         const obj = JSON.parse(raw);
         if (obj && typeof obj === 'object') {
-          for (const [k, v] of Object.entries(obj)) {
-            if (typeof v === 'string') {
-              this.memCache.set(k, v);
+          for (const [k, entry] of Object.entries(obj)) {
+            if (typeof entry === 'string') {
+              // Legacy entry from an older release.
+              this.memCache.set(k, { t: 0, v: entry });
+            } else if (entry && typeof entry === 'object' && typeof (entry as CacheEntry).v === 'string') {
+              this.memCache.set(k, entry as CacheEntry);
             }
           }
         }
@@ -31,7 +41,13 @@ class ClientCache {
 
   get(text: string): string | undefined {
     const key = text.trim().toLowerCase();
-    return this.memCache.get(key);
+    const entry = this.memCache.get(key);
+    if (entry === undefined) return undefined;
+    if (entry.t > 0 && Date.now() - entry.t > TTL_MS) {
+      this.memCache.delete(key);
+      return undefined;
+    }
+    return entry.v;
   }
 
   set(text: string, translated: string): void {
@@ -44,7 +60,7 @@ class ClientCache {
         this.memCache.delete(oldest);
       }
     }
-    this.memCache.set(key, translated);
+    this.memCache.set(key, { t: Date.now(), v: translated });
     this.dirty = true;
     this.scheduleSave();
   }
@@ -56,7 +72,7 @@ class ClientCache {
       if (this.dirty) {
         this.dirty = false;
         try {
-          const obj: Record<string, string> = {};
+          const obj: Record<string, CacheEntry> = {};
           for (const [k, v] of this.memCache.entries()) {
             obj[k] = v;
           }

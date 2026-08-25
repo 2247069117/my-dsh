@@ -105,8 +105,11 @@ export class TranslationDispatcher {
               cached: false,
             };
           }
-        } catch (err) {
+        } catch (err: any) {
           this.recordFailure(chId);
+          console.warn(
+            `[dsh-chat-tidy] channel ${chId} failed: ${err?.message || String(err)} | text: ${text.slice(0, 60)}`
+          );
           // Continue to next channel
         }
       }

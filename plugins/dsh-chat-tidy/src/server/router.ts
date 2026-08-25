@@ -7,9 +7,6 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(json),
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   });
   res.end(json);
 }
@@ -28,16 +25,6 @@ export function createHttpHandler(
   dispatcher: TranslationDispatcher
 ) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204, {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      });
-      res.end();
-      return;
-    }
-
     const url = new URL(req.url || '/', 'http://localhost');
     const pathParts = url.pathname.split('/').filter(Boolean);
     // pathParts will start with ['api', 'dsh-chat-tidy', ...]

@@ -2,8 +2,16 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
+/** Entries older than this are treated as expired. */
+const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+interface CacheEntry {
+  t: number; // epoch ms; 0 = legacy entry without timestamp (never expires on its own)
+  v: string;
+}
+
 export class LruDiskCache {
-  private cache = new Map<string, string>();
+  private cache = new Map<string, CacheEntry>();
   private maxEntries: number;
   private filePath: string;
   private saveTimer: NodeJS.Timeout | null = null;
@@ -20,9 +28,15 @@ export class LruDiskCache {
       const content = await fs.readFile(this.filePath, 'utf-8');
       const obj = JSON.parse(content);
       if (obj && typeof obj === 'object') {
-        for (const [k, v] of Object.entries(obj)) {
-          if (typeof v === 'string') {
-            this.cache.set(k, v);
+        for (const [k, raw] of Object.entries(obj)) {
+          if (typeof raw === 'string') {
+            // Legacy entry from an older release — keep it, no known timestamp.
+            this.cache.set(k, { t: 0, v: raw });
+          } else if (raw && typeof raw === 'object' && typeof (raw as CacheEntry).v === 'string') {
+            const entry = raw as CacheEntry;
+            if (typeof entry.t === 'number' && Number.isFinite(entry.t)) {
+              this.cache.set(k, entry);
+            }
           }
         }
       }
@@ -32,14 +46,16 @@ export class LruDiskCache {
   }
 
   get(key: string): string | undefined {
-    const val = this.cache.get(key);
-    if (val !== undefined) {
-      // Refresh key in LRU order
+    const entry = this.cache.get(key);
+    if (entry === undefined) return undefined;
+    if (entry.t > 0 && Date.now() - entry.t > TTL_MS) {
       this.cache.delete(key);
-      this.cache.set(key, val);
-      return val;
+      return undefined;
     }
-    return undefined;
+    // Refresh key in LRU order
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    return entry.v;
   }
 
   set(key: string, value: string): void {
@@ -52,7 +68,7 @@ export class LruDiskCache {
         this.cache.delete(oldestKey);
       }
     }
-    this.cache.set(key, value);
+    this.cache.set(key, { t: Date.now(), v: value });
     this.dirty = true;
     this.scheduleSave();
   }
@@ -72,7 +88,7 @@ export class LruDiskCache {
 
   async flush(): Promise<void> {
     try {
-      const obj: Record<string, string> = {};
+      const obj: Record<string, CacheEntry> = {};
       for (const [k, v] of this.cache.entries()) {
         obj[k] = v;
       }

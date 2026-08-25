@@ -215,6 +215,7 @@ function releaseStyles(document2) {
 // src/client/translate/client-cache.ts
 var CACHE_KEY = "dsh-chat-tidy:cache";
 var MAX_LOCAL_ENTRIES = 500;
+var TTL_MS = 7 * 24 * 60 * 60 * 1e3;
 var ClientCache = class {
   memCache = /* @__PURE__ */ new Map();
   dirty = false;
@@ -229,9 +230,11 @@ var ClientCache = class {
       if (raw) {
         const obj = JSON.parse(raw);
         if (obj && typeof obj === "object") {
-          for (const [k, v] of Object.entries(obj)) {
-            if (typeof v === "string") {
-              this.memCache.set(k, v);
+          for (const [k, entry] of Object.entries(obj)) {
+            if (typeof entry === "string") {
+              this.memCache.set(k, { t: 0, v: entry });
+            } else if (entry && typeof entry === "object" && typeof entry.v === "string") {
+              this.memCache.set(k, entry);
             }
           }
         }
@@ -241,7 +244,13 @@ var ClientCache = class {
   }
   get(text) {
     const key = text.trim().toLowerCase();
-    return this.memCache.get(key);
+    const entry = this.memCache.get(key);
+    if (entry === void 0) return void 0;
+    if (entry.t > 0 && Date.now() - entry.t > TTL_MS) {
+      this.memCache.delete(key);
+      return void 0;
+    }
+    return entry.v;
   }
   set(text, translated) {
     const key = text.trim().toLowerCase();
@@ -253,7 +262,7 @@ var ClientCache = class {
         this.memCache.delete(oldest);
       }
     }
-    this.memCache.set(key, translated);
+    this.memCache.set(key, { t: Date.now(), v: translated });
     this.dirty = true;
     this.scheduleSave();
   }
@@ -529,6 +538,7 @@ var ChatTranslateObserver = class {
           childList: true,
           subtree: true,
           attributes: true,
+          characterData: true,
           attributeFilter: ["data-state", "data-tool", "data-variant", "data-sample", "aria-expanded"]
         });
       }
@@ -552,6 +562,11 @@ var ChatTranslateObserver = class {
         const target = mutation.target;
         if (target instanceof HTMLElement) {
           this.scanNode(target);
+        }
+      } else if (mutation.type === "characterData") {
+        const parent = mutation.target.parentElement;
+        if (parent instanceof HTMLElement) {
+          this.scanNode(parent);
         }
       }
     }

@@ -74,6 +74,7 @@ var ConfigManager = class {
 import * as fs2 from "node:fs/promises";
 import * as path2 from "node:path";
 import * as os2 from "node:os";
+var TTL_MS = 7 * 24 * 60 * 60 * 1e3;
 var LruDiskCache = class {
   cache = /* @__PURE__ */ new Map();
   maxEntries;
@@ -90,9 +91,14 @@ var LruDiskCache = class {
       const content = await fs2.readFile(this.filePath, "utf-8");
       const obj = JSON.parse(content);
       if (obj && typeof obj === "object") {
-        for (const [k, v] of Object.entries(obj)) {
-          if (typeof v === "string") {
-            this.cache.set(k, v);
+        for (const [k, raw] of Object.entries(obj)) {
+          if (typeof raw === "string") {
+            this.cache.set(k, { t: 0, v: raw });
+          } else if (raw && typeof raw === "object" && typeof raw.v === "string") {
+            const entry = raw;
+            if (typeof entry.t === "number" && Number.isFinite(entry.t)) {
+              this.cache.set(k, entry);
+            }
           }
         }
       }
@@ -100,13 +106,15 @@ var LruDiskCache = class {
     }
   }
   get(key) {
-    const val = this.cache.get(key);
-    if (val !== void 0) {
+    const entry = this.cache.get(key);
+    if (entry === void 0) return void 0;
+    if (entry.t > 0 && Date.now() - entry.t > TTL_MS) {
       this.cache.delete(key);
-      this.cache.set(key, val);
-      return val;
+      return void 0;
     }
-    return void 0;
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    return entry.v;
   }
   set(key, value) {
     if (this.cache.has(key)) {
@@ -117,7 +125,7 @@ var LruDiskCache = class {
         this.cache.delete(oldestKey);
       }
     }
-    this.cache.set(key, value);
+    this.cache.set(key, { t: Date.now(), v: value });
     this.dirty = true;
     this.scheduleSave();
   }
@@ -214,7 +222,8 @@ var BingWebAdapter = class {
     const json = await response.json();
     const translated = json?.[0]?.translations?.[0]?.text?.trim();
     if (!translated) {
-      return text;
+      cachedTokens = null;
+      throw new Error("Bing translate returned an empty result");
     }
     return translated;
   }
@@ -295,6 +304,9 @@ var TranslationDispatcher = class {
           }
         } catch (err) {
           this.recordFailure(chId);
+          console.warn(
+            `[dsh-chat-tidy] channel ${chId} failed: ${err?.message || String(err)} | text: ${text.slice(0, 60)}`
+          );
         }
       }
       return { original: rawText, translated: rawText, channel: "fallback", cached: false };
@@ -406,10 +418,7 @@ function sendJson(res, status, body) {
   const json = JSON.stringify(body);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
-    "Content-Length": Buffer.byteLength(json),
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+    "Content-Length": Buffer.byteLength(json)
   });
   res.end(json);
 }
@@ -423,15 +432,6 @@ function readBody(req) {
 }
 function createHttpHandler(configManager, dispatcher) {
   return async (req, res) => {
-    if (req.method === "OPTIONS") {
-      res.writeHead(204, {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
-      });
-      res.end();
-      return;
-    }
     const url = new URL(req.url || "/", "http://localhost");
     const pathParts = url.pathname.split("/").filter(Boolean);
     const endpoint = pathParts[2] || "";

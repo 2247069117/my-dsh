@@ -156,6 +156,7 @@ export class ChatTranslateObserver {
           childList: true,
           subtree: true,
           attributes: true,
+          characterData: true,
           attributeFilter: ['data-state', 'data-tool', 'data-variant', 'data-sample', 'aria-expanded'],
         });
       }
@@ -184,6 +185,14 @@ export class ChatTranslateObserver {
         if (target instanceof HTMLElement) {
           // React state change (running -> error, accordion expansion)
           this.scanNode(target);
+        }
+      } else if (mutation.type === 'characterData') {
+        // React re-rendered a text node (e.g. wiped our translation back to
+        // English). Re-scan the owner element; the dataset guard keeps this
+        // loop-free: translated text is Chinese or equals the cached value.
+        const parent = mutation.target.parentElement;
+        if (parent instanceof HTMLElement) {
+          this.scanNode(parent);
         }
       }
     }
