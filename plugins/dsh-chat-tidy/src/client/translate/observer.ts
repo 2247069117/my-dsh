@@ -8,6 +8,7 @@ const TOOL_TITLE_SELECTOR = [
   '[data-slot="tool.call.toolview"] [class*="summary"]',
   '[data-sample] [class*="summary"]',
   '[data-variant] [class*="summary"]',
+  '[data-variant][data-state="error"] [class*="errorSummary"]',
   '[data-tool] [data-disclosure-row] > span:not([aria-hidden])',
   '[data-disclosure-row] [class*="summary"]',
 ].join(', ');
@@ -15,9 +16,11 @@ const TOOL_TITLE_SELECTOR = [
 function isToolSummarySpan(span: HTMLElement): boolean {
   if (span.hasAttribute('aria-hidden')) return false;
   // Never touch tool-name badges / icons / leading elements — only the
-  // description summary line (e.g. `.CY-8Ka_summary`) is translated.
+  // description summary line (e.g. `.CY-8Ka_summary`) or the error summary
+  // line (e.g. `.CY-8Ka_errorSummary`, "Error: tool call aborted") should be
+  // translated.
   const cls = span.className || '';
-  if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
+  if (/title|leading|icon|badge|chevron|ioText|ioSection|ioCard|output|json|code|path/i.test(cls)) return false;
   // Exclude think / reasoning blocks
   if (span.closest('[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row')) {
     return false;
@@ -25,7 +28,12 @@ function isToolSummarySpan(span: HTMLElement): boolean {
   if (span.parentElement && span.parentElement.textContent?.includes('Think')) {
     return false;
   }
-  
+  // Never touch tool IO previews (input JSON / command output) — technical
+  // content that must stay byte-identical.
+  if (span.closest('[class*="ioSection"], [class*="ioCard"], pre, [class*="code"]')) {
+    return false;
+  }
+
   // Must belong to tool call
   if (span.closest('[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool]')) {
     return true;

@@ -415,17 +415,21 @@ var TOOL_TITLE_SELECTOR = [
   '[data-slot="tool.call.toolview"] [class*="summary"]',
   '[data-sample] [class*="summary"]',
   '[data-variant] [class*="summary"]',
+  '[data-variant][data-state="error"] [class*="errorSummary"]',
   "[data-tool] [data-disclosure-row] > span:not([aria-hidden])",
   '[data-disclosure-row] [class*="summary"]'
 ].join(", ");
 function isToolSummarySpan(span) {
   if (span.hasAttribute("aria-hidden")) return false;
   const cls = span.className || "";
-  if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
+  if (/title|leading|icon|badge|chevron|ioText|ioSection|ioCard|output|json|code|path/i.test(cls)) return false;
   if (span.closest('[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row')) {
     return false;
   }
   if (span.parentElement && span.parentElement.textContent?.includes("Think")) {
+    return false;
+  }
+  if (span.closest('[class*="ioSection"], [class*="ioCard"], pre, [class*="code"]')) {
     return false;
   }
   if (span.closest('[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool]')) {
