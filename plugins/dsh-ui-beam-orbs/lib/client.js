@@ -2165,7 +2165,7 @@ function initSettings(shared) {
           sliderItemBlur())),
       h("div", { className: "dsh-bg-foot" },
         h("button", { type: "button", className: "dsh-bg-reset", onClick: function () { resetSettings(); } }, "恢复默认"),
-        h("span", { className: "dsh-bg-note" }, "v1.0.4 · 即时生效并自动保存")));
+        h("span", { className: "dsh-bg-note" }, "v1.0.5 · 即时生效并自动保存")));
   }
 
   var SETTINGS_NAV_MARKER = "data-dsh-beam-orbs-settings-nav";
@@ -2414,12 +2414,30 @@ function initBeam(shared) {
     try {
       var stopBtn = document.querySelector('button[aria-label*="停止生成"], button[aria-label*="Stop generating"], button[aria-label*="Stop generating message"], [data-composer-card] button[aria-label*="停止"], [data-composer-card] button[aria-label*="Stop"]');
       if (stopBtn && !stopBtn.disabled && stopBtn.offsetParent !== null) return true;
-      var runningEl = document.querySelector('[data-state="running"]');
-      if (runningEl && runningEl.offsetParent !== null) {
+      // 身份限定执行探测：只认真实工具行 / 推理流 / 答案流的 DOM 特征，
+      // 不再裸查全文档 [data-state="running"]——否则任意第三方面板
+      // （如 AgentTeams 活动面板的成员/任务状态芯片）都会误触发执行态流光
+      var EXECUTING_IDENTITY_SELECTOR = [
+        '[data-tool][data-state="running"]',
+        '[data-sample="bash"][data-state="running"]',
+        '[data-subcalls] [data-tool][data-state="running"]',
+        '.CY-8Ka_root[data-state="running"]',
+        '.o3BgMG_root[data-state="running"]',
+        '.iWrAna_card[data-state="running"]',
+        '._Xvjua_root[data-state="running"]',
+        '[data-variant="think"][data-state="running"]',
+        '.QWLzlG_root[data-state="running"]',
+        '[data-variant="answer"][data-state="running"]',
+        '[data-role="assistant"][data-streaming="true"]'
+      ].join(", ");
+      var runningRows = document.querySelectorAll(EXECUTING_IDENTITY_SELECTOR);
+      for (var ri = 0; ri < runningRows.length; ri++) {
+        var runningEl = runningRows[ri];
+        if (!runningEl || runningEl.offsetParent === null) continue;
         if (runningEl.classList && (runningEl.classList.contains("dsh-thinking-orb-wrap") || runningEl.classList.contains("dsh-turn-status-text") || runningEl.classList.contains("dsh-thinking-orb-canvas"))) {
-        } else {
-          return true;
+          continue;
         }
+        return true;
       }
     } catch(e) {}
     return false;
@@ -3890,7 +3908,7 @@ function initShell(shared) {
     function render() {
       collect();
       panel.textContent = [
-        "dsh-ui-beam-orbs v1.0.4 diagnostics",
+        "dsh-ui-beam-orbs v1.0.5 diagnostics",
         "theme: " + diag.theme,
         "body bg: " + diag.bodyBg,
         "html bg: " + diag.htmlBg,

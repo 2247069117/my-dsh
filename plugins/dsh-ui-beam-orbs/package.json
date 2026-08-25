@@ -1,7 +1,7 @@
 {
   "name": "@lynn123411/dsh-ui-beam-orbs",
   "description": "DSH Web 界面皮肤层：玻璃拟态 + Border Beam + Thinking Orbs + Pulse 任务清单框 + 发送按钮微动效（背景引擎极光/鲸鱼/星座在 @lynn123411/dsh-ui-deepseek-bg）",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "main": "lib/index.js",
   "scripts": {
