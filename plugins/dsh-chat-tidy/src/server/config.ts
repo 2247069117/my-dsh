@@ -6,6 +6,9 @@ import type { PluginConfig, MaskedPluginConfig } from './types.ts';
 /** All known channel ids, in the order the dispatcher tries them by default. */
 const KNOWN_CHANNELS = ['bing'];
 
+/** Hard cap for the translation concurrency pool (Bing tolerates >> this). */
+export const MAX_CONCURRENCY = 12;
+
 const DEFAULT_CONFIG: PluginConfig = {
   enabled: true,
   concurrency: 3,
@@ -65,7 +68,7 @@ export class ConfigManager {
 
     // Bounds check
     if (typeof next.concurrency === 'number') {
-      next.concurrency = Math.min(Math.max(Math.round(next.concurrency), 1), 6);
+      next.concurrency = Math.min(Math.max(Math.round(next.concurrency), 1), MAX_CONCURRENCY);
     }
     if (typeof next.timeoutMs === 'number') {
       next.timeoutMs = Math.min(Math.max(Math.round(next.timeoutMs), 500), 10000);

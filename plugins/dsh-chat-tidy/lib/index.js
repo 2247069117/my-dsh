@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 var KNOWN_CHANNELS = ["bing"];
+var MAX_CONCURRENCY = 12;
 var DEFAULT_CONFIG = {
   enabled: true,
   concurrency: 3,
@@ -51,7 +52,7 @@ var ConfigManager = class {
       ...partial
     };
     if (typeof next.concurrency === "number") {
-      next.concurrency = Math.min(Math.max(Math.round(next.concurrency), 1), 6);
+      next.concurrency = Math.min(Math.max(Math.round(next.concurrency), 1), MAX_CONCURRENCY);
     }
     if (typeof next.timeoutMs === "number") {
       next.timeoutMs = Math.min(Math.max(Math.round(next.timeoutMs), 500), 1e4);
@@ -363,7 +364,7 @@ var TranslationDispatcher = class {
       };
       const maxConcurrency = Math.min(
         Math.max(this.configManager.getConfig().concurrency || 3, 1),
-        6
+        MAX_CONCURRENCY
       );
       if (this.activeCount < maxConcurrency) {
         exec();
@@ -375,7 +376,7 @@ var TranslationDispatcher = class {
   processNext() {
     const maxConcurrency = Math.min(
       Math.max(this.configManager.getConfig().concurrency || 3, 1),
-      6
+      MAX_CONCURRENCY
     );
     while (this.queue.length > 0 && this.activeCount < maxConcurrency) {
       const next = this.queue.shift();

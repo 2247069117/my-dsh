@@ -1,5 +1,6 @@
 import type { ITranslationAdapter, PluginConfig, TranslateItemResult } from './types.ts';
 import type { ConfigManager } from './config.ts';
+import { MAX_CONCURRENCY } from './config.ts';
 import type { LruDiskCache } from './cache.ts';
 import { BingWebAdapter } from './adapters/bing.ts';
 
@@ -174,7 +175,7 @@ export class TranslationDispatcher {
 
       const maxConcurrency = Math.min(
         Math.max(this.configManager.getConfig().concurrency || 3, 1),
-        6
+        MAX_CONCURRENCY
       );
 
       if (this.activeCount < maxConcurrency) {
@@ -188,7 +189,7 @@ export class TranslationDispatcher {
   private processNext(): void {
     const maxConcurrency = Math.min(
       Math.max(this.configManager.getConfig().concurrency || 3, 1),
-      6
+      MAX_CONCURRENCY
     );
 
     while (this.queue.length > 0 && this.activeCount < maxConcurrency) {
