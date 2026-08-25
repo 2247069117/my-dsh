@@ -578,14 +578,58 @@ var ChatTranslateObserver = class {
     if (span.dataset.tidyTranslated === "true") return;
     const raw = span.textContent?.trim() || text;
     if (!raw || CHINESE_CHAR_REGEX.test(raw)) return;
-    const chunks = chunkText(raw, 600);
-    const results = await requestTranslateBatch(chunks);
-    const merged = results.map((r) => r.translated ?? r.original).join("\n");
-    if (merged && merged !== raw) {
+    const chunks = chunkText(raw, 600).slice(0, 60);
+    if (chunks.length === 1) {
+      const res = await requestTranslateBatch(chunks);
+      const merged = res[0]?.translated?.trim();
+      if (merged && merged !== chunks[0]) {
+        span.dataset.original = raw;
+        span.dataset.tidyTranslated = "true";
+        span.dataset.tidyThink = "true";
+        span.textContent = merged;
+      }
+      return;
+    }
+    const results = new Array(chunks.length).fill(null);
+    let cursor = 0;
+    let inFlight = 0;
+    let prefixDone = 0;
+    const paint = () => {
+      if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
+      const parts = chunks.map((c, i) => i < prefixDone && results[i] ? results[i] : c);
+      span.textContent = parts.join("\n");
+    };
+    await new Promise((resolve) => {
+      const pump = () => {
+        if (!this.translateThinking || !this.isEnabled || !span.isConnected) {
+          resolve();
+          return;
+        }
+        while (inFlight < 3 && cursor < chunks.length) {
+          const k = cursor++;
+          inFlight++;
+          (async () => {
+            try {
+              const r = await requestTranslateBatch([chunks[k]]);
+              const t = r[0]?.translated?.trim();
+              if (t && t !== chunks[k]) results[k] = t;
+            } catch {
+            } finally {
+              inFlight--;
+              while (prefixDone < chunks.length && results[prefixDone] !== null) prefixDone++;
+              paint();
+              pump();
+            }
+          })();
+        }
+        if (cursor >= chunks.length && inFlight === 0) resolve();
+      };
+      pump();
+    });
+    if (prefixDone === chunks.length) {
       span.dataset.original = raw;
       span.dataset.tidyTranslated = "true";
       span.dataset.tidyThink = "true";
-      span.textContent = merged;
     }
   }
   constructor() {

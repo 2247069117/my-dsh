@@ -216,16 +216,68 @@ export class ChatTranslateObserver {
     const raw = span.textContent?.trim() || text;
     if (!raw || CHINESE_CHAR_REGEX.test(raw)) return;
 
-    // Heavy text: chunk by line/space boundaries and translate in one batch
-    // (host pool still applies its cap), then reassemble.
-    const chunks = chunkText(raw, 600);
-    const results = await requestTranslateBatch(chunks);
-    const merged = results.map((r) => r.translated ?? r.original).join('\n');
-    if (merged && merged !== raw) {
+    // Heavy prose: chunk by line groups (<=600 chars each, never splitting a
+    // line), translate with a small worker pool (3 in flight per element —
+    // think load must never consume the whole concurrency budget), and roll
+    // finished chunks into the DOM as a prefix so long chains render
+    // progressively instead of appearing all at once.
+    const chunks = chunkText(raw, 600).slice(0, 60); // hard cap: rest stays raw
+    if (chunks.length === 1) {
+      const res = await requestTranslateBatch(chunks);
+      const merged = res[0]?.translated?.trim();
+      if (merged && merged !== chunks[0]) {
+        span.dataset.original = raw;
+        span.dataset.tidyTranslated = 'true';
+        span.dataset.tidyThink = 'true';
+        span.textContent = merged;
+      }
+      return;
+    }
+
+    const results: Array<string | null> = new Array(chunks.length).fill(null);
+    let cursor = 0;
+    let inFlight = 0;
+    let prefixDone = 0;
+
+    const paint = (): void => {
+      if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
+      const parts = chunks.map((c, i) => (i < prefixDone && results[i] ? (results[i] as string) : c));
+      span.textContent = parts.join('\n');
+    };
+
+    await new Promise<void>((resolve) => {
+      const pump = (): void => {
+        if (!this.translateThinking || !this.isEnabled || !span.isConnected) {
+          resolve();
+          return;
+        }
+        while (inFlight < 3 && cursor < chunks.length) {
+          const k = cursor++;
+          inFlight++;
+          (async () => {
+            try {
+              const r = await requestTranslateBatch([chunks[k]]);
+              const t = r[0]?.translated?.trim();
+              if (t && t !== chunks[k]) results[k] = t;
+            } catch {
+              // keep raw chunk
+            } finally {
+              inFlight--;
+              while (prefixDone < chunks.length && results[prefixDone] !== null) prefixDone++;
+              paint();
+              pump();
+            }
+          })();
+        }
+        if (cursor >= chunks.length && inFlight === 0) resolve();
+      };
+      pump();
+    });
+
+    if (prefixDone === chunks.length) {
       span.dataset.original = raw;
       span.dataset.tidyTranslated = 'true';
       span.dataset.tidyThink = 'true';
-      span.textContent = merged;
     }
   }
 
