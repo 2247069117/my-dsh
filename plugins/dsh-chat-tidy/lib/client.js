@@ -353,7 +353,15 @@ async function testServerChannel(channel) {
 var LazyTranslationQueue = class {
   batchQueue = [];
   debounceTimer = null;
+  enabled = true;
+  setEnabled(enabled) {
+    this.enabled = enabled;
+    if (!enabled) {
+      this.batchQueue = [];
+    }
+  }
   observe(element, text) {
+    if (!this.enabled) return;
     const cached = clientCache.get(text);
     if (cached) {
       this.applyTranslation(element, cached, text);
@@ -371,7 +379,7 @@ var LazyTranslationQueue = class {
     }
   }
   async flushBatch() {
-    if (this.batchQueue.length === 0) return;
+    if (this.batchQueue.length === 0 || !this.enabled) return;
     const currentBatch = [...this.batchQueue];
     this.batchQueue = [];
     const textMap = /* @__PURE__ */ new Map();
@@ -402,7 +410,7 @@ var LazyTranslationQueue = class {
     }
   }
   applyTranslation(element, translated, original) {
-    if (!element.isConnected) return;
+    if (!element.isConnected || !this.enabled) return;
     element.dataset.tidyTranslated = "true";
     element.dataset.original = original;
     element.textContent = translated;
@@ -481,6 +489,7 @@ ${line}` : line;
   return chunks;
 }
 var translatingErrorOuts = /* @__PURE__ */ new WeakSet();
+var errorOutEnabled = true;
 async function translateErrorOut(span) {
   if (translatingErrorOuts.has(span)) return;
   const raw = span.textContent ?? "";
@@ -494,7 +503,7 @@ async function translateErrorOut(span) {
     const chunks = chunkLines(raw, ERROR_OUT_CHUNK_MAX);
     const results = await requestTranslateBatch(chunks);
     const merged = results.map((r) => r.translated ?? r.original).join("\n");
-    if (merged && merged !== raw) {
+    if (errorOutEnabled && merged && merged !== raw) {
       span.dataset.tidyTranslated = "true";
       span.dataset.original = raw;
       span.textContent = merged;
@@ -513,10 +522,30 @@ var ChatTranslateObserver = class {
   }
   setEnabled(enabled) {
     this.isEnabled = enabled;
-    if (!enabled) {
-      this.disconnect();
-    } else {
+    errorOutEnabled = enabled;
+    if (enabled) {
+      lazyQueue.setEnabled(true);
       this.start();
+    } else {
+      this.restoreOriginals();
+      this.disconnect();
+      lazyQueue.setEnabled(false);
+    }
+  }
+  /**
+   * Restore every translated node back to its English original so toggling
+   * the switch off takes effect immediately (no browser refresh needed).
+   */
+  restoreOriginals() {
+    const scope = this.rootElement ?? document;
+    const spans = scope.querySelectorAll('[data-tidy-translated="true"]');
+    for (const span of spans) {
+      const original = span.dataset.original;
+      if (original && original !== span.textContent) {
+        span.textContent = original;
+      }
+      delete span.dataset.tidyTranslated;
+      delete span.dataset.original;
     }
   }
   start(documentRef = document) {

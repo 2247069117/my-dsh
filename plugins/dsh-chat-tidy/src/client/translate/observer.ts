@@ -83,6 +83,8 @@ function chunkLines(text: string, max: number): string[] {
 }
 
 const translatingErrorOuts = new WeakSet<HTMLElement>();
+/** Gate for error-out writes; flipped together with the plugin switch. */
+let errorOutEnabled = true;
 
 async function translateErrorOut(span: HTMLElement): Promise<void> {
   if (translatingErrorOuts.has(span)) return;
@@ -98,7 +100,7 @@ async function translateErrorOut(span: HTMLElement): Promise<void> {
     const chunks = chunkLines(raw, ERROR_OUT_CHUNK_MAX);
     const results = await requestTranslateBatch(chunks);
     const merged = results.map((r) => r.translated ?? r.original).join('\n');
-    if (merged && merged !== raw) {
+    if (errorOutEnabled && merged && merged !== raw) {
       span.dataset.tidyTranslated = 'true';
       span.dataset.original = raw;
       span.textContent = merged;
@@ -120,11 +122,33 @@ export class ChatTranslateObserver {
   }
 
   setEnabled(enabled: boolean): void {
+    // Flip the gate FIRST so restore-triggered mutations cannot re-translate.
     this.isEnabled = enabled;
-    if (!enabled) {
-      this.disconnect();
-    } else {
+    errorOutEnabled = enabled;
+    if (enabled) {
+      lazyQueue.setEnabled(true);
       this.start();
+    } else {
+      this.restoreOriginals();
+      this.disconnect();
+      lazyQueue.setEnabled(false);
+    }
+  }
+
+  /**
+   * Restore every translated node back to its English original so toggling
+   * the switch off takes effect immediately (no browser refresh needed).
+   */
+  private restoreOriginals(): void {
+    const scope = this.rootElement ?? document;
+    const spans = scope.querySelectorAll<HTMLElement>('[data-tidy-translated="true"]');
+    for (const span of spans) {
+      const original = span.dataset.original;
+      if (original && original !== span.textContent) {
+        span.textContent = original;
+      }
+      delete span.dataset.tidyTranslated;
+      delete span.dataset.original;
     }
   }
 

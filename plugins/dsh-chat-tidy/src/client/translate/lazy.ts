@@ -9,8 +9,18 @@ type TranslateTask = {
 class LazyTranslationQueue {
   private batchQueue: TranslateTask[] = [];
   private debounceTimer: number | null = null;
+  private enabled = true;
+
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+    if (!enabled) {
+      // Drop buffered work so nothing can write after a toggle-off.
+      this.batchQueue = [];
+    }
+  }
 
   observe(element: HTMLElement, text: string): void {
+    if (!this.enabled) return;
     // 1. If cached, apply immediately
     const cached = clientCache.get(text);
     if (cached) {
@@ -33,7 +43,7 @@ class LazyTranslationQueue {
   }
 
   private async flushBatch(): Promise<void> {
-    if (this.batchQueue.length === 0) return;
+    if (this.batchQueue.length === 0 || !this.enabled) return;
 
     const currentBatch = [...this.batchQueue];
     this.batchQueue = [];
@@ -73,7 +83,7 @@ class LazyTranslationQueue {
   }
 
   private applyTranslation(element: HTMLElement, translated: string, original: string): void {
-    if (!element.isConnected) return;
+    if (!element.isConnected || !this.enabled) return;
     element.dataset.tidyTranslated = 'true';
     element.dataset.original = original;
     element.textContent = translated;
