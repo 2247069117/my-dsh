@@ -233,7 +233,13 @@ var BingWebAdapter = class {
 };
 
 // src/server/dispatcher.ts
-var CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
+function isMostlyChinese(text, threshold = 0.2) {
+  const m = text.match(/[\u4e00-\u9fa5]/g);
+  const c = m ? m.length : 0;
+  if (c === 0) return false;
+  if (text.length < 80) return true;
+  return c > 15 || c / text.length > threshold;
+}
 var TranslationDispatcher = class {
   configManager;
   cache;
@@ -258,7 +264,7 @@ var TranslationDispatcher = class {
     if (!text) {
       return { original: rawText, translated: rawText, channel: "none", cached: true };
     }
-    if (CHINESE_CHAR_REGEX.test(text)) {
+    if (isMostlyChinese(text)) {
       return { original: rawText, translated: rawText, channel: "none", cached: true };
     }
     const config = this.configManager.getConfig();
