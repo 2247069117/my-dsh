@@ -3,6 +3,32 @@ import { lazyQueue } from './lazy.ts';
 
 const CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
 
+const TOOL_TITLE_SELECTOR = [
+  '[data-chat-call-id] [class*="summary"]',
+  '[data-slot="tool.call.toolview"] [class*="summary"]',
+  '[data-sample] [class*="summary"]',
+  '[data-variant] [class*="summary"]',
+  '[data-tool] [data-disclosure-row] > span:not([aria-hidden])',
+  '[data-disclosure-row] [class*="summary"]',
+].join(', ');
+
+function isToolSummarySpan(span: HTMLElement): boolean {
+  if (span.hasAttribute('aria-hidden')) return false;
+  // Exclude think / reasoning blocks
+  if (span.closest('[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row')) {
+    return false;
+  }
+  if (span.parentElement && span.parentElement.textContent?.includes('Think')) {
+    return false;
+  }
+  
+  // Must belong to tool call
+  if (span.closest('[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool]')) {
+    return true;
+  }
+  return false;
+}
+
 export class ChatTranslateObserver {
   private observer: MutationObserver | null = null;
   private rootElement: HTMLElement | null = null;
@@ -49,7 +75,7 @@ export class ChatTranslateObserver {
           childList: true,
           subtree: true,
           attributes: true,
-          attributeFilter: ['data-state', 'data-tool'],
+          attributeFilter: ['data-state', 'data-tool', 'data-variant', 'data-sample', 'aria-expanded'],
         });
       }
     };
@@ -75,7 +101,7 @@ export class ChatTranslateObserver {
       } else if (mutation.type === 'attributes') {
         const target = mutation.target;
         if (target instanceof HTMLElement) {
-          // React might have updated the tool state (running -> done)
+          // React state change or accordion expansion
           this.scanNode(target);
         }
       }
@@ -83,36 +109,33 @@ export class ChatTranslateObserver {
   }
 
   private scanContainer(container: HTMLElement): void {
-    const spans = container.querySelectorAll<HTMLElement>(
-      '[data-tool] [data-disclosure-row] > span:not([aria-hidden])'
-    );
-    spans.forEach((span) => this.processSpan(span));
+    const spans = container.querySelectorAll<HTMLElement>(TOOL_TITLE_SELECTOR);
+    spans.forEach((span) => {
+      if (isToolSummarySpan(span)) {
+        this.processSpan(span);
+      }
+    });
   }
 
   private scanNode(node: HTMLElement): void {
-    // If the node itself is a tool title span
-    if (
-      node.tagName === 'SPAN' &&
-      !node.hasAttribute('aria-hidden') &&
-      node.closest('[data-disclosure-row]') &&
-      node.closest('[data-tool]')
-    ) {
+    if (node.tagName === 'SPAN' && isToolSummarySpan(node)) {
       this.processSpan(node);
       return;
     }
 
-    // If the node contains tool cards or rows
-    const spans = node.querySelectorAll<HTMLElement>(
-      '[data-tool] [data-disclosure-row] > span:not([aria-hidden])'
-    );
-    spans.forEach((span) => this.processSpan(span));
+    const spans = node.querySelectorAll<HTMLElement>(TOOL_TITLE_SELECTOR);
+    spans.forEach((span) => {
+      if (isToolSummarySpan(span)) {
+        this.processSpan(span);
+      }
+    });
   }
 
   private processSpan(span: HTMLElement): void {
     const text = span.textContent?.trim() || '';
     if (!text) return;
 
-    // Check if it's already in Chinese or has Chinese characters
+    // Check if already in Chinese
     if (CHINESE_CHAR_REGEX.test(text)) {
       span.dataset.tidyTranslated = 'true';
       return;
@@ -124,7 +147,7 @@ export class ChatTranslateObserver {
       if (original) {
         const cached = clientCache.get(original);
         if (cached && text === cached) {
-          return; // Already has translated text
+          return;
         }
       }
     }

@@ -7,49 +7,19 @@ type TranslateTask = {
 };
 
 class LazyTranslationQueue {
-  private intersectionObserver: IntersectionObserver | null = null;
-  private pendingElements = new Map<HTMLElement, string>();
   private batchQueue: TranslateTask[] = [];
   private debounceTimer: number | null = null;
 
-  constructor() {
-    if (typeof window !== 'undefined' && 'IntersectionObserver' in window) {
-      this.intersectionObserver = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (entry.isIntersecting) {
-              const el = entry.target as HTMLElement;
-              const text = this.pendingElements.get(el);
-              if (text) {
-                this.pendingElements.delete(el);
-                this.intersectionObserver?.unobserve(el);
-                this.enqueueBatch(el, text);
-              }
-            }
-          }
-        },
-        { rootMargin: '200px' }
-      );
-    }
-  }
-
   observe(element: HTMLElement, text: string): void {
-    // 1. If cached, apply immediately without queueing or observing
+    // 1. If cached, apply immediately
     const cached = clientCache.get(text);
     if (cached) {
       this.applyTranslation(element, cached, text);
       return;
     }
 
-    // 2. If no IntersectionObserver, enqueue directly
-    if (!this.intersectionObserver) {
-      this.enqueueBatch(element, text);
-      return;
-    }
-
-    // 3. Register with IntersectionObserver
-    this.pendingElements.set(element, text);
-    this.intersectionObserver.observe(element);
+    // 2. Enqueue into debounced batch
+    this.enqueueBatch(element, text);
   }
 
   private enqueueBatch(element: HTMLElement, text: string): void {
@@ -71,7 +41,6 @@ class LazyTranslationQueue {
     // Group elements by text to avoid redundant API calls
     const textMap = new Map<string, HTMLElement[]>();
     for (const item of currentBatch) {
-      // Check if element is still connected to document
       if (!item.element.isConnected) continue;
 
       const cached = clientCache.get(item.text);
@@ -115,9 +84,7 @@ class LazyTranslationQueue {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
-    this.pendingElements.clear();
     this.batchQueue = [];
-    this.intersectionObserver?.disconnect();
   }
 }
 
