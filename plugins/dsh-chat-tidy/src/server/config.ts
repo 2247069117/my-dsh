@@ -4,15 +4,13 @@ import * as os from 'node:os';
 import type { PluginConfig, MaskedPluginConfig } from './types.ts';
 
 /** All known channel ids, in the order the dispatcher tries them by default. */
-const KNOWN_CHANNELS = ['siliconflow', 'zhipu', 'bing'];
+const KNOWN_CHANNELS = ['bing'];
 
 const DEFAULT_CONFIG: PluginConfig = {
   enabled: true,
   concurrency: 3,
   timeoutMs: 2000,
   channels: [...KNOWN_CHANNELS],
-  siliconflowKey: '',
-  zhipuKey: '',
 };
 
 export class ConfigManager {
@@ -35,11 +33,10 @@ export class ConfigManager {
     } catch {
       this.config = { ...DEFAULT_CONFIG };
     }
-    // Drop channels that no longer exist ('google' gtx channel and the
-    // 'gateway' DeepLX channel were retired), then merge in any adapter
-    // channels the config predates, so a persisted order from an older
-    // release keeps working with new channels.
-    const retired = new Set(['google', 'gateway', 'builtin', 'mymemory']);
+    // Drop channels that no longer exist (siliconflow / zhipu LLM channels and
+    // earlier retired ids), then merge in any adapter channels the config
+    // predates, so a persisted order from an older release keeps working.
+    const retired = new Set(['google', 'gateway', 'builtin', 'mymemory', 'siliconflow', 'zhipu']);
     const merged = this.config.channels.filter((ch) => !retired.has(ch));
     for (const ch of KNOWN_CHANNELS) {
       if (!merged.includes(ch)) merged.push(ch);
@@ -52,25 +49,15 @@ export class ConfigManager {
   }
 
   getMaskedConfig(): MaskedPluginConfig {
-    const maskKey = (k?: string) => {
-      if (!k || k.length < 8) return k ? '********' : '';
-      return `${k.slice(0, 3)}****${k.slice(-4)}`;
-    };
-
     return {
       enabled: this.config.enabled,
       concurrency: this.config.concurrency,
       timeoutMs: this.config.timeoutMs,
       channels: [...this.config.channels],
-      siliconflowKeyMasked: maskKey(this.config.siliconflowKey),
-      zhipuKeyMasked: maskKey(this.config.zhipuKey),
-      hasSiliconflowKey: !!(this.config.siliconflowKey && this.config.siliconflowKey.trim().length > 0),
-      hasZhipuKey: !!(this.config.zhipuKey && this.config.zhipuKey.trim().length > 0),
     };
   }
 
   async updateConfig(partial: Partial<PluginConfig>): Promise<PluginConfig> {
-    // If empty key passed or key not changed, handle carefully
     const next: PluginConfig = {
       ...this.config,
       ...partial,

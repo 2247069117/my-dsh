@@ -4,35 +4,16 @@ import { chatTranslateObserver } from '../translate/observer.ts';
 export interface ClientSettingsState {
   enabled: boolean;
   concurrency: number;
-  channels: string[];
-  siliconflowKey: string;
-  zhipuKey: string;
-  hasSiliconflowKey: boolean;
-  hasZhipuKey: boolean;
 }
 
 const LS_PREFIX = 'dsh-chat-tidy:';
 const LS_ENABLED = `${LS_PREFIX}enabled`;
 const LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
-const LS_CHANNELS = `${LS_PREFIX}channels`;
-
-export const CHANNEL_NAMES: Record<string, string> = {
-  siliconflow: '硅基流动 (Qwen2.5-7B)',
-  zhipu: '智谱 AI (glm-4-flash)',
-  bing: '微软 Bing 网页翻译 (免Key直连)',
-};
-
-export const ALL_CHANNELS = ['siliconflow', 'zhipu', 'bing'];
 
 class SettingsStore {
   private state: ClientSettingsState = {
     enabled: true,
     concurrency: 3,
-    channels: [...ALL_CHANNELS],
-    siliconflowKey: '',
-    zhipuKey: '',
-    hasSiliconflowKey: false,
-    hasZhipuKey: false,
   };
 
   private listeners = new Set<() => void>();
@@ -56,38 +37,25 @@ class SettingsStore {
           this.state.concurrency = c;
         }
       }
-      const channelsRaw = localStorage.getItem(LS_CHANNELS);
-      if (channelsRaw !== null) {
-        const arr = JSON.parse(channelsRaw);
-        if (Array.isArray(arr) && arr.length > 0) {
-          // Drop retired channel ids ('google' gtx, 'gateway' DeepLX), then
-          // merge in channels added by newer releases.
-          const retired = new Set(['google', 'gateway', 'builtin', 'mymemory']);
-          const filtered = arr.filter((x: string) => !retired.has(x) && ALL_CHANNELS.includes(x));
-          for (const ch of ALL_CHANNELS) {
-            if (!filtered.includes(ch)) filtered.push(ch);
-          }
-          this.state.channels = filtered;
-        }
-      }
     } catch {
       // Ignore
     }
   }
 
   private async syncFromServer(): Promise<void> {
-    const config = await fetchServerConfig();
-    if (config) {
-      this.state = {
-        ...this.state,
-        enabled: config.enabled ?? this.state.enabled,
-        concurrency: config.concurrency ?? this.state.concurrency,
-        channels: config.channels ?? this.state.channels,
-        hasSiliconflowKey: !!config.hasSiliconflowKey,
-        hasZhipuKey: !!config.hasZhipuKey,
-      };
-      chatTranslateObserver.setEnabled(this.state.enabled);
-      this.notify();
+    try {
+      const config = await fetchServerConfig();
+      if (config) {
+        this.state = {
+          ...this.state,
+          enabled: config.enabled ?? this.state.enabled,
+          concurrency: config.concurrency ?? this.state.concurrency,
+        };
+        chatTranslateObserver.setEnabled(this.state.enabled);
+        this.notify();
+      }
+    } catch {
+      // Host route may be unavailable during early boot — keep local defaults.
     }
   }
 
@@ -129,31 +97,16 @@ class SettingsStore {
       } catch {}
     }
 
-    if (Array.isArray(partial.channels)) {
-      try {
-        localStorage.setItem(LS_CHANNELS, JSON.stringify(partial.channels));
-      } catch {}
-    }
-
     this.notify();
 
     // Sync to host
-    const serverPayload: any = {
+    const updated = await updateServerConfig({
       enabled: this.state.enabled,
       concurrency: this.state.concurrency,
-      channels: this.state.channels,
-    };
-    if (typeof partial.siliconflowKey === 'string') {
-      serverPayload.siliconflowKey = partial.siliconflowKey;
-    }
-    if (typeof partial.zhipuKey === 'string') {
-      serverPayload.zhipuKey = partial.zhipuKey;
-    }
-
-    const updated = await updateServerConfig(serverPayload);
+    });
     if (updated) {
-      this.state.hasSiliconflowKey = !!updated.hasSiliconflowKey;
-      this.state.hasZhipuKey = !!updated.hasZhipuKey;
+      this.state.enabled = updated.enabled ?? this.state.enabled;
+      this.state.concurrency = updated.concurrency ?? this.state.concurrency;
       this.notify();
     }
   }

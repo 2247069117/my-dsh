@@ -1,14 +1,7 @@
 export interface ClientSettingsState {
     enabled: boolean;
     concurrency: number;
-    channels: string[];
-    siliconflowKey: string;
-    zhipuKey: string;
-    hasSiliconflowKey: boolean;
-    hasZhipuKey: boolean;
 }
-export declare const CHANNEL_NAMES: Record<string, string>;
-export declare const ALL_CHANNELS: string[];
 declare class SettingsStore {
     private state;
     private listeners;

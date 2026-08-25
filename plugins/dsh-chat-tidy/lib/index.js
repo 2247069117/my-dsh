@@ -2,14 +2,12 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
-var KNOWN_CHANNELS = ["siliconflow", "zhipu", "bing"];
+var KNOWN_CHANNELS = ["bing"];
 var DEFAULT_CONFIG = {
   enabled: true,
   concurrency: 3,
   timeoutMs: 2e3,
-  channels: [...KNOWN_CHANNELS],
-  siliconflowKey: "",
-  zhipuKey: ""
+  channels: [...KNOWN_CHANNELS]
 };
 var ConfigManager = class {
   config = { ...DEFAULT_CONFIG };
@@ -29,7 +27,7 @@ var ConfigManager = class {
     } catch {
       this.config = { ...DEFAULT_CONFIG };
     }
-    const retired = /* @__PURE__ */ new Set(["google", "gateway", "builtin", "mymemory"]);
+    const retired = /* @__PURE__ */ new Set(["google", "gateway", "builtin", "mymemory", "siliconflow", "zhipu"]);
     const merged = this.config.channels.filter((ch) => !retired.has(ch));
     for (const ch of KNOWN_CHANNELS) {
       if (!merged.includes(ch)) merged.push(ch);
@@ -40,19 +38,11 @@ var ConfigManager = class {
     return { ...this.config };
   }
   getMaskedConfig() {
-    const maskKey = (k) => {
-      if (!k || k.length < 8) return k ? "********" : "";
-      return `${k.slice(0, 3)}****${k.slice(-4)}`;
-    };
     return {
       enabled: this.config.enabled,
       concurrency: this.config.concurrency,
       timeoutMs: this.config.timeoutMs,
-      channels: [...this.config.channels],
-      siliconflowKeyMasked: maskKey(this.config.siliconflowKey),
-      zhipuKeyMasked: maskKey(this.config.zhipuKey),
-      hasSiliconflowKey: !!(this.config.siliconflowKey && this.config.siliconflowKey.trim().length > 0),
-      hasZhipuKey: !!(this.config.zhipuKey && this.config.zhipuKey.trim().length > 0)
+      channels: [...this.config.channels]
     };
   }
   async updateConfig(partial) {
@@ -157,94 +147,6 @@ var LruDiskCache = class {
   }
 };
 
-// src/server/adapters/siliconflow.ts
-var SYSTEM_PROMPT = "\u4F60\u662F\u4E00\u4E2A\u4E13\u4E1A\u7684\u6280\u672F\u5DE5\u5177\u52A8\u4F5C\u7B80\u77ED\u6807\u9898\u7FFB\u8BD1\u5668\u3002\u8BF7\u5C06\u7ED9\u51FA\u7684\u5DE5\u5177\u8C03\u7528\u63CF\u8FF0\u6216\u6807\u9898\u7FFB\u8BD1\u4E3A\u6781\u5176\u7B80\u7EC3\u7684\u4E2D\u6587\u52A8\u5BBE\u77ED\u8BED\uFF08\u4FDD\u7559\u547D\u4EE4\u540D\u3001\u53C2\u6570\u3001\u6587\u4EF6\u8DEF\u5F84\u3001URL\u3001\u6807\u8BC6\u7B26\u539F\u6837\uFF09\u3002\u53EA\u8FD4\u56DE\u7FFB\u8BD1\u540E\u7684\u7EAF\u4E2D\u6587\u77ED\u8BED\uFF0C\u4E0D\u8981\u5305\u542B\u4EFB\u4F55\u89E3\u91CA\u3001\u989D\u5916\u6807\u70B9\u3001\u524D\u7F00\u3001\u5F15\u53F7\u6216 Markdown \u683C\u5F0F\u3002";
-var SiliconFlowAdapter = class {
-  id = "siliconflow";
-  name = "\u7845\u57FA\u6D41\u52A8 (Qwen2.5-7B)";
-  isAvailable(config) {
-    return !!(config.siliconflowKey && config.siliconflowKey.trim().length > 0);
-  }
-  async translate(text, signal, config) {
-    const key = config.siliconflowKey?.trim();
-    if (!key) {
-      throw new Error("SiliconFlow API key is not configured");
-    }
-    const response = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`
-      },
-      body: JSON.stringify({
-        model: "Qwen/Qwen2.5-7B-Instruct",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: text }
-        ],
-        temperature: 0,
-        max_tokens: 60,
-        stream: false
-      }),
-      signal
-    });
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      throw new Error(`SiliconFlow API responded with ${response.status}: ${errText}`);
-    }
-    const json = await response.json();
-    const content = json.choices?.[0]?.message?.content?.trim();
-    if (!content) {
-      throw new Error("SiliconFlow returned empty translation");
-    }
-    return content;
-  }
-};
-
-// src/server/adapters/zhipu.ts
-var SYSTEM_PROMPT2 = "\u4F60\u662F\u4E00\u4E2A\u4E13\u4E1A\u7684\u6280\u672F\u5DE5\u5177\u52A8\u4F5C\u7B80\u77ED\u6807\u9898\u7FFB\u8BD1\u5668\u3002\u8BF7\u5C06\u7ED9\u51FA\u7684\u5DE5\u5177\u8C03\u7528\u63CF\u8FF0\u6216\u6807\u9898\u7FFB\u8BD1\u4E3A\u6781\u5176\u7B80\u7EC3\u7684\u4E2D\u6587\u52A8\u5BBE\u77ED\u8BED\uFF08\u4FDD\u7559\u547D\u4EE4\u540D\u3001\u53C2\u6570\u3001\u6587\u4EF6\u8DEF\u5F84\u3001URL\u3001\u6807\u8BC6\u7B26\u539F\u6837\uFF09\u3002\u53EA\u8FD4\u56DE\u7FFB\u8BD1\u540E\u7684\u7EAF\u4E2D\u6587\u77ED\u8BED\uFF0C\u4E0D\u8981\u5305\u542B\u4EFB\u4F55\u89E3\u91CA\u3001\u989D\u5916\u6807\u70B9\u3001\u524D\u7F00\u3001\u5F15\u53F7\u6216 Markdown \u683C\u5F0F\u3002";
-var ZhipuAdapter = class {
-  id = "zhipu";
-  name = "\u667A\u8C31 AI (glm-4-flash)";
-  isAvailable(config) {
-    return !!(config.zhipuKey && config.zhipuKey.trim().length > 0);
-  }
-  async translate(text, signal, config) {
-    const key = config.zhipuKey?.trim();
-    if (!key) {
-      throw new Error("Zhipu API key is not configured");
-    }
-    const response = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`
-      },
-      body: JSON.stringify({
-        model: "glm-4-flash",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT2 },
-          { role: "user", content: text }
-        ],
-        temperature: 0,
-        max_tokens: 60,
-        stream: false
-      }),
-      signal
-    });
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      throw new Error(`Zhipu API responded with ${response.status}: ${errText}`);
-    }
-    const json = await response.json();
-    const content = json.choices?.[0]?.message?.content?.trim();
-    if (!content) {
-      throw new Error("Zhipu returned empty translation");
-    }
-    return content;
-  }
-};
-
 // src/server/adapters/bing.ts
 var TRANSLATOR_URL = "https://cn.bing.com/translator";
 var TRANSLATE_URL = "https://cn.bing.com/ttranslatev3?isVertical=1&&IG={IG}&IID=translator.5025.1";
@@ -331,8 +233,6 @@ var TranslationDispatcher = class {
   constructor(configManager, cache) {
     this.configManager = configManager;
     this.cache = cache;
-    this.registerAdapter(new SiliconFlowAdapter());
-    this.registerAdapter(new ZhipuAdapter());
     this.registerAdapter(new BingWebAdapter());
   }
   registerAdapter(adapter) {
@@ -366,7 +266,7 @@ var TranslationDispatcher = class {
     }
     const taskPromise = this.enqueueTask(async () => {
       const currentConfig = this.configManager.getConfig();
-      const channels = currentConfig.channels || ["siliconflow", "zhipu", "bing"];
+      const channels = currentConfig.channels || ["bing"];
       for (const chId of channels) {
         const adapter = this.adapters.get(chId);
         if (!adapter || !adapter.isAvailable(currentConfig) || this.isCircuitOpen(chId)) {

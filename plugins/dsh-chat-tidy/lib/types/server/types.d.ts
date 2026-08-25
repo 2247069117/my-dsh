@@ -3,14 +3,12 @@ export interface PluginConfig {
     concurrency: number;
     timeoutMs: number;
     channels: string[];
-    siliconflowKey?: string;
-    zhipuKey?: string;
 }
-export interface MaskedPluginConfig extends Omit<PluginConfig, 'siliconflowKey' | 'zhipuKey'> {
-    siliconflowKeyMasked?: string;
-    zhipuKeyMasked?: string;
-    hasSiliconflowKey: boolean;
-    hasZhipuKey: boolean;
+export interface MaskedPluginConfig {
+    enabled: boolean;
+    concurrency: number;
+    timeoutMs: number;
+    channels: string[];
 }
 export interface TranslateItemResult {
     original: string;

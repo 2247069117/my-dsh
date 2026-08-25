@@ -7,6 +7,7 @@ Codex 级对话排版与工具调用标题智能翻译扩展插件。将 DeepSee
 - **Codex 级对话排版**：精准对齐桌面客户端的字体比例阶梯、行高、代码块间距与紧凑排版，阅读信息密度提升 20%。
 - **工具调用标题智能翻译**：仅在渲染层将工具调用动作描述（如 `Locate DSH home directory structure`、`Inspect DSH home directory layout`）自动中文覆盖，严格不触碰 Think 思考块与消息正文。
 - **纯渲染劫持，零上下文占用**：翻译结果仅作用于 DOM 展示，不写入会话历史 JSON，不占用模型上下文窗口；历史会话打开时自动实时渲染。
+- **工具调用报错输出自动翻译**：工具调用失败（error/aborted）时的英文报错输出（如 `bash: line 1: rm: command not found`）自动翻译为中文，正常调用与代码输出保持原样。
 - **多通道高可用翻译引擎**：
   - 支持硅基流动（SiliconFlow Qwen2.5-7B）与智谱 AI（Zhipu glm-4-flash 免费模型）双在线通道。
   - 内置微软 Bing 网页翻译通道（免 Key、国内直连、无需任何外部服务）与 MyMemory 免费机器翻译（免 Key）双兜底通道，以及离线技术词典（0ms 极速兜底）。

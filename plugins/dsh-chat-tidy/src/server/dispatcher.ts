@@ -1,8 +1,6 @@
 import type { ITranslationAdapter, PluginConfig, TranslateItemResult } from './types.ts';
 import type { ConfigManager } from './config.ts';
 import type { LruDiskCache } from './cache.ts';
-import { SiliconFlowAdapter } from './adapters/siliconflow.ts';
-import { ZhipuAdapter } from './adapters/zhipu.ts';
 import { BingWebAdapter } from './adapters/bing.ts';
 
 const CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
@@ -24,8 +22,6 @@ export class TranslationDispatcher {
   constructor(configManager: ConfigManager, cache: LruDiskCache) {
     this.configManager = configManager;
     this.cache = cache;
-    this.registerAdapter(new SiliconFlowAdapter());
-    this.registerAdapter(new ZhipuAdapter());
     this.registerAdapter(new BingWebAdapter());
   }
 
@@ -78,7 +74,7 @@ export class TranslationDispatcher {
     // 3. Queue task with concurrency limit
     const taskPromise = this.enqueueTask(async () => {
       const currentConfig = this.configManager.getConfig();
-      const channels = currentConfig.channels || ['siliconflow', 'zhipu', 'bing'];
+      const channels = currentConfig.channels || ['bing'];
 
       for (const chId of channels) {
         const adapter = this.adapters.get(chId);

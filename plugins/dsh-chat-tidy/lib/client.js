@@ -418,6 +418,11 @@ var TOOL_TITLE_SELECTOR = [
   "[data-tool] [data-disclosure-row] > span:not([aria-hidden])",
   '[data-disclosure-row] [class*="summary"]'
 ].join(", ");
+var TOOL_ERROR_OUT_SELECTOR = [
+  '[data-variant][data-state="error"] [class*="ioText"]',
+  '[data-variant][data-state="aborted"] [class*="ioText"]'
+].join(", ");
+var ERROR_OUT_CHUNK_MAX = 600;
 function isToolSummarySpan(span) {
   if (span.hasAttribute("aria-hidden")) return false;
   const cls = span.className || "";
@@ -432,6 +437,63 @@ function isToolSummarySpan(span) {
     return true;
   }
   return false;
+}
+function isErrorOutNode(span) {
+  if (span.hasAttribute("aria-hidden")) return false;
+  const card = span.closest('[data-variant][data-state="error"], [data-variant][data-state="aborted"]');
+  if (!card) return false;
+  if (span.closest('pre, code, [class*="ioCard"] [class*="markdown"], [class*="_file_"]')) return false;
+  const cls = span.className || "";
+  if (/ioText|ioSection|ioCard/i.test(cls)) return true;
+  return false;
+}
+function isTranslateableErrorText(t) {
+  if (CHINESE_CHAR_REGEX.test(t)) return false;
+  if (t.trim().length < 4) return false;
+  if (t.length > 40 && !/\s/.test(t.trim())) return false;
+  if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) return false;
+  return true;
+}
+function chunkLines(text, max) {
+  const lines = text.split("\n");
+  const chunks = [];
+  let cur = "";
+  for (const line of lines) {
+    const candidate = cur ? `${cur}
+${line}` : line;
+    if (candidate.length > max && cur) {
+      chunks.push(cur);
+      cur = line;
+    } else {
+      cur = candidate;
+    }
+  }
+  if (cur) chunks.push(cur);
+  return chunks;
+}
+var translatingErrorOuts = /* @__PURE__ */ new WeakSet();
+async function translateErrorOut(span) {
+  if (translatingErrorOuts.has(span)) return;
+  const raw = span.textContent ?? "";
+  if (!isTranslateableErrorText(raw)) {
+    if (CHINESE_CHAR_REGEX.test(raw)) span.dataset.tidyTranslated = "true";
+    return;
+  }
+  if (span.dataset.tidyTranslated === "true") return;
+  translatingErrorOuts.add(span);
+  try {
+    const chunks = chunkLines(raw, ERROR_OUT_CHUNK_MAX);
+    const results = await requestTranslateBatch(chunks);
+    const merged = results.map((r) => r.translated ?? r.original).join("\n");
+    if (merged && merged !== raw) {
+      span.dataset.tidyTranslated = "true";
+      span.dataset.original = raw;
+      span.textContent = merged;
+    }
+  } catch {
+  } finally {
+    translatingErrorOuts.delete(span);
+  }
 }
 var ChatTranslateObserver = class {
   observer = null;
@@ -501,16 +563,32 @@ var ChatTranslateObserver = class {
         this.processSpan(span);
       }
     });
+    const errorOuts = container.querySelectorAll(TOOL_ERROR_OUT_SELECTOR);
+    errorOuts.forEach((span) => {
+      if (isErrorOutNode(span)) {
+        translateErrorOut(span);
+      }
+    });
   }
   scanNode(node) {
     if (node.tagName === "SPAN" && isToolSummarySpan(node)) {
       this.processSpan(node);
       return;
     }
+    if (node.tagName === "SPAN" && isErrorOutNode(node)) {
+      translateErrorOut(node);
+      return;
+    }
     const spans = node.querySelectorAll(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {
       if (isToolSummarySpan(span)) {
         this.processSpan(span);
+      }
+    });
+    const errorOuts = node.querySelectorAll(TOOL_ERROR_OUT_SELECTOR);
+    errorOuts.forEach((span) => {
+      if (isErrorOutNode(span)) {
+        translateErrorOut(span);
       }
     });
   }
@@ -557,22 +635,10 @@ var import_react = require("react");
 var LS_PREFIX = "dsh-chat-tidy:";
 var LS_ENABLED = `${LS_PREFIX}enabled`;
 var LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
-var LS_CHANNELS = `${LS_PREFIX}channels`;
-var CHANNEL_NAMES = {
-  siliconflow: "\u7845\u57FA\u6D41\u52A8 (Qwen2.5-7B)",
-  zhipu: "\u667A\u8C31 AI (glm-4-flash)",
-  bing: "\u5FAE\u8F6F Bing \u7F51\u9875\u7FFB\u8BD1 (\u514DKey\u76F4\u8FDE)"
-};
-var ALL_CHANNELS = ["siliconflow", "zhipu", "bing"];
 var SettingsStore = class {
   state = {
     enabled: true,
-    concurrency: 3,
-    channels: [...ALL_CHANNELS],
-    siliconflowKey: "",
-    zhipuKey: "",
-    hasSiliconflowKey: false,
-    hasZhipuKey: false
+    concurrency: 3
   };
   listeners = /* @__PURE__ */ new Set();
   constructor() {
@@ -593,34 +659,22 @@ var SettingsStore = class {
           this.state.concurrency = c;
         }
       }
-      const channelsRaw = localStorage.getItem(LS_CHANNELS);
-      if (channelsRaw !== null) {
-        const arr = JSON.parse(channelsRaw);
-        if (Array.isArray(arr) && arr.length > 0) {
-          const retired = /* @__PURE__ */ new Set(["google", "gateway", "builtin", "mymemory"]);
-          const filtered = arr.filter((x) => !retired.has(x) && ALL_CHANNELS.includes(x));
-          for (const ch of ALL_CHANNELS) {
-            if (!filtered.includes(ch)) filtered.push(ch);
-          }
-          this.state.channels = filtered;
-        }
-      }
     } catch {
     }
   }
   async syncFromServer() {
-    const config = await fetchServerConfig();
-    if (config) {
-      this.state = {
-        ...this.state,
-        enabled: config.enabled ?? this.state.enabled,
-        concurrency: config.concurrency ?? this.state.concurrency,
-        channels: config.channels ?? this.state.channels,
-        hasSiliconflowKey: !!config.hasSiliconflowKey,
-        hasZhipuKey: !!config.hasZhipuKey
-      };
-      chatTranslateObserver.setEnabled(this.state.enabled);
-      this.notify();
+    try {
+      const config = await fetchServerConfig();
+      if (config) {
+        this.state = {
+          ...this.state,
+          enabled: config.enabled ?? this.state.enabled,
+          concurrency: config.concurrency ?? this.state.concurrency
+        };
+        chatTranslateObserver.setEnabled(this.state.enabled);
+        this.notify();
+      }
+    } catch {
     }
   }
   getState() {
@@ -658,28 +712,14 @@ var SettingsStore = class {
       } catch {
       }
     }
-    if (Array.isArray(partial.channels)) {
-      try {
-        localStorage.setItem(LS_CHANNELS, JSON.stringify(partial.channels));
-      } catch {
-      }
-    }
     this.notify();
-    const serverPayload = {
+    const updated = await updateServerConfig({
       enabled: this.state.enabled,
-      concurrency: this.state.concurrency,
-      channels: this.state.channels
-    };
-    if (typeof partial.siliconflowKey === "string") {
-      serverPayload.siliconflowKey = partial.siliconflowKey;
-    }
-    if (typeof partial.zhipuKey === "string") {
-      serverPayload.zhipuKey = partial.zhipuKey;
-    }
-    const updated = await updateServerConfig(serverPayload);
+      concurrency: this.state.concurrency
+    });
     if (updated) {
-      this.state.hasSiliconflowKey = !!updated.hasSiliconflowKey;
-      this.state.hasZhipuKey = !!updated.hasZhipuKey;
+      this.state.enabled = updated.enabled ?? this.state.enabled;
+      this.state.concurrency = updated.concurrency ?? this.state.concurrency;
       this.notify();
     }
   }
@@ -960,10 +1000,6 @@ function ensureSettingsStyles() {
 function TidySettingsPanel() {
   ensureSettingsStyles();
   const [state, setState] = (0, import_react.useState)(() => settingsStore.getState());
-  const [sfKeyInput, setSfKeyInput] = (0, import_react.useState)("");
-  const [zpKeyInput, setZpKeyInput] = (0, import_react.useState)("");
-  const [testingChannel, setTestingChannel] = (0, import_react.useState)(null);
-  const [testResults, setTestResults] = (0, import_react.useState)({});
   (0, import_react.useEffect)(() => {
     return settingsStore.subscribe(() => {
       setState(settingsStore.getState());
@@ -971,38 +1007,6 @@ function TidySettingsPanel() {
   }, []);
   const handleToggleEnabled = () => {
     settingsStore.update({ enabled: !state.enabled });
-  };
-  const handleSaveSfKey = () => {
-    if (sfKeyInput.trim()) {
-      settingsStore.update({ siliconflowKey: sfKeyInput.trim() });
-      setSfKeyInput("");
-    }
-  };
-  const handleSaveZpKey = () => {
-    if (zpKeyInput.trim()) {
-      settingsStore.update({ zhipuKey: zpKeyInput.trim() });
-      setZpKeyInput("");
-    }
-  };
-  const handleTest = async (channel) => {
-    setTestingChannel(channel);
-    setTestResults((prev) => ({ ...prev, [channel]: "\u6D4B\u8BD5\u4E2D..." }));
-    const res = await settingsStore.testChannel(channel);
-    if (res.ok) {
-      setTestResults((prev) => ({ ...prev, [channel]: `\u6210\u529F (${res.latencyMs}ms)` }));
-    } else {
-      setTestResults((prev) => ({ ...prev, [channel]: `\u5931\u8D25: ${res.error || "\u8FDE\u63A5\u8D85\u65F6"}` }));
-    }
-    setTestingChannel(null);
-  };
-  const handleMoveChannel = (index, direction) => {
-    const newChannels = [...state.channels];
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= newChannels.length) return;
-    const temp = newChannels[index];
-    newChannels[index] = newChannels[targetIndex];
-    newChannels[targetIndex] = temp;
-    settingsStore.update({ channels: newChannels });
   };
   const handleConcurrencyChange = (val) => {
     if (Number.isNaN(val)) return;
@@ -1030,127 +1034,26 @@ function TidySettingsPanel() {
         "\uFF09\u81EA\u52A8\u7FFB\u8BD1\u8986\u76D6\u4E3A\u7B80\u6D01\u4E2D\u6587\u3002\u4E0D\u89E6\u78B0\u6B63\u6587\u4E0E\u601D\u8003\u5757\uFF0C\u4E0D\u5360\u4E0A\u4E0B\u6587\u7A97\u53E3\u3002"
       ] })
     ] }),
-    state.enabled && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-title", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u7FFB\u8BD1\u901A\u9053 API \u5BC6\u94A5" }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-input-group", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-label", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u7845\u57FA\u6D41\u52A8 (SiliconFlow Qwen2.5-7B)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: state.hasSiliconflowKey ? "dsh-tidy-badge dsh-tidy-badge-ok" : "dsh-tidy-badge dsh-tidy-badge-none", children: state.hasSiliconflowKey ? "\u5DF2\u914D\u7F6E" : "\u672A\u914D\u7F6E" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-input-row", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "input",
-              {
-                type: "password",
-                className: "dsh-tidy-input",
-                placeholder: state.hasSiliconflowKey ? "\u8F93\u5165\u65B0\u5BC6\u94A5\u4EE5\u8986\u76D6..." : "sk-... (\u514D\u8D39\u989D\u5EA6\u5145\u8DB3)",
-                value: sfKeyInput,
-                onChange: (e) => setSfKeyInput(e.target.value),
-                onBlur: handleSaveSfKey,
-                autoComplete: "off"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "button",
-              {
-                type: "button",
-                className: "dsh-tidy-btn",
-                disabled: !state.hasSiliconflowKey && !sfKeyInput,
-                onClick: () => handleTest("siliconflow"),
-                children: testingChannel === "siliconflow" ? "\u6D4B\u8BD5\u4E2D..." : "\u6D4B\u8BD5\u8FDE\u63A5"
-              }
-            )
-          ] }),
-          testResults.siliconflow && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-desc", style: { color: testResults.siliconflow.startsWith("\u6210\u529F") ? "#22c55e" : "#ef4444" }, children: testResults.siliconflow })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-input-group", style: { marginTop: "8px" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-label", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u667A\u8C31\u5F00\u653E\u5E73\u53F0 (Zhipu glm-4-flash)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: state.hasZhipuKey ? "dsh-tidy-badge dsh-tidy-badge-ok" : "dsh-tidy-badge dsh-tidy-badge-none", children: state.hasZhipuKey ? "\u5DF2\u914D\u7F6E" : "\u672A\u914D\u7F6E" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-input-row", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "input",
-              {
-                type: "password",
-                className: "dsh-tidy-input",
-                placeholder: state.hasZhipuKey ? "\u8F93\u5165\u65B0\u5BC6\u94A5\u4EE5\u8986\u76D6..." : "API Key (\u4E2A\u4EBA\u514D\u8D39\u8C03\u7528)",
-                value: zpKeyInput,
-                onChange: (e) => setZpKeyInput(e.target.value),
-                onBlur: handleSaveZpKey,
-                autoComplete: "off"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "button",
-              {
-                type: "button",
-                className: "dsh-tidy-btn",
-                disabled: !state.hasZhipuKey && !zpKeyInput,
-                onClick: () => handleTest("zhipu"),
-                children: testingChannel === "zhipu" ? "\u6D4B\u8BD5\u4E2D..." : "\u6D4B\u8BD5\u8FDE\u63A5"
-              }
-            )
-          ] }),
-          testResults.zhipu && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-desc", style: { color: testResults.zhipu.startsWith("\u6210\u529F") ? "#22c55e" : "#ef4444" }, children: testResults.zhipu })
-        ] })
+    state.enabled && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u5386\u53F2\u4F1A\u8BDD\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u63A8\u8350 3\uFF09\u3002" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-title", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u901A\u9053\u4F18\u5148\u7EA7\u4E0E\u964D\u7EA7\u987A\u5E8F" }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-desc", children: "\u9047\u5230\u901A\u9053\u672A\u914D\u7F6E Key\u3001\u9650\u6D41 (429)\u3001\u6545\u969C\u6216\u8D85\u65F6 (2s) \u65F6\uFF0C\u7CFB\u7EDF\u5C06\u81EA\u52A8\u4F9D\u5E8F\u5411\u540E\u5E73\u6ED1\u964D\u7EA7\u3002" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-priority-list", children: state.channels.map((ch, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-priority-item", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-priority-name", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "dsh-tidy-order-badge", children: idx + 1 }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: CHANNEL_NAMES[ch] || ch })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-btn-group", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "button",
-              {
-                type: "button",
-                className: "dsh-tidy-icon-btn",
-                disabled: idx === 0,
-                onClick: () => handleMoveChannel(idx, "up"),
-                title: "\u4E0A\u79FB\u4F18\u5148\u7EA7",
-                children: "\u25B2"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "button",
-              {
-                type: "button",
-                className: "dsh-tidy-icon-btn",
-                disabled: idx === state.channels.length - 1,
-                onClick: () => handleMoveChannel(idx, "down"),
-                title: "\u4E0B\u79FB\u4F18\u5148\u7EA7",
-                children: "\u25BC"
-              }
-            )
-          ] })
-        ] }, ch)) })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u5386\u53F2\u4F1A\u8BDD\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u63A8\u8350 3\uFF09\u3002" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "input",
-          {
-            type: "number",
-            className: "dsh-tidy-input",
-            min: 1,
-            max: 6,
-            step: 1,
-            value: state.concurrency,
-            onChange: (e) => handleConcurrencyChange(parseInt(e.target.value, 10)),
-            style: { width: "88px" },
-            "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
-          }
-        )
-      ] }) })
-    ] })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "input",
+        {
+          type: "number",
+          className: "dsh-tidy-input",
+          min: 1,
+          max: 6,
+          step: 1,
+          value: state.concurrency,
+          onChange: (e) => handleConcurrencyChange(parseInt(e.target.value, 10)),
+          style: { width: "88px" },
+          "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
+        }
+      )
+    ] }) }) })
   ] });
 }
 function setupSettingsUi(ctx) {

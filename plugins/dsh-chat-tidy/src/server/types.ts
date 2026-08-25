@@ -2,16 +2,14 @@ export interface PluginConfig {
   enabled: boolean;
   concurrency: number; // 1-6, default 3
   timeoutMs: number; // default 2000
-  channels: string[]; // ['siliconflow', 'zhipu', 'bing']
-  siliconflowKey?: string;
-  zhipuKey?: string;
+  channels: string[]; // ['bing']
 }
 
-export interface MaskedPluginConfig extends Omit<PluginConfig, 'siliconflowKey' | 'zhipuKey'> {
-  siliconflowKeyMasked?: string;
-  zhipuKeyMasked?: string;
-  hasSiliconflowKey: boolean;
-  hasZhipuKey: boolean;
+export interface MaskedPluginConfig {
+  enabled: boolean;
+  concurrency: number;
+  timeoutMs: number;
+  channels: string[];
 }
 
 export interface TranslateItemResult {
