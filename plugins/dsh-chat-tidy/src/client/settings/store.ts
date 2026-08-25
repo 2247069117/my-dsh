@@ -24,12 +24,13 @@ const LS_GATEWAY_ENGINE = `${LS_PREFIX}gateway-engine`;
 export const CHANNEL_NAMES: Record<string, string> = {
   siliconflow: '硅基流动 (Qwen2.5-7B)',
   zhipu: '智谱 AI (glm-4-flash)',
+  bing: '微软 Bing 网页翻译 (免Key直连)',
   gateway: '本地翻译网关 (DeepLX 兼容)',
   mymemory: 'MyMemory 免费机器翻译 (免Key)',
   builtin: '离线技术词典 (0ms兜底)',
 };
 
-export const ALL_CHANNELS = ['siliconflow', 'zhipu', 'gateway', 'mymemory', 'builtin'];
+export const ALL_CHANNELS = ['siliconflow', 'zhipu', 'bing', 'gateway', 'mymemory', 'builtin'];
 
 class SettingsStore {
   private state: ClientSettingsState = {

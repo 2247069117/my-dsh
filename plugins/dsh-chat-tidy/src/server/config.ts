@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import type { PluginConfig, MaskedPluginConfig } from './types.ts';
 
 /** All known channel ids, in the order the dispatcher tries them by default. */
-const KNOWN_CHANNELS = ['siliconflow', 'zhipu', 'gateway', 'mymemory', 'builtin'];
+const KNOWN_CHANNELS = ['siliconflow', 'zhipu', 'bing', 'gateway', 'mymemory', 'builtin'];
 
 const DEFAULT_CONFIG: PluginConfig = {
   enabled: true,

@@ -2,7 +2,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
-var KNOWN_CHANNELS = ["siliconflow", "zhipu", "gateway", "mymemory", "builtin"];
+var KNOWN_CHANNELS = ["siliconflow", "zhipu", "bing", "gateway", "mymemory", "builtin"];
 var DEFAULT_CONFIG = {
   enabled: true,
   concurrency: 3,
@@ -250,6 +250,79 @@ var ZhipuAdapter = class {
   }
 };
 
+// src/server/adapters/bing.ts
+var TRANSLATOR_URL = "https://cn.bing.com/translator";
+var TRANSLATE_URL = "https://cn.bing.com/ttranslatev3?isVertical=1&&IG={IG}&IID=translator.5025.1";
+var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+var IG_RE = /,IG:"(.*?)",/;
+var ABUSE_RE = /var\s+params_AbusePreventionHelper\s*=\s*\[\s*(\d+),\s*"([^"]+)"/;
+var cachedTokens = null;
+var tokensFetchedAt = 0;
+var TOKEN_TTL_MS = 15 * 60 * 1e3;
+async function fetchTokens(signal) {
+  if (cachedTokens && Date.now() - tokensFetchedAt < TOKEN_TTL_MS) {
+    return cachedTokens;
+  }
+  const response = await fetch(TRANSLATOR_URL, {
+    headers: {
+      "User-Agent": UA,
+      Accept: "text/html"
+    },
+    signal
+  });
+  if (!response.ok) {
+    throw new Error(`Bing translator page responded with status ${response.status}`);
+  }
+  const html = await response.text();
+  const igMatch = IG_RE.exec(html);
+  const abuseMatch = ABUSE_RE.exec(html);
+  if (!igMatch || !abuseMatch) {
+    throw new Error("Bing translator page: IG or abuse-prevention token not found");
+  }
+  cachedTokens = { ig: igMatch[1], key: abuseMatch[1], token: abuseMatch[2] };
+  tokensFetchedAt = Date.now();
+  return cachedTokens;
+}
+var BingWebAdapter = class {
+  id = "bing";
+  name = "\u5FAE\u8F6F Bing \u7F51\u9875\u7FFB\u8BD1 (\u514DKey\u76F4\u8FDE)";
+  isAvailable(_config) {
+    return true;
+  }
+  async translate(text, signal, _config) {
+    const { ig, key, token } = await fetchTokens(signal);
+    const body = new URLSearchParams({
+      fromLang: "auto-detect",
+      text,
+      to: "zh-Hans",
+      key,
+      token,
+      tryFetchingGenderDebiasedTranslations: "true"
+    });
+    const response = await fetch(TRANSLATE_URL.replace("{IG}", ig), {
+      method: "POST",
+      headers: {
+        "User-Agent": UA,
+        Referer: "https://cn.bing.com/translator/",
+        Origin: "https://cn.bing.com",
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body,
+      signal
+    });
+    if (!response.ok) {
+      cachedTokens = null;
+      throw new Error(`Bing translate responded with status ${response.status}`);
+    }
+    const json = await response.json();
+    const translated = json?.[0]?.translations?.[0]?.text?.trim();
+    if (!translated) {
+      return text;
+    }
+    return translated;
+  }
+};
+
 // src/server/adapters/gateway.ts
 var GatewayAdapter = class {
   id = "gateway";
@@ -403,6 +476,7 @@ var TranslationDispatcher = class {
     this.cache = cache;
     this.registerAdapter(new SiliconFlowAdapter());
     this.registerAdapter(new ZhipuAdapter());
+    this.registerAdapter(new BingWebAdapter());
     this.registerAdapter(new GatewayAdapter());
     this.registerAdapter(new MyMemoryAdapter());
     this.registerAdapter(new BuiltinDictAdapter());

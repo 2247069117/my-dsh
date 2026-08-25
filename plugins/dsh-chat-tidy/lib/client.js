@@ -640,11 +640,12 @@ var LS_GATEWAY_ENGINE = `${LS_PREFIX}gateway-engine`;
 var CHANNEL_NAMES = {
   siliconflow: "\u7845\u57FA\u6D41\u52A8 (Qwen2.5-7B)",
   zhipu: "\u667A\u8C31 AI (glm-4-flash)",
+  bing: "\u5FAE\u8F6F Bing \u7F51\u9875\u7FFB\u8BD1 (\u514DKey\u76F4\u8FDE)",
   gateway: "\u672C\u5730\u7FFB\u8BD1\u7F51\u5173 (DeepLX \u517C\u5BB9)",
   mymemory: "MyMemory \u514D\u8D39\u673A\u5668\u7FFB\u8BD1 (\u514DKey)",
   builtin: "\u79BB\u7EBF\u6280\u672F\u8BCD\u5178 (0ms\u515C\u5E95)"
 };
-var ALL_CHANNELS = ["siliconflow", "zhipu", "gateway", "mymemory", "builtin"];
+var ALL_CHANNELS = ["siliconflow", "zhipu", "bing", "gateway", "mymemory", "builtin"];
 var SettingsStore = class {
   state = {
     enabled: true,
