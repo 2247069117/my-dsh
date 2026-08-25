@@ -1005,7 +1005,8 @@ function TidySettingsPanel() {
     settingsStore.update({ channels: newChannels });
   };
   const handleConcurrencyChange = (val) => {
-    settingsStore.update({ concurrency: val });
+    if (Number.isNaN(val)) return;
+    settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 6) });
   };
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-settings", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [
@@ -1135,15 +1136,17 @@ function TidySettingsPanel() {
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u5386\u53F2\u4F1A\u8BDD\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u63A8\u8350 3\uFF09\u3002" })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "select",
+          "input",
           {
-            className: "dsh-tidy-select",
+            type: "number",
+            className: "dsh-tidy-input",
+            min: 1,
+            max: 6,
+            step: 1,
             value: state.concurrency,
             onChange: (e) => handleConcurrencyChange(parseInt(e.target.value, 10)),
-            children: [1, 2, 3, 4, 5, 6].map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", { value: n, children: [
-              n,
-              " \u4E2A\u5E76\u53D1"
-            ] }, n))
+            style: { width: "88px" },
+            "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
           }
         )
       ] }) })

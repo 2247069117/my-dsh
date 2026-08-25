@@ -69,7 +69,8 @@ export function TidySettingsPanel(): React.ReactElement {
   };
 
   const handleConcurrencyChange = (val: number): void => {
-    settingsStore.update({ concurrency: val });
+    if (Number.isNaN(val)) return;
+    settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 6) });
   };
 
   return (
@@ -218,17 +219,19 @@ export function TidySettingsPanel(): React.ReactElement {
                   控制历史会话滚动与多工具卡片时的最大并行请求数（推荐 3）。
                 </div>
               </div>
-              <select
-                className="dsh-tidy-select"
+              <input
+                type="number"
+                className="dsh-tidy-input"
+                min={1}
+                max={6}
+                step={1}
                 value={state.concurrency}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleConcurrencyChange(parseInt(e.target.value, 10))}
-              >
-                {[1, 2, 3, 4, 5, 6].map((n: number) => (
-                  <option key={n} value={n}>
-                    {n} 个并发
-                  </option>
-                ))}
-              </select>
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  handleConcurrencyChange(parseInt(e.target.value, 10))
+                }
+                style={{ width: '88px' }}
+                aria-label="最大翻译并发数"
+              />
             </div>
           </div>
         </>
