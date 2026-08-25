@@ -14,6 +14,10 @@ const TOOL_TITLE_SELECTOR = [
 
 function isToolSummarySpan(span: HTMLElement): boolean {
   if (span.hasAttribute('aria-hidden')) return false;
+  // Never touch tool-name badges / icons / leading elements — only the
+  // description summary line (e.g. `.CY-8Ka_summary`) is translated.
+  const cls = span.className || '';
+  if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
   // Exclude think / reasoning blocks
   if (span.closest('[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row')) {
     return false;

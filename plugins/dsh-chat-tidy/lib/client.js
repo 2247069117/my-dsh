@@ -420,6 +420,8 @@ var TOOL_TITLE_SELECTOR = [
 ].join(", ");
 function isToolSummarySpan(span) {
   if (span.hasAttribute("aria-hidden")) return false;
+  const cls = span.className || "";
+  if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
   if (span.closest('[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row')) {
     return false;
   }
