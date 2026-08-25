@@ -1092,6 +1092,105 @@ function setupSettingsUi(ctx) {
   }
 }
 
+// src/client/settings/toggle.ts
+var TOGGLE_ID = "dsh-chat-tidy-toggle";
+var TOGGLE_CSS_ID = "dsh-tidy-toggle-css";
+var TOGGLE_CSS = String.raw`
+.dsh-tidy-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--dsw-alias-border-l2, rgba(128, 128, 128, 0.3));
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, rgba(128, 128, 128, 0.8));
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  flex: none;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.dsh-tidy-toggle:hover {
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.dsh-tidy-toggle[aria-pressed="true"] {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.dsh-tidy-toggle[aria-pressed="false"] span {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+`;
+function findHeader() {
+  return document.querySelector(
+    '[data-slot="conversation.session.header"] header, [data-slot="conversation.session.header"]'
+  );
+}
+function createButton() {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.id = TOGGLE_ID;
+  btn.className = "dsh-tidy-toggle";
+  const on = settingsStore.getState().enabled;
+  btn.setAttribute("aria-pressed", String(on));
+  btn.title = on ? "\u6807\u9898\u7FFB\u8BD1\uFF1A\u5DF2\u5F00\u542F\uFF08\u70B9\u51FB\u5173\u95ED\uFF09" : "\u6807\u9898\u7FFB\u8BD1\uFF1A\u5DF2\u5173\u95ED\uFF08\u70B9\u51FB\u5F00\u542F\uFF09";
+  btn.setAttribute("aria-label", "\u6807\u9898\u7FFB\u8BD1\u5F00\u5173");
+  const mark = document.createElement("span");
+  mark.textContent = "\u8BD1";
+  btn.appendChild(mark);
+  btn.addEventListener("click", () => {
+    settingsStore.update({ enabled: !settingsStore.getState().enabled });
+  });
+  return btn;
+}
+function syncButtonState() {
+  const btn = document.getElementById(TOGGLE_ID);
+  if (!btn) return;
+  const on = settingsStore.getState().enabled;
+  btn.setAttribute("aria-pressed", String(on));
+  btn.title = on ? "\u6807\u9898\u7FFB\u8BD1\uFF1A\u5DF2\u5F00\u542F\uFF08\u70B9\u51FB\u5173\u95ED\uFF09" : "\u6807\u9898\u7FFB\u8BD1\uFF1A\u5DF2\u5173\u95ED\uFF08\u70B9\u51FB\u5F00\u542F\uFF09";
+}
+function installQuickToggle() {
+  if (typeof document === "undefined") return () => {
+  };
+  if (!document.getElementById(TOGGLE_CSS_ID)) {
+    const style = document.createElement("style");
+    style.id = TOGGLE_CSS_ID;
+    style.textContent = TOGGLE_CSS;
+    document.head.appendChild(style);
+  }
+  const ensure = () => {
+    const header = findHeader();
+    if (!header) return;
+    if (!document.getElementById(TOGGLE_ID)) {
+      const btn = createButton();
+      header.appendChild(btn);
+      btn.style.marginLeft = "8px";
+      const cluster = btn.closest('[class*="utilities"], [class*="header"] > div:last-child');
+      if (cluster && cluster !== header) {
+        header.insertBefore(btn, cluster.nextSibling);
+      }
+    }
+  };
+  ensure();
+  const keepAlive = new MutationObserver(() => ensure());
+  keepAlive.observe(document.body, { childList: true, subtree: true });
+  const unsubscribe = settingsStore.subscribe(syncButtonState);
+  return () => {
+    keepAlive.disconnect();
+    unsubscribe();
+    document.getElementById(TOGGLE_ID)?.remove();
+  };
+}
+
 // src/client/index.ts
 var name = "dsh-chat-tidy";
 var inject = ["slots"];
@@ -1099,6 +1198,7 @@ function apply(ctx) {
   ctx.effect(() => adoptStyles(document), "dsh-chat-tidy: stylesheet");
   ctx.effect(() => chatTranslateObserver.start(document), "dsh-chat-tidy: title translate observer");
   ctx.effect(() => setupSettingsUi(ctx), "dsh-chat-tidy: settings section");
+  ctx.effect(() => installQuickToggle(), "dsh-chat-tidy: quick toggle");
 }
 return module.exports; } });
 //# sourceMappingURL=client.js.map

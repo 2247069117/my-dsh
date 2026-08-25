@@ -1,6 +1,7 @@
 import { adoptStyles } from './styles.ts';
 import { chatTranslateObserver } from './translate/observer.ts';
 import { setupSettingsUi } from './settings/ui.tsx';
+import { installQuickToggle } from './settings/toggle.ts';
 
 /** Client plugin name, shared with the browser bundle id. */
 export const name = 'dsh-chat-tidy';
@@ -27,6 +28,9 @@ export function apply(ctx: ClientContext): void {
 
   // 3. Mount settings UI section
   ctx.effect(() => setupSettingsUi(ctx), 'dsh-chat-tidy: settings section');
+
+  // 4. Mount quick toggle in the conversation header
+  ctx.effect(() => installQuickToggle(), 'dsh-chat-tidy: quick toggle');
 }
 
 export { TIDY_CHAT_CSS, STYLE_MARKER, adoptStyles } from './styles.ts';
