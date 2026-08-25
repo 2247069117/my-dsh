@@ -1,19 +1,30 @@
-import { adoptStyles } from './styles.ts'
+import { adoptStyles } from './styles.ts';
+import { chatTranslateObserver } from './translate/observer.ts';
+import { setupSettingsUi } from './settings/ui.tsx';
 
 /** Client plugin name, shared with the browser bundle id. */
-export const name = 'dsh-chat-tidy'
+export const name = 'dsh-chat-tidy';
 
 interface ClientContext {
-  effect(factory: () => void | (() => void), label: string): void
+  effect(factory: () => void | (() => void), label: string): void;
+  get?(serviceName: string): any;
 }
 
 /**
- * Mount Tidy Chat's conversation stylesheet. Disabling or uninstalling the
- * plugin restores the DSH defaults; there is no in-app switch.
+ * Mount Tidy Chat's conversation stylesheet, tool title translation observer, and settings UI.
  * @param ctx - DSH browser client context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => adoptStyles(document), 'dsh-chat-tidy: stylesheet')
+  // 1. Mount typography styles
+  ctx.effect(() => adoptStyles(document), 'dsh-chat-tidy: stylesheet');
+
+  // 2. Mount tool title translation observer
+  ctx.effect(() => chatTranslateObserver.start(document), 'dsh-chat-tidy: title translate observer');
+
+  // 3. Mount settings UI section
+  ctx.effect(() => setupSettingsUi(ctx), 'dsh-chat-tidy: settings section');
 }
 
-export { TIDY_CHAT_CSS, STYLE_MARKER, adoptStyles } from './styles.ts'
+export { TIDY_CHAT_CSS, STYLE_MARKER, adoptStyles } from './styles.ts';
+export { chatTranslateObserver } from './translate/observer.ts';
+export { setupSettingsUi } from './settings/ui.tsx';
