@@ -441,7 +441,8 @@ var TOOL_TITLE_SELECTOR = [
   '[data-variant] [class*="summary"]',
   "[data-tool] [data-disclosure-row] > span:not([aria-hidden])",
   '[data-disclosure-row] [class*="summary"]',
-  '[class*="thinkBody"]'
+  '[class*="thinkBody"]',
+  '[data-variant="think"] [class*="markdown"]'
 ].join(", ");
 var TOOL_ERROR_OUT_SELECTOR = [
   '[data-variant][data-state="error"] [class*="ioText"]',
@@ -584,7 +585,27 @@ var ChatTranslateObserver = class {
   }
   async translateThink(span, text) {
     if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
-    if (span.dataset.tidyTranslated === "true") return;
+    if (span.dataset.tidyTranslated === "true") {
+      const original = span.dataset.original;
+      const cur = span.textContent?.trim() || "";
+      if (original && cur === original) {
+        delete span.dataset.tidyTranslated;
+        delete span.dataset.original;
+        delete span.dataset.tidyThink;
+      } else if (original) {
+        const cached = clientCache.get(original);
+        if (cached && cur === cached) return;
+        if (cur && !isMostlyChinese(cur) && cur !== cached) {
+          delete span.dataset.tidyTranslated;
+          delete span.dataset.original;
+          delete span.dataset.tidyThink;
+        } else {
+          return;
+        }
+      } else {
+        return;
+      }
+    }
     const raw = span.textContent?.trim() || text;
     if (!raw || isMostlyChinese(raw)) return;
     const chunks = chunkText(raw, 600).slice(0, 60);
@@ -739,13 +760,13 @@ var ChatTranslateObserver = class {
     });
   }
   scanNode(node) {
-    if (node.tagName === "SPAN" && isToolSummarySpan(node, this.translateThinking)) {
+    if (node.matches?.(TOOL_TITLE_SELECTOR) && isToolSummarySpan(node, this.translateThinking)) {
       this.processSpan(node);
-      return;
+    } else if (isToolSummarySpan(node, this.translateThinking) && isThinkSpan(node)) {
+      this.processSpan(node);
     }
-    if (node.tagName === "SPAN" && isErrorOutNode(node)) {
+    if (node.matches?.(TOOL_ERROR_OUT_SELECTOR) && isErrorOutNode(node)) {
       translateErrorOut(node);
-      return;
     }
     const spans = node.querySelectorAll(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {

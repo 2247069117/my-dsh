@@ -20,6 +20,7 @@ const TOOL_TITLE_SELECTOR = [
   '[data-tool] [data-disclosure-row] > span:not([aria-hidden])',
   '[data-disclosure-row] [class*="summary"]',
   '[class*="thinkBody"]',
+  '[data-variant="think"] [class*="markdown"]',
 ].join(', ');
 
 /** IO output preview text inside *failed* tool cards — "out" of error calls. */
@@ -222,7 +223,30 @@ export class ChatTranslateObserver {
 
   private async translateThink(span: HTMLElement, text: string): Promise<void> {
     if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
-    if (span.dataset.tidyTranslated === 'true') return;
+    // If already marked translated but React reverted the text back to English
+    // (streaming / re-render), clear the guard so we can re-translate.
+    if (span.dataset.tidyTranslated === 'true') {
+      const original = span.dataset.original;
+      const cur = span.textContent?.trim() || '';
+      if (original && cur === original) {
+        delete span.dataset.tidyTranslated;
+        delete span.dataset.original;
+        delete span.dataset.tidyThink;
+      } else if (original) {
+        const cached = clientCache.get(original);
+        if (cached && cur === cached) return;
+        // Text is new English (expanded after streaming) — allow re-translate
+        if (cur && !isMostlyChinese(cur) && cur !== cached) {
+          delete span.dataset.tidyTranslated;
+          delete span.dataset.original;
+          delete span.dataset.tidyThink;
+        } else {
+          return;
+        }
+      } else {
+        return;
+      }
+    }
     const raw = span.textContent?.trim() || text;
     if (!raw || isMostlyChinese(raw)) return;
 
@@ -412,13 +436,18 @@ export class ChatTranslateObserver {
   }
 
   private scanNode(node: HTMLElement): void {
-    if (node.tagName === 'SPAN' && isToolSummarySpan(node, this.translateThinking)) {
+    // Self: the added node itself may be a title summary or a think body (DIV).
+    // Original code only handled SPAN, so DIV think bodies expanded after a
+    // click were never translated while their collapsed SPAN summaries were.
+    if (node.matches?.(TOOL_TITLE_SELECTOR) && isToolSummarySpan(node, this.translateThinking)) {
       this.processSpan(node);
-      return;
+    } else if (isToolSummarySpan(node, this.translateThinking) && isThinkSpan(node)) {
+      // Fallback: think body DIV/P that is inside [data-variant=think] but was
+      // missed by the selector (e.g. markdown wrapper). Still translate it.
+      this.processSpan(node);
     }
-    if (node.tagName === 'SPAN' && isErrorOutNode(node)) {
+    if (node.matches?.(TOOL_ERROR_OUT_SELECTOR) && isErrorOutNode(node)) {
       translateErrorOut(node);
-      return;
     }
 
     const spans = node.querySelectorAll<HTMLElement>(TOOL_TITLE_SELECTOR);
