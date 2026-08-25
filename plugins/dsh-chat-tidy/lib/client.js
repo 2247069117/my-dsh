@@ -427,6 +427,13 @@ var lazyQueue = new LazyTranslationQueue();
 
 // src/client/translate/observer.ts
 var CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
+function isMostlyChinese(text, threshold = 0.2) {
+  const m = text.match(/[\u4e00-\u9fa5]/g);
+  const count = m ? m.length : 0;
+  if (count === 0) return false;
+  if (text.length < 80) return true;
+  return count > 15 || count / text.length > threshold;
+}
 var TOOL_TITLE_SELECTOR = [
   '[data-chat-call-id] [class*="summary"]',
   '[data-slot="tool.call.toolview"] [class*="summary"]',
@@ -579,7 +586,7 @@ var ChatTranslateObserver = class {
     if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
     if (span.dataset.tidyTranslated === "true") return;
     const raw = span.textContent?.trim() || text;
-    if (!raw || CHINESE_CHAR_REGEX.test(raw)) return;
+    if (!raw || isMostlyChinese(raw)) return;
     const chunks = chunkText(raw, 600).slice(0, 60);
     if (chunks.length === 1) {
       const res = await requestTranslateBatch(chunks);
@@ -760,7 +767,12 @@ var ChatTranslateObserver = class {
     if (isThink) {
       span.dataset.tidyThink = "true";
     }
-    if (CHINESE_CHAR_REGEX.test(text)) {
+    if (isThink) {
+      if (isMostlyChinese(text)) {
+        span.dataset.tidyTranslated = "true";
+        return;
+      }
+    } else if (CHINESE_CHAR_REGEX.test(text)) {
       span.dataset.tidyTranslated = "true";
       return;
     }
@@ -857,6 +869,11 @@ var SettingsStore = class {
       }
     } catch {
     }
+    try {
+      chatTranslateObserver.setEnabled(this.state.enabled);
+      chatTranslateObserver.setTranslateThinking(this.state.translateThinking);
+    } catch {
+    }
   }
   async syncFromServer() {
     try {
@@ -865,9 +882,11 @@ var SettingsStore = class {
         this.state = {
           ...this.state,
           enabled: config.enabled ?? this.state.enabled,
-          concurrency: config.concurrency ?? this.state.concurrency
+          concurrency: config.concurrency ?? this.state.concurrency,
+          translateThinking: config.translateThinking ?? this.state.translateThinking
         };
         chatTranslateObserver.setEnabled(this.state.enabled);
+        chatTranslateObserver.setTranslateThinking(this.state.translateThinking);
         this.notify();
       }
     } catch {

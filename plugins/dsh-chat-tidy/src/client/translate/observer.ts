@@ -4,6 +4,14 @@ import { requestTranslateBatch } from './api.ts';
 
 const CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
 
+function isMostlyChinese(text: string, threshold = 0.2): boolean {
+  const m = text.match(/[\u4e00-\u9fa5]/g);
+  const count = m ? m.length : 0;
+  if (count === 0) return false;
+  if (text.length < 80) return true; // short title: any Chinese means already translated
+  return count > 15 || count / text.length > threshold;
+}
+
 const TOOL_TITLE_SELECTOR = [
   '[data-chat-call-id] [class*="summary"]',
   '[data-slot="tool.call.toolview"] [class*="summary"]',
@@ -216,7 +224,7 @@ export class ChatTranslateObserver {
     if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
     if (span.dataset.tidyTranslated === 'true') return;
     const raw = span.textContent?.trim() || text;
-    if (!raw || CHINESE_CHAR_REGEX.test(raw)) return;
+    if (!raw || isMostlyChinese(raw)) return;
 
     // Heavy prose: chunk by line groups (<=600 chars each, never splitting a
     // line), translate with a small worker pool (3 in flight per element —
@@ -438,8 +446,15 @@ export class ChatTranslateObserver {
       span.dataset.tidyThink = 'true';
     }
 
-    // Check if already in Chinese
-    if (CHINESE_CHAR_REGEX.test(text)) {
+    // Check if already in Chinese — for think blocks only skip when mostly
+    // Chinese (short titles: any Chinese means translated; long think prose
+    // may legitimately contain a few Chinese chars like "你好").
+    if (isThink) {
+      if (isMostlyChinese(text)) {
+        span.dataset.tidyTranslated = 'true';
+        return;
+      }
+    } else if (CHINESE_CHAR_REGEX.test(text)) {
       span.dataset.tidyTranslated = 'true';
       return;
     }

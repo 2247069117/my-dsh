@@ -47,6 +47,10 @@ class SettingsStore {
     } catch {
       // Ignore
     }
+    try {
+      chatTranslateObserver.setEnabled(this.state.enabled);
+      chatTranslateObserver.setTranslateThinking(this.state.translateThinking);
+    } catch {}
   }
 
   private async syncFromServer(): Promise<void> {
@@ -57,8 +61,10 @@ class SettingsStore {
           ...this.state,
           enabled: config.enabled ?? this.state.enabled,
           concurrency: config.concurrency ?? this.state.concurrency,
+          translateThinking: (config as any).translateThinking ?? this.state.translateThinking,
         };
         chatTranslateObserver.setEnabled(this.state.enabled);
+        chatTranslateObserver.setTranslateThinking(this.state.translateThinking);
         this.notify();
       }
     } catch {
