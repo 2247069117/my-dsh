@@ -593,16 +593,18 @@ window.__ModuleLoader__.load({
     }
 
     // ══════════════ 归档视图：会话行 ══════════════
-    function ArchiveSessionRow({ sid, sessions, onRestore, onDelete }) {
+    function ArchiveSessionRow({ sid, sessions, onOpen, onRestore, onDelete }) {
       const row = (sessions && sessions.byId) ? sessions.byId[sid] : null;
       if (!row) return null;
+      const selected = sessions && sessions.current === sid;
       return h("div", {
-        className: "dswt-session dswt-archivedRow",
+        className: "dswt-session dswt-archivedRow" + (selected ? " dswt-selected" : ""),
         role: "treeitem",
+        "aria-selected": selected,
         title: row.displayTitle,
-        onClick: () => {}
+        onClick: () => onOpen && onOpen(sid)
       }, [
-        h("span", { key: "st", className: "dswt-slot" }, h(StatusDot, { state: sessionState(row, false) })),
+        h("span", { key: "st", className: "dswt-slot" }, h(StatusDot, { state: sessionState(row, selected) })),
         h("span", { key: "ti", className: "dswt-title", title: row.displayTitle }, row.displayTitle),
         h("span", { key: "tm", className: "dswt-time" }, timeLabel(row.updatedAt, Date.now())),
         h("span", { key: "ac", className: "dswt-rowActions", onClick: (e) => e.stopPropagation() }, [
@@ -676,7 +678,7 @@ window.__ModuleLoader__.load({
     }
 
     // ══════════════ 归档视图：按工作区分组（深度递归收集 + 严密过滤） ══════════════
-    function ArchiveView({ sessions, workspaces, wsForest, archived, hardDeleted, onRestoreOne, onDeleteOne, onRestoreGroup, onDeleteGroup, onRestoreAll, onDeleteAll, busy }) {
+    function ArchiveView({ sessions, workspaces, wsForest, archived, hardDeleted, onOpen, onRestoreOne, onDeleteOne, onRestoreGroup, onDeleteGroup, onRestoreAll, onDeleteAll, busy }) {
       const byId = (sessions && sessions.byId) || {};
 
       const accounted = new Set();
@@ -717,7 +719,7 @@ window.__ModuleLoader__.load({
             h("button", { key: "da", type: "button", className: "dswt-archiveBtn dswt-archiveBtnDanger", disabled: !!busy, title: "一键删除所有", onClick: onDeleteAll }, "一键删除所有")
           ])
         ]),
-        hasAny ? null : h("div", { key: "empty", className: "dswt-empty" }, "归档为空 — 归档的会话会在此按工作区分组显示"),
+        hasAny ? null : h("div", { key: "empty", className: "dswt-empty" }, "归档区为空 — 归档的会话会在此按工作区分组显示"),
         allGroups.map(({ node, sids }) => h("div", { key: node.w.workspaceId, className: "dswt-groupSection" }, [
           h("div", { key: "hd", className: "dswt-projectRow" }, [
             h("span", { key: "ic", className: "dswt-slot dswt-folderIcon" }, h(Icon, { name: "folderOpen", size: 16, className: "dswt-folderSvg" })),
@@ -727,7 +729,7 @@ window.__ModuleLoader__.load({
               h("button", { key: "dl", type: "button", className: "dswt-iconButton dswt-danger", title: "永久删除该工作区全部", disabled: !!busy, onClick: () => onDeleteGroup(node.w.workspaceId) }, h(Icon, { name: "trash", size: 14 }))
             ])
           ]),
-          h("div", { key: "bd", className: "dswt-groupBody", style: { "--dswt-line-x": "16px" } }, sids.map((sid) => h(ArchiveSessionRow, { key: sid, sid, sessions, onRestore: onRestoreOne, onDelete: onDeleteOne })))
+          h("div", { key: "bd", className: "dswt-groupBody", style: { "--dswt-line-x": "16px" } }, sids.map((sid) => h(ArchiveSessionRow, { key: sid, sid, sessions, onOpen, onRestore: onRestoreOne, onDelete: onDeleteOne })))
         ])),
         ungrouped.length > 0 && h("div", { key: "ug", className: "dswt-ungrouped" }, [
           h("div", { key: "t", className: "dswt-ungroupedTitle" }, "未分组归档 · " + ungrouped.length + " 条"),
@@ -735,7 +737,7 @@ window.__ModuleLoader__.load({
             h("button", { key: "rs", type: "button", className: "dswt-archiveBtn dswt-archiveBtnSecondary", disabled: !!busy, onClick: () => onRestoreGroup(null) }, "恢复全部"),
             h("button", { key: "dl", type: "button", className: "dswt-archiveBtn dswt-archiveBtnDanger", disabled: !!busy, onClick: () => onDeleteGroup(null) }, "删除全部")
           ]),
-          ungrouped.map((sid) => h(ArchiveSessionRow, { key: sid, sid, sessions, onRestore: onRestoreOne, onDelete: onDeleteOne }))
+          ungrouped.map((sid) => h(ArchiveSessionRow, { key: sid, sid, sessions, onOpen, onRestore: onRestoreOne, onDelete: onDeleteOne }))
         ])
       ]);
     }
@@ -1067,18 +1069,43 @@ window.__ModuleLoader__.load({
       }, [deleteWsConfirm, deleteWorkspace, showAlert]);
 
       const onArchiveSession = useCallback((sessionId) => {
-        archiveSession(sessionId).catch((error) => {
+        archiveSession(sessionId).then(() => {
+          if (sessions && sessions.current === sessionId) {
+            startSession();
+          }
+        }).catch((error) => {
           showAlert(String((error && error.message) || error), "归档会话失败");
         });
-      }, [archiveSession, showAlert]);
+      }, [archiveSession, sessions, startSession, showAlert]);
 
       const archived = useMemo(() => new Set((workspaces.archivedSessionIds || []).map(String)), [workspaces.archivedSessionIds]);
 
+      const isCurrentArchived = useMemo(() => {
+        if (!sessions || !sessions.current) return false;
+        return archived.has(String(sessions.current));
+      }, [sessions, archived]);
+
+      useEffect(() => {
+        if (isCurrentArchived) {
+          document.body.setAttribute("data-dswt-archived-session", "true");
+        } else {
+          document.body.removeAttribute("data-dswt-archived-session");
+        }
+        return () => {
+          document.body.removeAttribute("data-dswt-archived-session");
+        };
+      }, [isCurrentArchived]);
+
       // 归档视图操作
-      const onRestoreOne = useCallback((sid) => {
-        const t = (sessions.byId[sid] && sessions.byId[sid].displayTitle) || sid;
-        setArchiveConfirm({ kind: "restoreOne", sessionId: sid, title: t });
-      }, [sessions]);
+      const onRestoreOne = useCallback(async (sid) => {
+        try {
+          const r = await apiPost("/archive/unarchive", { sessionId: sid });
+          if (!r.ok) throw new Error(r.error || "恢复失败");
+          refreshSessions();
+        } catch (error) {
+          showAlert(String((error && error.message) || error), "恢复失败");
+        }
+      }, [refreshSessions, showAlert]);
       const onDeleteOne = useCallback((sid) => {
         const t = (sessions.byId[sid] && sessions.byId[sid].displayTitle) || sid;
         setArchiveConfirm({ kind: "deleteOne", sessionId: sid, title: t });
@@ -1137,24 +1164,35 @@ window.__ModuleLoader__.load({
             if (!r.ok) throw new Error(r.error || "删除失败");
             const deleted = Array.isArray(r.deleted) && r.deleted.length ? r.deleted : toDelete;
             rememberDeleted(deleted);
+            if (sessions && sessions.current && deleted.some((id) => String(id) === String(sessions.current))) {
+              startSession();
+            }
             refreshSessions();
           } else if (k === "restoreGroup") {
             const r = await apiPost("/archive/unarchiveAll", { workspaceId: archiveConfirm.workspaceId });
             if (!r.ok) throw new Error(r.error || "恢复失败");
+            refreshSessions();
           } else if (k === "deleteGroup") {
             const r = await apiPost("/archive/deleteAll", { workspaceId: archiveConfirm.workspaceId });
             if (!r.ok) throw new Error(r.error || "删除失败");
             const deleted = Array.isArray(r.deleted) && r.deleted.length ? r.deleted : toDelete;
             rememberDeleted(deleted);
+            if (sessions && sessions.current && deleted.some((id) => String(id) === String(sessions.current))) {
+              startSession();
+            }
             refreshSessions();
           } else if (k === "restoreAll") {
             const r = await apiPost("/archive/unarchiveAll", {});
             if (!r.ok) throw new Error(r.error || "恢复失败");
+            refreshSessions();
           } else if (k === "deleteAll") {
             const r = await apiPost("/archive/deleteAll", {});
             if (!r.ok) throw new Error(r.error || "删除失败");
             const deleted = Array.isArray(r.deleted) && r.deleted.length ? r.deleted : toDelete;
             rememberDeleted(deleted);
+            if (sessions && sessions.current && deleted.some((id) => String(id) === String(sessions.current))) {
+              startSession();
+            }
             refreshSessions();
           }
           setArchiveConfirm(null);
@@ -1226,13 +1264,13 @@ window.__ModuleLoader__.load({
             switchMode(mode === "folder" ? "workspace" : "folder");
           }
         }, [
-          swapFrom !== null && h("span", { key: "out", className: "dswt-titleItem dswt-titleOut" }, swapFrom === "folder" ? "文件夹" : swapFrom === "archive" ? "归档" : "工作区"),
-          h("span", { key: "in" + mode, className: "dswt-titleItem dswt-titleIn" }, mode === "archive" ? "归档" : mode === "folder" ? "文件夹" : "工作区")
+          swapFrom !== null && h("span", { key: "out", className: "dswt-titleItem dswt-titleOut" }, swapFrom === "folder" ? "文件夹" : swapFrom === "archive" ? "归档区" : "工作区"),
+          h("span", { key: "in" + mode, className: "dswt-titleItem dswt-titleIn" }, mode === "archive" ? "归档区" : mode === "folder" ? "文件夹" : "工作区")
         ]),
         h("span", { key: "a", className: "dswt-headerActions" }, [
           mode !== "archive" && h("button", { key: "ns", type: "button", className: "dswt-headBtn", title: "新建会话", onClick: () => startSession() }, h(Icon, { name: "newChat", size: 16 })),
           mode !== "archive" && h("button", { key: "ws", type: "button", className: "dswt-headBtn", title: "添加工作区", onClick: onAddWorkspace }, h(Icon, { name: "plus", size: 16 })),
-          h("button", { key: "ar", type: "button", className: "dswt-headBtn" + (mode === "archive" ? " dswt-headBtnActive" : ""), title: mode === "archive" ? "返回" : "归档", onClick: toggleArchive }, h(Icon, { name: "archive", size: 16 }))
+          h("button", { key: "ar", type: "button", className: "dswt-headBtn" + (mode === "archive" ? " dswt-headBtnActive" : ""), title: mode === "archive" ? "返回" : "归档区", onClick: toggleArchive }, h(Icon, { name: "archive", size: 16 }))
         ].filter(Boolean))
       ]);
 
@@ -1256,7 +1294,7 @@ window.__ModuleLoader__.load({
           dirForest.length === 0 && h("div", { key: "e", className: "dswt-empty" }, "尚无工作区——点击上方「添加工作区」或先新建会话")
         ]);
       } else if (mode === "archive") {
-        body = h("div", { key: "l", className: "dswt-list", role: "tree", "aria-label": "归档" }, [
+        body = h("div", { key: "l", className: "dswt-list", role: "tree", "aria-label": "归档区" }, [
           h(ArchiveView, {
             key: "av",
             sessions,
@@ -1264,6 +1302,7 @@ window.__ModuleLoader__.load({
             wsForest,
             archived,
             hardDeleted,
+            onOpen: open,
             onRestoreOne,
             onDeleteOne,
             onRestoreGroup,
@@ -1296,7 +1335,6 @@ window.__ModuleLoader__.load({
       const archiveModalProps = (() => {
         if (!archiveConfirm) return { open: false, title: "", desc: "", confirmText: "确认", danger: false };
         const k = archiveConfirm.kind;
-        if (k === "restoreOne") return { open: true, title: "恢复会话", desc: "确定要恢复会话 “" + (archiveConfirm.title || "") + "” 吗？", confirmText: "恢复", danger: false };
         if (k === "deleteOne") return { open: true, title: "永久删除会话", desc: "确定要永久删除会话 “" + (archiveConfirm.title || "") + "” 吗？此操作将彻底删除会话数据与关联的全部子智能体（Subagent）日志，无法恢复。", confirmText: "永久删除", danger: true };
         if (k === "restoreGroup") return { open: true, title: "恢复工作区归档", desc: "确定要恢复工作区 “" + (archiveConfirm.title || "") + "” 的全部归档会话吗？", confirmText: "恢复全部", danger: false };
         if (k === "deleteGroup") return { open: true, title: "删除工作区归档", desc: "确定要永久删除工作区 “" + (archiveConfirm.title || "") + "” 的全部归档会话吗？此操作不可恢复。", confirmText: "永久删除", danger: true };
@@ -1488,6 +1526,42 @@ window.__ModuleLoader__.load({
       }
     }
 
+    // ══════════════ 归档只读底部栏 ══════════════
+    function ReadonlyArchivedComposerBanner(props) {
+      const { sessionId, matched, ctx } = props;
+      const sid = sessionId || (matched && matched.sessionId) || (ctx && ctx.sessions && ctx.sessions.list && ctx.sessions.list.getSnapshot && ctx.sessions.list.getSnapshot().current);
+      const [busy, setBusy] = useState(false);
+
+      const onRestore = useCallback(async () => {
+        if (busy || !sid) return;
+        setBusy(true);
+        try {
+          const r = await apiPost("/archive/unarchive", { sessionId: sid });
+          if (!r.ok) throw new Error(r.error || "恢复失败");
+          if (ctx && ctx.sessions && typeof ctx.sessions.refresh === "function") {
+            ctx.sessions.refresh();
+          }
+        } catch (e) {
+          console.error("恢复归档会话失败:", e);
+        } finally {
+          setBusy(false);
+        }
+      }, [busy, sid, ctx]);
+
+      return h("div", { className: "dswt-archivedComposerRoot" }, [
+        h("div", { className: "dswt-archivedComposerBanner" }, [
+          h("span", { className: "dswt-archivedComposerIcon" }, "📦"),
+          h("span", { className: "dswt-archivedComposerText" }, "当前会话已归档（只读模式）"),
+          h("button", {
+            type: "button",
+            className: "dswt-archivedComposerBtn",
+            disabled: busy,
+            onClick: onRestore
+          }, busy ? "恢复中…" : "恢复会话")
+        ])
+      ]);
+    }
+
     // ══════════════ 注册 ══════════════
     function apply(ctx) {
       const styleEl = document.createElement("style");
@@ -1504,7 +1578,60 @@ window.__ModuleLoader__.load({
         label: "工作区树"
       }, ConfigPanel));
 
+      // 允许阅览已归档会话：解除官方 WorkspaceRuntime.project 中当 sessions.current 属于归档时自动 clear() 的限制
+      if (ctx.workspaces) {
+        const proto = Object.getPrototypeOf(ctx.workspaces);
+        if (proto && typeof proto.project === "function") {
+          proto.project = function() {
+            const workspace = this.manager.getSnapshot();
+            const sessions = this.sessions.list.getSnapshot();
+            const baselinesReady = workspace.phase === "ready" && sessions.phase === "ready";
+            this.list.set({
+              items: workspace.items,
+              archivedSessionIds: workspace.archivedSessionIds,
+              state: workspace.state,
+              phase: workspace.phase,
+              error: workspace.error,
+              baselinesReady,
+              recentWorkspaceId: baselinesReady ? this.list.getSnapshot()?.recentWorkspaceId : void 0
+            });
+          };
+        }
+        if (typeof ctx.workspaces.project === "function") {
+          ctx.workspaces.project = function() {
+            const workspace = this.manager.getSnapshot();
+            const sessions = this.sessions.list.getSnapshot();
+            const baselinesReady = workspace.phase === "ready" && sessions.phase === "ready";
+            this.list.set({
+              items: workspace.items,
+              archivedSessionIds: workspace.archivedSessionIds,
+              state: workspace.state,
+              phase: workspace.phase,
+              error: workspace.error,
+              baselinesReady,
+              recentWorkspaceId: baselinesReady ? this.list.getSnapshot()?.recentWorkspaceId : void 0
+            });
+          };
+        }
+      }
+
       if (!getConfig().enabled) return;
+
+      // 归档会话只读接管：通过 conversation.composer chain slot 替换输入框为只读条
+      ctx.slots.inject("conversation.composer", () => ctx.slots.register({
+        name: "conversation.composer",
+        priority: -100,
+        select: (owner) => {
+          const cur = ctx.sessions?.list?.getSnapshot ? ctx.sessions.list.getSnapshot().current : null;
+          if (!cur) return null;
+          const wsList = ctx.workspaces?.list?.getSnapshot ? ctx.workspaces.list.getSnapshot() : null;
+          const archivedIds = (wsList && wsList.archivedSessionIds) || [];
+          if (archivedIds.map(String).includes(String(cur))) {
+            return { sessionId: cur };
+          }
+          return null;
+        }
+      }, (props) => h(ReadonlyArchivedComposerBanner, { ...props, ctx })));
 
       ctx.slots.inject("sidebar.workspaces", () => ctx.slots.register({
         name: "sidebar.workspaces",
@@ -2240,6 +2367,96 @@ window.__ModuleLoader__.load({
       @media (prefers-reduced-motion: reduce) {
         .dswt-session { transition: none; animation: none; }
         .dswt-cell { animation: none; opacity: 1; }
+      }
+
+      /* ══════════════ 归档只读底部栏 ══════════════ */
+      .dswt-archivedComposerRoot {
+        box-sizing: border-box;
+        width: 100%;
+        max-width: var(--dsh-composer-card-max-width, 780px);
+        margin: 0 auto;
+        padding: 8px 16px 16px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .dswt-archivedComposerBanner {
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--dsw-alias-interactive-bg-hover, rgba(255, 255, 255, 0.06));
+        border: 1px solid var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.12));
+        border-radius: 20px;
+        padding: 8px 16px;
+        box-shadow: var(--dsw-shadow-lv1, 0 1px 3px rgba(0, 0, 0, 0.1));
+      }
+      .dswt-archivedComposerIcon {
+        font-size: 15px;
+        flex: none;
+        display: inline-flex;
+      }
+      .dswt-archivedComposerText {
+        color: var(--dsw-alias-label-secondary, #8b949e);
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 20px;
+      }
+      .dswt-archivedComposerBtn {
+        background: var(--dsw-alias-button-primary-fill, #2563eb);
+        color: var(--dsw-alias-label-primary-foreground, #fff);
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 3px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 18px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        transition: opacity .15s ease;
+      }
+      .dswt-archivedComposerBtn:hover:not(:disabled) {
+        opacity: .9;
+      }
+      .dswt-archivedComposerBtn:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+      }
+
+      /* ══════════════ 归档会话只读消息隔离（白名单机制） ══════════════ */
+      body[data-dswt-archived-session="true"] [data-slot="conversation.chat.assistant-actions"],
+      body[data-dswt-archived-session="true"] button[aria-label*="分支" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="Branch" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="Fork" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="编辑" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="Edit" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="重试" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="Retry" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="重生成" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="撤销" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="重施加" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="反馈" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="赞" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="踩" i],
+      body[data-dswt-archived-session="true"] button[data-unavailable],
+      body[data-dswt-archived-session="true"] [class*="retryRow"],
+      body[data-dswt-archived-session="true"] [class*="retrySummary"],
+      body[data-dswt-archived-session="true"] [class*="retryText"],
+      body[data-dswt-archived-session="true"] [class*="ApprovalPanel_actionRow"],
+      body[data-dswt-archived-session="true"] [data-approval-key] button,
+      body[data-dswt-archived-session="true"] [class*="feedback"] {
+        display: none !important;
+      }
+
+      /* 确保复制按钮始终可见 */
+      body[data-dswt-archived-session="true"] button[aria-label*="复制" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="Copy" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="已复制" i],
+      body[data-dswt-archived-session="true"] button[aria-label*="Copied" i] {
+        display: inline-flex !important;
       }
     `;
 
