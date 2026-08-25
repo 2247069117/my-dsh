@@ -20,11 +20,9 @@ export const CHANNEL_NAMES: Record<string, string> = {
   siliconflow: '硅基流动 (Qwen2.5-7B)',
   zhipu: '智谱 AI (glm-4-flash)',
   bing: '微软 Bing 网页翻译 (免Key直连)',
-  mymemory: 'MyMemory 免费机器翻译 (免Key)',
-  builtin: '离线技术词典 (0ms兜底)',
 };
 
-export const ALL_CHANNELS = ['siliconflow', 'zhipu', 'bing', 'mymemory', 'builtin'];
+export const ALL_CHANNELS = ['siliconflow', 'zhipu', 'bing'];
 
 class SettingsStore {
   private state: ClientSettingsState = {
@@ -64,7 +62,7 @@ class SettingsStore {
         if (Array.isArray(arr) && arr.length > 0) {
           // Drop retired channel ids ('google' gtx, 'gateway' DeepLX), then
           // merge in channels added by newer releases.
-          const retired = new Set(['google', 'gateway']);
+          const retired = new Set(['google', 'gateway', 'builtin', 'mymemory']);
           const filtered = arr.filter((x: string) => !retired.has(x) && ALL_CHANNELS.includes(x));
           for (const ch of ALL_CHANNELS) {
             if (!filtered.includes(ch)) filtered.push(ch);

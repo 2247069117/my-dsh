@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import type { PluginConfig, MaskedPluginConfig } from './types.ts';
 
 /** All known channel ids, in the order the dispatcher tries them by default. */
-const KNOWN_CHANNELS = ['siliconflow', 'zhipu', 'bing', 'mymemory', 'builtin'];
+const KNOWN_CHANNELS = ['siliconflow', 'zhipu', 'bing'];
 
 const DEFAULT_CONFIG: PluginConfig = {
   enabled: true,
@@ -39,7 +39,7 @@ export class ConfigManager {
     // 'gateway' DeepLX channel were retired), then merge in any adapter
     // channels the config predates, so a persisted order from an older
     // release keeps working with new channels.
-    const retired = new Set(['google', 'gateway']);
+    const retired = new Set(['google', 'gateway', 'builtin', 'mymemory']);
     const merged = this.config.channels.filter((ch) => !retired.has(ch));
     for (const ch of KNOWN_CHANNELS) {
       if (!merged.includes(ch)) merged.push(ch);

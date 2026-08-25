@@ -4,8 +4,6 @@ import type { LruDiskCache } from './cache.ts';
 import { SiliconFlowAdapter } from './adapters/siliconflow.ts';
 import { ZhipuAdapter } from './adapters/zhipu.ts';
 import { BingWebAdapter } from './adapters/bing.ts';
-import { MyMemoryAdapter } from './adapters/mymemory.ts';
-import { BuiltinDictAdapter } from './adapters/builtin.ts';
 
 const CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
 
@@ -29,8 +27,6 @@ export class TranslationDispatcher {
     this.registerAdapter(new SiliconFlowAdapter());
     this.registerAdapter(new ZhipuAdapter());
     this.registerAdapter(new BingWebAdapter());
-    this.registerAdapter(new MyMemoryAdapter());
-    this.registerAdapter(new BuiltinDictAdapter());
   }
 
   private registerAdapter(adapter: ITranslationAdapter): void {
@@ -82,7 +78,7 @@ export class TranslationDispatcher {
     // 3. Queue task with concurrency limit
     const taskPromise = this.enqueueTask(async () => {
       const currentConfig = this.configManager.getConfig();
-      const channels = currentConfig.channels || ['siliconflow', 'zhipu', 'mymemory', 'builtin'];
+      const channels = currentConfig.channels || ['siliconflow', 'zhipu', 'bing'];
 
       for (const chId of channels) {
         const adapter = this.adapters.get(chId);
@@ -117,24 +113,6 @@ export class TranslationDispatcher {
           this.recordFailure(chId);
           // Continue to next channel
         }
-      }
-
-      // Final fallback to builtin dictionary
-      try {
-        const builtin = this.adapters.get('builtin');
-        if (builtin) {
-          const fallback = await builtin.translate(text, new AbortController().signal, currentConfig);
-          if (fallback && fallback.trim()) {
-            return {
-              original: rawText,
-              translated: fallback.trim(),
-              channel: 'builtin',
-              cached: false,
-            };
-          }
-        }
-      } catch {
-        // Fallback failed
       }
 
       return { original: rawText, translated: rawText, channel: 'fallback', cached: false };

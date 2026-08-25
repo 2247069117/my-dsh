@@ -278,79 +278,6 @@ var ClientCache = class {
 var clientCache = new ClientCache();
 
 // src/client/translate/api.ts
-var EXACT_PATTERNS = {
-  "list files in current directory": "\u5217\u51FA\u5F53\u524D\u76EE\u5F55\u6587\u4EF6",
-  "show working tree status": "\u67E5\u770B Git \u5DE5\u4F5C\u533A\u72B6\u6001",
-  "check git status": "\u67E5\u770B Git \u72B6\u6001",
-  "check working tree status": "\u67E5\u770B\u5DE5\u4F5C\u533A\u72B6\u6001",
-  "check workspace structure": "\u68C0\u67E5\u5DE5\u4F5C\u533A\u76EE\u5F55\u7ED3\u6784",
-  "list plugins": "\u5217\u51FA\u63D2\u4EF6\u5217\u8868",
-  "run build": "\u6267\u884C\u9879\u76EE\u6784\u5EFA",
-  "run tests": "\u8FD0\u884C\u6D4B\u8BD5",
-  "run linter": "\u4EE3\u7801\u98CE\u683C\u68C0\u67E5",
-  "typecheck project": "TypeScript \u7C7B\u578B\u68C0\u67E5"
-};
-var PREFIX_PATTERNS = [
-  [/^locate\s+(.+)$/i, (m) => `\u5B9A\u4F4D ${m[1]}`],
-  [/^inspect\s+(.+)$/i, (m) => `\u68C0\u67E5 ${m[1]}`],
-  [/^explore\s+(.+)$/i, (m) => `\u6D4F\u89C8 ${m[1]}`],
-  [/^read\s+file\s*(.*)$/i, (m) => `\u8BFB\u53D6\u6587\u4EF6 ${m[1]}`.trim()],
-  [/^read\s+(.+)$/i, (m) => `\u8BFB\u53D6 ${m[1]}`],
-  [/^write\s+file\s*(.*)$/i, (m) => `\u5199\u5165\u6587\u4EF6 ${m[1]}`.trim()],
-  [/^write\s+(.+)$/i, (m) => `\u5199\u5165 ${m[1]}`],
-  [/^edit\s+file\s*(.*)$/i, (m) => `\u7F16\u8F91\u6587\u4EF6 ${m[1]}`.trim()],
-  [/^edit\s+(.+)$/i, (m) => `\u7F16\u8F91 ${m[1]}`],
-  [/^create\s+file\s*(.*)$/i, (m) => `\u521B\u5EFA\u6587\u4EF6 ${m[1]}`.trim()],
-  [/^create\s+(.+)$/i, (m) => `\u521B\u5EFA ${m[1]}`],
-  [/^delete\s+file\s*(.*)$/i, (m) => `\u5220\u9664\u6587\u4EF6 ${m[1]}`.trim()],
-  [/^delete\s+(.+)$/i, (m) => `\u5220\u9664 ${m[1]}`],
-  [/^search\s+files?\s*(.*)$/i, (m) => `\u641C\u7D22\u6587\u4EF6 ${m[1]}`.trim()],
-  [/^search\s+(.+)$/i, (m) => `\u641C\u7D22 ${m[1]}`],
-  [/^find\s+files?\s*(.*)$/i, (m) => `\u67E5\u627E\u6587\u4EF6 ${m[1]}`.trim()],
-  [/^find\s+(.+)$/i, (m) => `\u67E5\u627E ${m[1]}`],
-  [/^grep\s+(.+)$/i, (m) => `\u68C0\u7D22\u6587\u672C ${m[1]}`],
-  [/^check\s+(.+)$/i, (m) => `\u68C0\u67E5 ${m[1]}`],
-  [/^run\s+command:\s*(.+)$/i, (m) => `\u8FD0\u884C\u547D\u4EE4: ${m[1]}`],
-  [/^run\s+(.+)$/i, (m) => `\u8FD0\u884C ${m[1]}`],
-  [/^execute\s+(.+)$/i, (m) => `\u6267\u884C ${m[1]}`],
-  [/^install\s+(.+)$/i, (m) => `\u5B89\u88C5 ${m[1]}`],
-  [/^build\s+(.+)$/i, (m) => `\u6784\u5EFA ${m[1]}`],
-  [/^verify\s+(.+)$/i, (m) => `\u9A8C\u8BC1 ${m[1]}`],
-  [/^test\s+(.+)$/i, (m) => `\u6D4B\u8BD5 ${m[1]}`],
-  [/^stage\s+(.+)$/i, (m) => `\u6682\u5B58 ${m[1]}`],
-  [/^commit\s+(.+)$/i, (m) => `\u63D0\u4EA4 ${m[1]}`],
-  [/^list\s+(.+)$/i, (m) => `\u5217\u51FA ${m[1]}`],
-  [/^clean\s+(.+)$/i, (m) => `\u6E05\u7406 ${m[1]}`],
-  [/^update\s+(.+)$/i, (m) => `\u66F4\u65B0 ${m[1]}`],
-  [/^fetch\s+(.+)$/i, (m) => `\u83B7\u53D6 ${m[1]}`],
-  [/^expand\s+(.+)$/i, (m) => `\u5C55\u5F00 ${m[1]}`]
-];
-function fallbackTranslateLocal(text) {
-  const raw = text.trim();
-  const lower = raw.toLowerCase();
-  if (EXACT_PATTERNS[lower]) return EXACT_PATTERNS[lower];
-  for (const [pattern, formatter] of PREFIX_PATTERNS) {
-    const match = pattern.exec(raw);
-    if (match) return formatter(match);
-  }
-  return raw;
-}
-async function fallbackTranslateMyMemory(text) {
-  const local = fallbackTranslateLocal(text);
-  if (local !== text) return local;
-  try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`;
-    const res = await fetch(url);
-    if (!res.ok) return text;
-    const json = await res.json();
-    const trans = json?.responseData?.translatedText?.trim();
-    if (trans && !trans.startsWith("MYMEMORY WARNING:")) {
-      return trans;
-    }
-  } catch {
-  }
-  return text;
-}
 async function requestTranslateBatch(texts) {
   if (texts.length === 0) return [];
   try {
@@ -369,18 +296,12 @@ async function requestTranslateBatch(texts) {
     }
   } catch {
   }
-  const results = await Promise.all(
-    texts.map(async (t) => {
-      const translated = await fallbackTranslateMyMemory(t);
-      return {
-        original: t,
-        translated: translated || t,
-        channel: "fallback-client",
-        cached: false
-      };
-    })
-  );
-  return results;
+  return texts.map((t) => ({
+    original: t,
+    translated: t,
+    channel: "fallback-client",
+    cached: false
+  }));
 }
 async function fetchServerConfig() {
   try {
@@ -638,11 +559,9 @@ var LS_CHANNELS = `${LS_PREFIX}channels`;
 var CHANNEL_NAMES = {
   siliconflow: "\u7845\u57FA\u6D41\u52A8 (Qwen2.5-7B)",
   zhipu: "\u667A\u8C31 AI (glm-4-flash)",
-  bing: "\u5FAE\u8F6F Bing \u7F51\u9875\u7FFB\u8BD1 (\u514DKey\u76F4\u8FDE)",
-  mymemory: "MyMemory \u514D\u8D39\u673A\u5668\u7FFB\u8BD1 (\u514DKey)",
-  builtin: "\u79BB\u7EBF\u6280\u672F\u8BCD\u5178 (0ms\u515C\u5E95)"
+  bing: "\u5FAE\u8F6F Bing \u7F51\u9875\u7FFB\u8BD1 (\u514DKey\u76F4\u8FDE)"
 };
-var ALL_CHANNELS = ["siliconflow", "zhipu", "bing", "mymemory", "builtin"];
+var ALL_CHANNELS = ["siliconflow", "zhipu", "bing"];
 var SettingsStore = class {
   state = {
     enabled: true,
@@ -676,7 +595,7 @@ var SettingsStore = class {
       if (channelsRaw !== null) {
         const arr = JSON.parse(channelsRaw);
         if (Array.isArray(arr) && arr.length > 0) {
-          const retired = /* @__PURE__ */ new Set(["google", "gateway"]);
+          const retired = /* @__PURE__ */ new Set(["google", "gateway", "builtin", "mymemory"]);
           const filtered = arr.filter((x) => !retired.has(x) && ALL_CHANNELS.includes(x));
           for (const ch of ALL_CHANNELS) {
             if (!filtered.includes(ch)) filtered.push(ch);

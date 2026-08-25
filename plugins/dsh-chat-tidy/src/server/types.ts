@@ -2,7 +2,7 @@ export interface PluginConfig {
   enabled: boolean;
   concurrency: number; // 1-6, default 3
   timeoutMs: number; // default 2000
-  channels: string[]; // ['siliconflow', 'zhipu', 'bing', 'mymemory', 'builtin']
+  channels: string[]; // ['siliconflow', 'zhipu', 'bing']
   siliconflowKey?: string;
   zhipuKey?: string;
 }
