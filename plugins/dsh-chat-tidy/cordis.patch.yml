@@ -1,5 +1,6 @@
-# dsh-chat-tidy bundle patch: mount the no-op host entry so the web profile
-# discovers and serves the package's browser client bundle.
+# @lynn123411/dsh-chat-tidy bundle patch
+# 声明在 package.json 的 dsh.bundle.patch，`dsh plugin add` 后自动并入 profile 层栈。
+# 浏览器半区（lib/client.js）由 client-modules 依据 dsh.client 声明自动发现。
 - insert:
     - id: dsh-chat-tidy
-      name: dsh-chat-tidy
+      name: '@lynn123411/dsh-chat-tidy'

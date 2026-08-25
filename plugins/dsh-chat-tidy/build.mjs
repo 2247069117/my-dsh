@@ -1,8 +1,11 @@
 import { build } from 'esbuild';
-import { mkdirSync, existsSync } from 'node:fs';
+import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { execFileSync, execSync } from 'node:child_process';
 
 mkdirSync('lib', { recursive: true });
+
+// Bundle id follows the package name (standard @lynn123411/dsh-* naming).
+const pkgName = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).name;
 
 // 1. Host build
 await build({
@@ -27,7 +30,7 @@ await build({
   sourcemap: true,
   external: ['react', 'react-dom'],
   banner: {
-    js: "window.__ModuleLoader__.load({ id: 'dsh-chat-tidy', factory: (require) => { var module = { exports: {} }; var exports = module.exports;",
+    js: `window.__ModuleLoader__.load({ id: ${JSON.stringify(pkgName)}, factory: (require) => { var module = { exports: {} }; var exports = module.exports;`,
   },
   footer: {
     js: 'return module.exports; } });',

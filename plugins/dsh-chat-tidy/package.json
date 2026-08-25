@@ -1,16 +1,17 @@
 {
-  "name": "dsh-chat-tidy",
-  "version": "0.3.0",
-  "description": "Codex-aligned chat typography and layout with tool-call title translation for the DeepSeek Harness Web UI",
+  "name": "@lynn123411/dsh-chat-tidy",
+  "version": "1.0.0",
+  "description": "Codex-aligned chat typography and tool-call title translation for the DeepSeek Harness Web UI",
   "license": "MIT",
-  "author": "ChuanTianML",
+  "author": "lynn123411",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ChuanTianML/dsh-chat-tidy.git"
+    "url": "git+https://github.com/tttnny/my-dsh.git",
+    "directory": "plugins/dsh-chat-tidy"
   },
-  "homepage": "https://github.com/ChuanTianML/dsh-chat-tidy#readme",
+  "homepage": "https://github.com/tttnny/my-dsh#readme",
   "bugs": {
-    "url": "https://github.com/ChuanTianML/dsh-chat-tidy/issues"
+    "url": "https://github.com/tttnny/my-dsh/issues"
   },
   "keywords": [
     "deepseek-harness",
@@ -24,6 +25,9 @@
     "web-ui"
   ],
   "packageManager": "pnpm@11.7.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -53,7 +57,6 @@
   },
   "files": [
     "lib",
-    "docs",
     "cordis.patch.yml",
     "dsh.plugin.json",
     "README.md",

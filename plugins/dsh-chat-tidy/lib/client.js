@@ -1,4 +1,4 @@
-window.__ModuleLoader__.load({ id: 'dsh-chat-tidy', factory: (require) => { var module = { exports: {} }; var exports = module.exports;
+window.__ModuleLoader__.load({ id: "@lynn123411/dsh-chat-tidy", factory: (require) => { var module = { exports: {} }; var exports = module.exports;
 "use strict";
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
