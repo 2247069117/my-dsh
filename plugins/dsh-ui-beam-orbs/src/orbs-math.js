@@ -12,6 +12,9 @@
    *   connecting (web), weaving (braid), composing (ribbon), breathing (ring),
    *   shaping (morph).
    * ------------------------------------------------------------------ */
+  /* 模块级排序闭包：避免 Ct 每帧新建比较函数（本文件唯一允许的微优化） */
+  var ORB_Z_SORT = function(a, b) { return a.z - b.z; };
+
   function Jl(e, t, n) { return e + (t - e) * n; }
   function pc(e) { return e - Math.floor(e); }
   function ze(e, t) {
@@ -57,7 +60,7 @@
         r.push(l);
       }
     }
-    r.sort(function(a, b) { return a.z - b.z; });
+    r.sort(ORB_Z_SORT);
     var lines = [];
     for (var j = 0; j < t.length; j++) {
       if ((t[j].a !== undefined ? t[j].a : 1) >= 0.02) lines.push(t[j]);

@@ -78,6 +78,12 @@ body[data-ds-dark-theme] .dsh-turn-status-text {
   animation: 1.8s linear infinite Md3f7G_dsh-turn-status-shimmer !important;
 }
 
+/* 流光关键帧：background-size 为 250% 100%，200% -> -300% 恰好平移整数个平铺周期，形成无缝循环 */
+@keyframes Md3f7G_dsh-turn-status-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -300% 0; }
+}
+
 body[data-ds-dark-theme] .Md3f7G_turnStatusClock,
 body[data-ds-dark-theme] [class*="turnStatusClock"] {
   font-size: 12px !important;
@@ -110,8 +116,39 @@ body[data-ds-dark-theme] .Md3f7G_turnStatus[data-planning] .dsh-turn-status-text
   color: transparent !important;
 }
 
-body[data-ds-dark-theme] [data-plan-mode="1"] .dsh-turn-status-text,
-body[data-ds-dark-theme] .Md3f7G_turnStatus[data-planning] .dsh-turn-status-text {
-  color: #ff7a29 !important;
-  -webkit-text-fill-color: #ff7a29 !important;
+/* ---------- 无障碍降级：不支持 background-clip: text 时恢复实色，避免文字全透明 ---------- */
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  body[data-ds-dark-theme] .dsh-turn-status-text {
+    background: none !important;
+    animation: none !important;
+    color: #7ea6ff !important;
+    -webkit-text-fill-color: initial !important;
+  }
+
+  /* 计划态同步降级为实色橙色，渐变整块填充不会透在实色字后 */
+  body[data-ds-dark-theme] [data-plan-mode="1"] .dsh-turn-status-text,
+  body[data-ds-dark-theme] .Md3f7G_turnStatus[data-planning] .dsh-turn-status-text {
+    background: none !important;
+    animation: none !important;
+    color: #ff7a29 !important;
+    -webkit-text-fill-color: #ff7a29 !important;
+  }
+}
+
+/* ---------- 无障碍适配：prefers-reduced-motion 下静态化流光，保证文字始终可读 ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-ds-dark-theme] .dsh-turn-status-text {
+    animation: none !important;
+    background: none !important;
+    color: #7ea6ff !important;
+    -webkit-text-fill-color: #7ea6ff !important;
+  }
+
+  body[data-ds-dark-theme] [data-plan-mode="1"] .dsh-turn-status-text,
+  body[data-ds-dark-theme] .Md3f7G_turnStatus[data-planning] .dsh-turn-status-text {
+    color: #ff7a29 !important;
+    -webkit-text-fill-color: #ff7a29 !important;
+  }
 }

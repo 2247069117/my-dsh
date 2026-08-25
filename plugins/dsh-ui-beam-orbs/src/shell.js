@@ -140,7 +140,7 @@ function initShell(shared) {
       var glassBg = "rgba(13,15,19,.55)";
       var glassBorder = "hsla(0,0%,100%,.08)";
       var glassShadow = "0 0 1px 0 rgba(0,0,0,.2), 0 0 4px 0 rgba(0,0,0,.02), 0 12px 32px 0 rgba(0,0,0,.08)";
-      var side = document.querySelector(".pI_x6G_sidebarCol");
+      var side = document.querySelector('.pI_x6G_sidebarCol, [class$="sidebarCol"]');
       if (side && side.style) {
         // 注意：backdrop-filter 会让侧边栏成为 fixed 后代的包含块（设置弹窗错乱），
         // 所以列本身不设 backdrop-filter，模糊由 CSS 的 ::before 伪元素承担

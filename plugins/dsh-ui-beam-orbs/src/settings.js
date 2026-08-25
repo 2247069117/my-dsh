@@ -71,7 +71,9 @@ function initSettings(shared) {
       }
     } catch (e) {}
     try { if (shared.refs.shellGlassApply) shared.refs.shellGlassApply(); } catch (e) {} // 玻璃内联样式按开关重跑一次
-    try { if (shared.refs.syncThinkingOrb) shared.refs.syncThinkingOrb(); } catch (e) {}
+    // 用 watchThinkingOrbs 而非 syncThinkingOrb：关闭时内部走 detachThinkingOrbs，
+    // 重新打开时重挂轮询与合批订阅（只调 sync 的话监听永不复活，小球失联）
+    try { if (shared.refs.watchThinkingOrbs) shared.refs.watchThinkingOrbs(); } catch (e) {}
   }
 
   /* ---- 设置页「界面特效」面板 ---- */

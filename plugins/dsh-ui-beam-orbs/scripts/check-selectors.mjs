@@ -47,7 +47,7 @@ for (const sel of requiredSelectors) {
 // 3. JS 中哈希类名同样需有 fallback
 const jsFiles = readdirSync(join(root,"src")).filter(f=>f.endsWith(".js"));
 let jsText = jsFiles.map(f=>readFileSync(join(root,"src",f),"utf8")).join("\n");
-const hashedInJs = [...jsText.matchAll(/querySelector[^)]*\.(pI_x6G_|hHd-Xa_|uV2eYG_|wSkVaW_|qDHVXG_|gdEzaW_)[A-Za-z0-9_-]*/g)];
+const hashedInJs = [...jsText.matchAll(/querySelector[^)]*\.(pI_x6G_|hHd-Xa_|uV2eYG_|wSkVaW_|qDHVXG_|gdEzaW_|_block_|_bannerWrap|_copyButton|LVzXQa_|Mbwy4a_|VOzbGW_|CY-8Ka_|o3BgMG_)[A-Za-z0-9_-]*/g)];
 if (hashedInJs.length>0) {
   let missingFallback = 0;
   for (const m of hashedInJs) {
