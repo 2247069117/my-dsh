@@ -86,6 +86,25 @@ function isTranslateableErrorText(t: string): boolean {
   return true;
 }
 
+/**
+ * Split long prose (Think blocks) into chunks of <= max chars, breaking at
+ * line/space boundaries where possible — Bing rejects oversized payloads and
+ * heavy think loads must never starve the shared pool.
+ */
+function chunkText(text: string, max: number): string[] {
+  const out: string[] = [];
+  let rest = text;
+  while (rest.length > max) {
+    let cut = rest.lastIndexOf('\n', max);
+    if (cut < max * 0.5) cut = rest.lastIndexOf(' ', max);
+    if (cut <= 0) cut = max;
+    out.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trimStart();
+  }
+  if (rest.trim()) out.push(rest.trim());
+  return out;
+}
+
 function chunkLines(text: string, max: number): string[] {
   const lines = text.split('\n');
   const chunks: string[] = [];
@@ -165,6 +184,7 @@ export class ChatTranslateObserver {
   private rootElement: HTMLElement | null = null;
   private isEnabled = true;
   private translateThinking = false;
+  private thinkChain: Promise<unknown> = Promise.resolve();
 
   /**
    * Toggle Think/reasoning translation. Turning it on scans immediately;
@@ -176,6 +196,36 @@ export class ChatTranslateObserver {
       if (this.rootElement) this.scanContainer(this.rootElement);
     } else {
       this.restoreThinkOriginals();
+    }
+  }
+
+  /**
+   * Think translation runs on its own serial chain (one request in flight at
+   * a time) so long reasoning blocks can never fan out into a burst that
+   * hammers Bing. Short think lines still use the debounced shared queue.
+   */
+  private enqueueThink(span: HTMLElement, text: string): void {
+    this.thinkChain = this.thinkChain
+      .then(() => this.translateThink(span, text))
+      .catch(() => {});
+  }
+
+  private async translateThink(span: HTMLElement, text: string): Promise<void> {
+    if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
+    if (span.dataset.tidyTranslated === 'true') return;
+    const raw = span.textContent?.trim() || text;
+    if (!raw || CHINESE_CHAR_REGEX.test(raw)) return;
+
+    // Heavy text: chunk by line/space boundaries and translate in one batch
+    // (host pool still applies its cap), then reassemble.
+    const chunks = chunkText(raw, 600);
+    const results = await requestTranslateBatch(chunks);
+    const merged = results.map((r) => r.translated ?? r.original).join('\n');
+    if (merged && merged !== raw) {
+      span.dataset.original = raw;
+      span.dataset.tidyTranslated = 'true';
+      span.dataset.tidyThink = 'true';
+      span.textContent = merged;
     }
   }
 
@@ -329,7 +379,8 @@ export class ChatTranslateObserver {
 
     // Pre-mark think nodes so "translate thinking" can be toggled off and
     // restore them independently of the main switch (covers cache-hit paths too).
-    if (this.translateThinking && isThinkSpan(span)) {
+    const isThink = this.translateThinking && isThinkSpan(span);
+    if (isThink) {
       span.dataset.tidyThink = 'true';
     }
 
@@ -359,8 +410,20 @@ export class ChatTranslateObserver {
       return;
     }
 
+    // Think prose is heavy: route long blocks through the serial chain so
+    // it can never borrow the whole concurrency budget in one burst.
+    if (isThink && text.length > 120) {
+      this.enqueueThink(span, text);
+      return;
+    }
+
     // Send to viewport lazy queue
     lazyQueue.observe(span, text);
+  }
+
+  /** Serial chain must be drained before dispose to avoid stray writes. */
+  private drainThinkChain(): void {
+    this.thinkChain = this.thinkChain.then(() => {}).catch(() => {});
   }
 
   /** Restore think-translated nodes (used when the thinking toggle goes off). */
@@ -384,6 +447,7 @@ export class ChatTranslateObserver {
       this.observer = null;
     }
     lazyQueue.disconnect();
+    this.drainThinkChain();
     this.rootElement = null;
   }
 }

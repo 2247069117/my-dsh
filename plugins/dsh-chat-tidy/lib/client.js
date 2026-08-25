@@ -485,6 +485,19 @@ function isTranslateableErrorText(t) {
   if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) return false;
   return true;
 }
+function chunkText(text, max) {
+  const out = [];
+  let rest = text;
+  while (rest.length > max) {
+    let cut = rest.lastIndexOf("\n", max);
+    if (cut < max * 0.5) cut = rest.lastIndexOf(" ", max);
+    if (cut <= 0) cut = max;
+    out.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trimStart();
+  }
+  if (rest.trim()) out.push(rest.trim());
+  return out;
+}
 var translatingErrorOuts = /* @__PURE__ */ new WeakSet();
 var errorOutEnabled = true;
 async function translateErrorOut(span) {
@@ -538,6 +551,7 @@ var ChatTranslateObserver = class {
   rootElement = null;
   isEnabled = true;
   translateThinking = false;
+  thinkChain = Promise.resolve();
   /**
    * Toggle Think/reasoning translation. Turning it on scans immediately;
    * turning it off restores already-translated think nodes right away.
@@ -548,6 +562,30 @@ var ChatTranslateObserver = class {
       if (this.rootElement) this.scanContainer(this.rootElement);
     } else {
       this.restoreThinkOriginals();
+    }
+  }
+  /**
+   * Think translation runs on its own serial chain (one request in flight at
+   * a time) so long reasoning blocks can never fan out into a burst that
+   * hammers Bing. Short think lines still use the debounced shared queue.
+   */
+  enqueueThink(span, text) {
+    this.thinkChain = this.thinkChain.then(() => this.translateThink(span, text)).catch(() => {
+    });
+  }
+  async translateThink(span, text) {
+    if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
+    if (span.dataset.tidyTranslated === "true") return;
+    const raw = span.textContent?.trim() || text;
+    if (!raw || CHINESE_CHAR_REGEX.test(raw)) return;
+    const chunks = chunkText(raw, 600);
+    const results = await requestTranslateBatch(chunks);
+    const merged = results.map((r) => r.translated ?? r.original).join("\n");
+    if (merged && merged !== raw) {
+      span.dataset.original = raw;
+      span.dataset.tidyTranslated = "true";
+      span.dataset.tidyThink = "true";
+      span.textContent = merged;
     }
   }
   constructor() {
@@ -672,7 +710,8 @@ var ChatTranslateObserver = class {
   processSpan(span) {
     const text = span.textContent?.trim() || "";
     if (!text) return;
-    if (this.translateThinking && isThinkSpan(span)) {
+    const isThink = this.translateThinking && isThinkSpan(span);
+    if (isThink) {
       span.dataset.tidyThink = "true";
     }
     if (CHINESE_CHAR_REGEX.test(text)) {
@@ -695,7 +734,17 @@ var ChatTranslateObserver = class {
       span.textContent = cached;
       return;
     }
+    if (isThink && text.length > 120) {
+      this.enqueueThink(span, text);
+      return;
+    }
     lazyQueue.observe(span, text);
+  }
+  /** Serial chain must be drained before dispose to avoid stray writes. */
+  drainThinkChain() {
+    this.thinkChain = this.thinkChain.then(() => {
+    }).catch(() => {
+    });
   }
   /** Restore think-translated nodes (used when the thinking toggle goes off). */
   restoreThinkOriginals() {
@@ -717,6 +766,7 @@ var ChatTranslateObserver = class {
       this.observer = null;
     }
     lazyQueue.disconnect();
+    this.drainThinkChain();
     this.rootElement = null;
   }
 };
