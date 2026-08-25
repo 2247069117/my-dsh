@@ -58,6 +58,12 @@ function isToolSummarySpan(span: HTMLElement, translateThinking: boolean): boole
   // description summary line (e.g. `.CY-8Ka_summary`) is translated.
   const cls = span.className || '';
   if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
+  // Never translate the fold/expand toggle itself ("展开"/"收起"/"Expand")
+  // and never translate the Think card's own title badge ("Think"/"思考").
+  const rawToggle = (span.textContent || '').trim();
+  if (rawToggle.length <= 12 && /^(展开|收起|展开全部|收起全部|Expand|Collapse|Show more|Show less|Think|思考)$/i.test(rawToggle)) return false;
+  if (rawToggle === 'Think' || rawToggle === '思考') return false;
+  if (span.closest('button, [role="button"]') && rawToggle.length <= 12 && /展开|收起|Expand|Collapse|Think|思考/i.test(rawToggle)) return false;
   // Think / reasoning blocks are skipped unless "translate thinking chain" is on.
   if (!translateThinking) {
     if (isThinkSpan(span)) return false;

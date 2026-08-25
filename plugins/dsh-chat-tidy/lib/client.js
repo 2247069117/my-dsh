@@ -467,6 +467,10 @@ function isToolSummarySpan(span, translateThinking) {
   if (span.hasAttribute("aria-hidden")) return false;
   const cls = span.className || "";
   if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
+  const rawToggle = (span.textContent || "").trim();
+  if (rawToggle.length <= 12 && /^(展开|收起|展开全部|收起全部|Expand|Collapse|Show more|Show less|Think|思考)$/i.test(rawToggle)) return false;
+  if (rawToggle === "Think" || rawToggle === "\u601D\u8003") return false;
+  if (span.closest('button, [role="button"]') && rawToggle.length <= 12 && /展开|收起|Expand|Collapse|Think|思考/i.test(rawToggle)) return false;
   if (!translateThinking) {
     if (isThinkSpan(span)) return false;
     if (span.parentElement && span.parentElement.textContent?.includes("Think")) {
