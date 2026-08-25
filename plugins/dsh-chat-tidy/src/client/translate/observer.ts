@@ -11,6 +11,7 @@ const TOOL_TITLE_SELECTOR = [
   '[data-variant] [class*="summary"]',
   '[data-tool] [data-disclosure-row] > span:not([aria-hidden])',
   '[data-disclosure-row] [class*="summary"]',
+  '[class*="thinkBody"]',
 ].join(', ');
 
 /** IO output preview text inside *failed* tool cards — "out" of error calls. */
@@ -35,8 +36,9 @@ function isErrorLine(t: string): boolean {
   return ERROR_LINE_RE.test(t);
 }
 
-function isThinkSpan(span: HTMLElement): boolean {
-  return !!span.closest(
+function isThinkSpan(el: HTMLElement): boolean {
+  if (/thinkBody/i.test(el.className || '')) return true;
+  return !!el.closest(
     '[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row'
   );
 }

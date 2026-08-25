@@ -433,7 +433,8 @@ var TOOL_TITLE_SELECTOR = [
   '[data-sample] [class*="summary"]',
   '[data-variant] [class*="summary"]',
   "[data-tool] [data-disclosure-row] > span:not([aria-hidden])",
-  '[data-disclosure-row] [class*="summary"]'
+  '[data-disclosure-row] [class*="summary"]',
+  '[class*="thinkBody"]'
 ].join(", ");
 var TOOL_ERROR_OUT_SELECTOR = [
   '[data-variant][data-state="error"] [class*="ioText"]',
@@ -448,8 +449,9 @@ function isErrorLine(t) {
   if (t.length > 40 && !/\s/.test(t.trim())) return false;
   return ERROR_LINE_RE.test(t);
 }
-function isThinkSpan(span) {
-  return !!span.closest(
+function isThinkSpan(el) {
+  if (/thinkBody/i.test(el.className || "")) return true;
+  return !!el.closest(
     '[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row'
   );
 }
