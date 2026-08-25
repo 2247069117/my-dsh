@@ -33,7 +33,7 @@ class SettingsStore {
       const concurrencyRaw = localStorage.getItem(LS_CONCURRENCY);
       if (concurrencyRaw !== null) {
         const c = parseInt(concurrencyRaw, 10);
-        if (!isNaN(c) && c >= 1 && c <= 6) {
+        if (!isNaN(c) && c >= 1 && c <= 100) {
           this.state.concurrency = c;
         }
       }

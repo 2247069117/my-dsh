@@ -7,7 +7,7 @@ import type { PluginConfig, MaskedPluginConfig } from './types.ts';
 const KNOWN_CHANNELS = ['bing'];
 
 /** Hard cap for the translation concurrency pool (Bing tolerates >> this). */
-export const MAX_CONCURRENCY = 12;
+export const MAX_CONCURRENCY = 100;
 
 const DEFAULT_CONFIG: PluginConfig = {
   enabled: true,

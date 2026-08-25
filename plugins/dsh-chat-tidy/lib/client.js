@@ -670,7 +670,7 @@ var SettingsStore = class {
       const concurrencyRaw = localStorage.getItem(LS_CONCURRENCY);
       if (concurrencyRaw !== null) {
         const c = parseInt(concurrencyRaw, 10);
-        if (!isNaN(c) && c >= 1 && c <= 6) {
+        if (!isNaN(c) && c >= 1 && c <= 100) {
           this.state.concurrency = c;
         }
       }
@@ -1025,7 +1025,7 @@ function TidySettingsPanel() {
   };
   const handleConcurrencyChange = (val) => {
     if (Number.isNaN(val)) return;
-    settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 6) });
+    settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 100) });
   };
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-settings", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [
@@ -1060,7 +1060,7 @@ function TidySettingsPanel() {
           type: "number",
           className: "dsh-tidy-input",
           min: 1,
-          max: 6,
+          max: 100,
           step: 1,
           value: state.concurrency,
           onChange: (e) => handleConcurrencyChange(parseInt(e.target.value, 10)),

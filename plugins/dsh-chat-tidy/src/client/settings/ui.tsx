@@ -30,7 +30,7 @@ export function TidySettingsPanel(): React.ReactElement {
 
   const handleConcurrencyChange = (val: number): void => {
     if (Number.isNaN(val)) return;
-    settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 6) });
+    settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 100) });
   };
 
   return (
@@ -68,7 +68,7 @@ export function TidySettingsPanel(): React.ReactElement {
                 type="number"
                 className="dsh-tidy-input"
                 min={1}
-                max={6}
+                max={100}
                 step={1}
                 value={state.concurrency}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>

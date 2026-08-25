@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 var KNOWN_CHANNELS = ["bing"];
-var MAX_CONCURRENCY = 12;
+var MAX_CONCURRENCY = 100;
 var DEFAULT_CONFIG = {
   enabled: true,
   concurrency: 3,
