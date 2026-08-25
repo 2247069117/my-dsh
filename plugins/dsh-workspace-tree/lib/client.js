@@ -1135,7 +1135,8 @@ window.__ModuleLoader__.load({
           } else if (k === "deleteOne") {
             const r = await apiPost("/archive/delete", { sessionId: archiveConfirm.sessionId });
             if (!r.ok) throw new Error(r.error || "删除失败");
-            rememberDeleted(toDelete);
+            const deleted = Array.isArray(r.deleted) && r.deleted.length ? r.deleted : toDelete;
+            rememberDeleted(deleted);
             refreshSessions();
           } else if (k === "restoreGroup") {
             const r = await apiPost("/archive/unarchiveAll", { workspaceId: archiveConfirm.workspaceId });
@@ -1296,7 +1297,7 @@ window.__ModuleLoader__.load({
         if (!archiveConfirm) return { open: false, title: "", desc: "", confirmText: "确认", danger: false };
         const k = archiveConfirm.kind;
         if (k === "restoreOne") return { open: true, title: "恢复会话", desc: "确定要恢复会话 “" + (archiveConfirm.title || "") + "” 吗？", confirmText: "恢复", danger: false };
-        if (k === "deleteOne") return { open: true, title: "永久删除会话", desc: "确定要永久删除会话 “" + (archiveConfirm.title || "") + "” 吗？此操作将彻底删除会话数据与历史日志，无法恢复。", confirmText: "永久删除", danger: true };
+        if (k === "deleteOne") return { open: true, title: "永久删除会话", desc: "确定要永久删除会话 “" + (archiveConfirm.title || "") + "” 吗？此操作将彻底删除会话数据与关联的全部子智能体（Subagent）日志，无法恢复。", confirmText: "永久删除", danger: true };
         if (k === "restoreGroup") return { open: true, title: "恢复工作区归档", desc: "确定要恢复工作区 “" + (archiveConfirm.title || "") + "” 的全部归档会话吗？", confirmText: "恢复全部", danger: false };
         if (k === "deleteGroup") return { open: true, title: "删除工作区归档", desc: "确定要永久删除工作区 “" + (archiveConfirm.title || "") + "” 的全部归档会话吗？此操作不可恢复。", confirmText: "永久删除", danger: true };
         if (k === "restoreAll") return { open: true, title: "恢复全部归档", desc: "确定要恢复全部 " + (archived.size || 0) + " 条归档会话吗？", confirmText: "恢复全部", danger: false };
