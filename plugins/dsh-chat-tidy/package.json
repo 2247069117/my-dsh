@@ -1,6 +1,6 @@
 {
   "name": "@lynn123411/dsh-chat-tidy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Codex-aligned chat typography and tool-call title translation for the DeepSeek Harness Web UI",
   "license": "MIT",
   "author": "lynn123411",
