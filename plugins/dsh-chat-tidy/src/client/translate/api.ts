@@ -5,29 +5,62 @@ export interface TranslateItemResult {
   cached: boolean;
 }
 
+export interface TranslateBatchOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
 export async function requestTranslateBatch(
-  texts: string[]
+  texts: string[],
+  options: TranslateBatchOptions = {}
 ): Promise<TranslateItemResult[]> {
-  if (texts.length === 0) return [];
+  if (!Array.isArray(texts) || texts.length === 0) return [];
+  
+  // Filter out empty or whitespace-only texts
+  const validTexts = texts.map((t) => (typeof t === 'string' ? t : ''));
+  if (validTexts.length === 0) return [];
+
+  const controller = new AbortController();
+  const timeoutId = options.timeoutMs
+    ? setTimeout(() => controller.abort(), options.timeoutMs)
+    : null;
+
+  const effectiveSignal = options.signal
+    ? (options.signal.aborted ? options.signal : controller.signal)
+    : controller.signal;
+
+  if (options.signal) {
+    options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
   try {
     const res = await fetch('/api/dsh-chat-tidy/translate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ texts }),
+      body: JSON.stringify({ texts: validTexts }),
+      signal: effectiveSignal,
     });
 
     if (res.ok) {
-      const data = (await res.json()) as { ok: boolean; results?: TranslateItemResult[] };
+      const data = (await res.json()) as { ok: boolean; results?: TranslateItemResult[]; error?: string };
       if (data.ok && Array.isArray(data.results) && data.results.length > 0) {
         return data.results;
       }
     }
-  } catch {}
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      // Intentionally aborted
+    }
+  } finally {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  }
 
-  // Host route unreachable — leave the original text untouched
-  return texts.map((t) => ({
+  // Host route unreachable or error — leave the original text untouched
+  return validTexts.map((t) => ({
     original: t,
     translated: t,
     channel: 'fallback-client',

@@ -1,7 +1,7 @@
 /** Tidy Chat's conversation stylesheet, measured against the Codex desktop client. */
 
 /** Marker used to find the plugin-owned stylesheet during lifecycle cleanup. */
-export const STYLE_MARKER = 'dsh-chat-tidy'
+export const STYLE_MARKER = 'dsh-chat-tidy';
 
 /**
  * Metrics come from the Codex desktop client: its bundled stylesheet plus pixel
@@ -158,19 +158,45 @@ body [data-composer-card] {
   line-height: var(--dsh-ct-line-height);
 }
 
+/* --- Non-destructive Translation Styles --- */
+.dsh-tidy-translated-block {
+  display: inline;
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(59, 130, 246, 0.4);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.dsh-tidy-translated-block:hover {
+  border-bottom-color: #3b82f6;
+  color: var(--dsw-alias-brand-primary, #3b82f6);
+}
+
+.dsh-tidy-original-hidden {
+  display: none !important;
+}
+
+.dsh-tidy-original-shown {
+  display: inline !important;
+  cursor: pointer;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 4px;
+  padding: 1px 4px;
+  border-bottom: 1px dashed rgba(128, 128, 128, 0.4);
+}
+
 @media (max-width: 700px) {
   body [data-chat-flow-kind='user'] [data-time-hover-root] > div:first-child {
     max-width: 88%;
   }
 }
-`
+`;
 
 interface StyleRecord {
-  element: HTMLStyleElement
-  references: number
+  element: HTMLStyleElement;
+  references: number;
 }
 
-const records = new WeakMap<Document, StyleRecord>()
+const records = new WeakMap<Document, StyleRecord>();
 
 /**
  * Mount the stylesheet once per document and reference-count its lifecycle.
@@ -178,25 +204,29 @@ const records = new WeakMap<Document, StyleRecord>()
  * @returns A disposer that removes the last plugin-owned stylesheet.
  */
 export function adoptStyles(document: Document): () => void {
-  const current = records.get(document)
+  const current = records.get(document);
   if (current !== undefined) {
-    current.references += 1
-    return () => { releaseStyles(document) }
+    current.references += 1;
+    return () => {
+      releaseStyles(document);
+    };
   }
 
-  const element = document.createElement('style')
-  element.dataset.plugin = STYLE_MARKER
-  element.textContent = TIDY_CHAT_CSS
-  document.head.appendChild(element)
-  records.set(document, { element, references: 1 })
-  return () => { releaseStyles(document) }
+  const element = document.createElement('style');
+  element.dataset.plugin = STYLE_MARKER;
+  element.textContent = TIDY_CHAT_CSS;
+  document.head.appendChild(element);
+  records.set(document, { element, references: 1 });
+  return () => {
+    releaseStyles(document);
+  };
 }
 
 function releaseStyles(document: Document): void {
-  const record = records.get(document)
-  if (record === undefined) return
-  record.references -= 1
-  if (record.references > 0) return
-  record.element.remove()
-  records.delete(document)
+  const record = records.get(document);
+  if (record === undefined) return;
+  record.references -= 1;
+  if (record.references > 0) return;
+  record.element.remove();
+  records.delete(document);
 }

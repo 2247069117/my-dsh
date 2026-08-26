@@ -52,7 +52,7 @@ export class LruDiskCache {
       this.cache.delete(key);
       return undefined;
     }
-    // Refresh key in LRU order
+    // Refresh key in LRU order (re-insert at the end)
     this.cache.delete(key);
     this.cache.set(key, entry);
     return entry.v;
@@ -62,7 +62,7 @@ export class LruDiskCache {
     if (this.cache.has(key)) {
       this.cache.delete(key);
     } else if (this.cache.size >= this.maxEntries) {
-      // Remove oldest entry
+      // Remove least recently used entry (first in Map iterator)
       const oldestKey = this.cache.keys().next().value;
       if (oldestKey !== undefined) {
         this.cache.delete(oldestKey);
@@ -87,15 +87,36 @@ export class LruDiskCache {
   }
 
   async flush(): Promise<void> {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    this.dirty = false;
+
+    const tmpPath = `${this.filePath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
     try {
       const obj: Record<string, CacheEntry> = {};
       for (const [k, v] of this.cache.entries()) {
         obj[k] = v;
       }
       await fs.mkdir(path.dirname(this.filePath), { recursive: true });
-      await fs.writeFile(this.filePath, JSON.stringify(obj, null, 2), 'utf-8');
+      await fs.writeFile(tmpPath, JSON.stringify(obj, null, 2), 'utf-8');
+      await fs.rename(tmpPath, this.filePath);
     } catch (err) {
-      console.warn('[dsh-chat-tidy] Failed to write cache file:', err);
+      console.warn('[dsh-chat-tidy] Failed to write cache file atomically:', err);
+      try {
+        await fs.unlink(tmpPath);
+      } catch {}
+    }
+  }
+
+  async dispose(): Promise<void> {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    if (this.dirty) {
+      await this.flush();
     }
   }
 }

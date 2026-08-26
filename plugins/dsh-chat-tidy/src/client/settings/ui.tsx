@@ -32,8 +32,9 @@ export function TidySettingsPanel(): React.ReactElement {
     settingsStore.update({ translateThinking: !state.translateThinking });
   };
 
-  const handleConcurrencyChange = (val: number): void => {
-    if (Number.isNaN(val)) return;
+  const handleConcurrencyChange = (valStr: string): void => {
+    const val = parseInt(valStr, 10);
+    if (!Number.isFinite(val)) return;
     settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 100) });
   };
 
@@ -53,7 +54,7 @@ export function TidySettingsPanel(): React.ReactElement {
           />
         </div>
         <div className="dsh-tidy-desc">
-          仅在渲染层将工具调用动作描述（如 <code>Locate DSH home directory structure</code>）自动翻译覆盖为简洁中文。不触碰正文与思考块，不占上下文窗口。
+          采用非侵入式双语渲染，将工具调用描述（如 <code>Locate DSH home directory structure</code>）自动翻译为简洁中文，点击译文可原地切换原文/译文。不触碰真实 DOM 树与上下文。
         </div>
       </div>
 
@@ -65,7 +66,7 @@ export function TidySettingsPanel(): React.ReactElement {
               <div className="dsh-tidy-row-info">
                 <div className="dsh-tidy-row-title">翻译思维链（Think 块）</div>
                 <div className="dsh-tidy-row-desc">
-                  开启后将思考块内容（reasoning）也翻译为中文；默认关闭，保持思考原文。
+                  开启后将思考块内容（reasoning）通过视口懒加载与串行流式翻译为中文；默认关闭，保持思考原文。
                 </div>
               </div>
               <button
@@ -85,7 +86,7 @@ export function TidySettingsPanel(): React.ReactElement {
               <div className="dsh-tidy-row-info">
                 <div className="dsh-tidy-row-title">最大翻译并发数</div>
                 <div className="dsh-tidy-row-desc">
-                  控制历史会话滚动与多工具卡片时的最大并行请求数（推荐 3）。
+                  控制视口滚动与多工具卡片时的最大并行请求数（范围 1-100，推荐 3）。
                 </div>
               </div>
               <input
@@ -96,7 +97,7 @@ export function TidySettingsPanel(): React.ReactElement {
                 step={1}
                 value={state.concurrency}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  handleConcurrencyChange(parseInt(e.target.value, 10))
+                  handleConcurrencyChange(e.target.value)
                 }
                 style={{ width: '88px' }}
                 aria-label="最大翻译并发数"

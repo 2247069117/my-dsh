@@ -10,4 +10,5 @@ export declare class LruDiskCache {
     set(key: string, value: string): void;
     private scheduleSave;
     flush(): Promise<void>;
+    dispose(): Promise<void>;
 }

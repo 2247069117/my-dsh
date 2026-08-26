@@ -46,9 +46,15 @@ const TOGGLE_CSS = String.raw`
 }
 `;
 
+function findHeaderContainer(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    '[data-slot="conversation.session.header"], [data-slot="header"]'
+  );
+}
+
 function findHeader(): HTMLElement | null {
   return document.querySelector<HTMLElement>(
-    '[data-slot="conversation.session.header"] header, [data-slot="conversation.session.header"]'
+    '[data-slot="conversation.session.header"] header, [data-slot="conversation.session.header"], [data-slot="header"]'
   );
 }
 
@@ -79,8 +85,8 @@ function syncButtonState(): void {
 }
 
 /**
- * Mount the quick toggle. The header is React-rendered, so a keep-alive
- * MutationObserver re-inserts the button if a re-render removes it.
+ * Mount the quick toggle. Targets the conversation session header specifically
+ * rather than observing the entire document.body subtree.
  * @returns disposer that removes the button, styles, observer and subscription.
  */
 export function installQuickToggle(): () => void {
@@ -93,30 +99,68 @@ export function installQuickToggle(): () => void {
     document.head.appendChild(style);
   }
 
+  let scopedObserver: MutationObserver | null = null;
+  let pollTimer: any = null;
+
   const ensure = (): void => {
     const header = findHeader();
     if (!header) return;
+
     if (!document.getElementById(TOGGLE_ID)) {
       const btn = createButton();
       header.appendChild(btn);
-      // Keep the button in the header's right-aligned utility cluster.
+      // Keep the button in the header's right-aligned utility cluster if present.
       btn.style.marginLeft = '8px';
       const cluster = btn.closest('[class*="utilities"], [class*="header"] > div:last-child');
       if (cluster && cluster !== header) {
         header.insertBefore(btn, cluster.nextSibling);
       }
     }
+
+    // Attach scoped observer to header / container if not yet attached
+    const container = findHeaderContainer() ?? header;
+    if (!scopedObserver && container) {
+      scopedObserver = new MutationObserver(() => {
+        if (!document.getElementById(TOGGLE_ID)) {
+          ensure();
+        }
+      });
+      scopedObserver.observe(container, { childList: true, subtree: true });
+    }
   };
 
   ensure();
 
-  const keepAlive = new MutationObserver(() => ensure());
-  keepAlive.observe(document.body, { childList: true, subtree: true });
+  // If header wasn't rendered yet at boot, poll briefly with backoff
+  if (!findHeader()) {
+    let attempts = 0;
+    pollTimer = setInterval(() => {
+      attempts++;
+      ensure();
+      if (findHeader() || attempts > 20) {
+        if (pollTimer !== null) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }
+    }, 250);
+    // Unref timer in Node / JSDOM if possible so test process exits cleanly
+    if (pollTimer && typeof pollTimer.unref === 'function') {
+      pollTimer.unref();
+    }
+  }
 
   const unsubscribe = settingsStore.subscribe(syncButtonState);
 
   return () => {
-    keepAlive.disconnect();
+    if (pollTimer !== null) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    if (scopedObserver) {
+      scopedObserver.disconnect();
+      scopedObserver = null;
+    }
     unsubscribe();
     document.getElementById(TOGGLE_ID)?.remove();
   };

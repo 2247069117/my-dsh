@@ -34,5 +34,11 @@ export function apply(ctx: ClientContext): void {
 }
 
 export { TIDY_CHAT_CSS, STYLE_MARKER, adoptStyles } from './styles.ts';
-export { chatTranslateObserver } from './translate/observer.ts';
+export { chatTranslateObserver, isMostlyChinese, containsChinese } from './translate/observer.ts';
 export { setupSettingsUi } from './settings/ui.tsx';
+export { installQuickToggle } from './settings/toggle.ts';
+export { NonDestructiveTranslationMount } from './translate/mount.ts';
+export { StreamDebounceViewportObserver } from './translate/viewport-observer.ts';
+export { clientCache } from './translate/client-cache.ts';
+export { lazyQueue } from './translate/lazy.ts';
+export { settingsStore } from './settings/store.ts';

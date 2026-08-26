@@ -3,18 +3,25 @@ import type { ConfigManager } from './config.ts';
 import { MAX_CONCURRENCY } from './config.ts';
 import type { LruDiskCache } from './cache.ts';
 import { BingWebAdapter } from './adapters/bing.ts';
+import { ContentMaskingPipeline } from './pipeline/masking.ts';
 
-const CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
-
-function isMostlyChinese(text: string, threshold = 0.2): boolean {
-  const m = text.match(/[\u4e00-\u9fa5]/g);
-  const c = m ? m.length : 0;
-  if (c === 0) return false;
-  if (text.length < 80) return true;
-  return c > 15 || c / text.length > threshold;
+/**
+ * Checks if text is already predominantly Chinese.
+ * Calculates CJK character ratio against non-whitespace length.
+ */
+export function isMostlyChinese(text: string, threshold = 0.4): boolean {
+  const clean = text.replace(/\s+/g, '');
+  if (!clean) return false;
+  const cjkMatches = clean.match(/[\u4e00-\u9fa5]/g);
+  const cjkCount = cjkMatches ? cjkMatches.length : 0;
+  if (cjkCount === 0) return false;
+  return (cjkCount / clean.length) >= threshold;
 }
 
+type CircuitStateEnum = 'closed' | 'open' | 'half-open';
+
 interface CircuitState {
+  state: CircuitStateEnum;
   failureCount: number;
   openUntil: number;
 }
@@ -22,6 +29,7 @@ interface CircuitState {
 export class TranslationDispatcher {
   private configManager: ConfigManager;
   private cache: LruDiskCache;
+  private masking = new ContentMaskingPipeline();
   private adapters = new Map<string, ITranslationAdapter>();
   private circuitStates = new Map<string, CircuitState>();
   private inFlightMap = new Map<string, Promise<TranslateItemResult>>();
@@ -32,6 +40,11 @@ export class TranslationDispatcher {
     this.configManager = configManager;
     this.cache = cache;
     this.registerAdapter(new BingWebAdapter());
+
+    // Listen to config changes to wake up queue on concurrency increase
+    this.configManager.onConfigChange(() => {
+      this.processNext();
+    });
   }
 
   private registerAdapter(adapter: ITranslationAdapter): void {
@@ -54,9 +67,7 @@ export class TranslationDispatcher {
       return { original: rawText, translated: rawText, channel: 'none', cached: true };
     }
 
-    // If text is already mostly Chinese, skip translation (short titles
-    // with any Chinese are considered translated; long think prose may contain
-    // a few Chinese chars like "你好" and should still be translated).
+    // If text is already mostly Chinese, skip translation
     if (isMostlyChinese(text)) {
       return { original: rawText, translated: rawText, channel: 'none', cached: true };
     }
@@ -76,10 +87,20 @@ export class TranslationDispatcher {
       }
     }
 
-    // 2. In-flight Promise deduplication
-    const inFlight = this.inFlightMap.get(cacheKey);
-    if (inFlight) {
-      return inFlight;
+    // 2. In-flight Promise deduplication (only when not forceRefresh)
+    if (!forceRefresh) {
+      const inFlight = this.inFlightMap.get(cacheKey);
+      if (inFlight) {
+        return inFlight;
+      }
+    }
+
+    // Mask code blocks, inline code, paths, urls, flags
+    const { maskedText, unmask } = this.masking.mask(text);
+
+    // If masked text is already mostly Chinese, return original
+    if (isMostlyChinese(maskedText)) {
+      return { original: rawText, translated: rawText, channel: 'none', cached: true };
     }
 
     // 3. Queue task with concurrency limit
@@ -98,20 +119,21 @@ export class TranslationDispatcher {
           const abortCtrl = new AbortController();
           const timer = setTimeout(() => abortCtrl.abort(), timeout);
 
-          let translatedText = '';
+          let translatedMasked = '';
           try {
-            translatedText = await adapter.translate(text, abortCtrl.signal, currentConfig);
+            translatedMasked = await adapter.translate(maskedText, abortCtrl.signal, currentConfig);
           } finally {
             clearTimeout(timer);
           }
 
-          const cleaned = translatedText?.trim();
+          const cleaned = translatedMasked?.trim();
           if (cleaned && cleaned.length > 0) {
+            const finalTranslated = unmask(cleaned);
             this.recordSuccess(chId);
-            this.cache.set(cacheKey, cleaned);
+            this.cache.set(cacheKey, finalTranslated);
             return {
               original: rawText,
-              translated: cleaned,
+              translated: finalTranslated,
               channel: chId,
               cached: false,
             };
@@ -128,11 +150,16 @@ export class TranslationDispatcher {
       return { original: rawText, translated: rawText, channel: 'fallback', cached: false };
     });
 
-    this.inFlightMap.set(cacheKey, taskPromise);
+    if (!forceRefresh) {
+      this.inFlightMap.set(cacheKey, taskPromise);
+    }
+
     try {
       return await taskPromise;
     } finally {
-      this.inFlightMap.delete(cacheKey);
+      if (!forceRefresh) {
+        this.inFlightMap.delete(cacheKey);
+      }
     }
   }
 
@@ -211,19 +238,30 @@ export class TranslationDispatcher {
   }
 
   private isCircuitOpen(channelId: string): boolean {
-    const state = this.circuitStates.get(channelId);
+    let state = this.circuitStates.get(channelId);
     if (!state) return false;
-    if (state.openUntil > Date.now()) {
+
+    if (state.state === 'open') {
+      if (Date.now() >= state.openUntil) {
+        // Timeout elapsed -> transition to half-open to allow probe trial
+        state.state = 'half-open';
+        return false;
+      }
       return true;
     }
-    // Half-open / reset
-    state.openUntil = 0;
+
+    if (state.state === 'half-open') {
+      // Allow the probe call through
+      return false;
+    }
+
     return false;
   }
 
   private recordSuccess(channelId: string): void {
     const state = this.circuitStates.get(channelId);
     if (state) {
+      state.state = 'closed';
       state.failureCount = 0;
       state.openUntil = 0;
     }
@@ -232,11 +270,21 @@ export class TranslationDispatcher {
   private recordFailure(channelId: string): void {
     let state = this.circuitStates.get(channelId);
     if (!state) {
-      state = { failureCount: 0, openUntil: 0 };
+      state = { state: 'closed', failureCount: 0, openUntil: 0 };
       this.circuitStates.set(channelId, state);
     }
+
+    if (state.state === 'half-open') {
+      // Probe failed -> trip back to open for 30s
+      state.state = 'open';
+      state.failureCount = 3;
+      state.openUntil = Date.now() + 30000;
+      return;
+    }
+
     state.failureCount++;
     if (state.failureCount >= 3) {
+      state.state = 'open';
       state.openUntil = Date.now() + 30000; // Open circuit for 30 seconds
     }
   }

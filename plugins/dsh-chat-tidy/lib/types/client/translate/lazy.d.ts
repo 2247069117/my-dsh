@@ -1,11 +1,10 @@
 declare class LazyTranslationQueue {
-    private batchQueue;
-    private debounceTimer;
     private enabled;
+    private viewportObserver;
+    constructor();
     setEnabled(enabled: boolean): void;
-    observe(element: HTMLElement, text: string): void;
-    private enqueueBatch;
-    private flushBatch;
+    observe(element: HTMLElement, text: string, immediate?: boolean, isThink?: boolean): void;
+    private handleVisibleBatch;
     private applyTranslation;
     disconnect(): void;
 }

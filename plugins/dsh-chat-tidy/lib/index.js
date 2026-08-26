@@ -9,11 +9,13 @@ var DEFAULT_CONFIG = {
   concurrency: 3,
   timeoutMs: 2e3,
   channels: [...KNOWN_CHANNELS],
-  translateThinking: false
+  translateThinking: false,
+  targetLang: "zh-Hans"
 };
 var ConfigManager = class {
   config = { ...DEFAULT_CONFIG };
   configPath;
+  listeners = /* @__PURE__ */ new Set();
   constructor() {
     const dshHome = process.env.DSH_HOME || path.join(os.homedir(), ".dsh");
     this.configPath = path.join(dshHome, "dsh-chat-tidy-config.json");
@@ -29,15 +31,28 @@ var ConfigManager = class {
     } catch {
       this.config = { ...DEFAULT_CONFIG };
     }
+    if (!Number.isFinite(this.config.concurrency) || this.config.concurrency < 1) {
+      this.config.concurrency = DEFAULT_CONFIG.concurrency;
+    } else {
+      this.config.concurrency = Math.min(Math.max(Math.round(this.config.concurrency), 1), MAX_CONCURRENCY);
+    }
+    if (!Number.isFinite(this.config.timeoutMs) || this.config.timeoutMs < 500) {
+      this.config.timeoutMs = DEFAULT_CONFIG.timeoutMs;
+    } else {
+      this.config.timeoutMs = Math.min(Math.max(Math.round(this.config.timeoutMs), 500), 1e4);
+    }
+    if (!this.config.targetLang || typeof this.config.targetLang !== "string") {
+      this.config.targetLang = DEFAULT_CONFIG.targetLang;
+    }
     const retired = /* @__PURE__ */ new Set(["google", "gateway", "builtin", "mymemory", "siliconflow", "zhipu"]);
-    const merged = this.config.channels.filter((ch) => !retired.has(ch));
+    const merged = Array.isArray(this.config.channels) ? this.config.channels.filter((ch) => typeof ch === "string" && !retired.has(ch)) : [];
     for (const ch of KNOWN_CHANNELS) {
       if (!merged.includes(ch)) merged.push(ch);
     }
     this.config.channels = merged;
   }
   getConfig() {
-    return { ...this.config };
+    return { ...this.config, channels: [...this.config.channels] };
   }
   getMaskedConfig() {
     return {
@@ -45,30 +60,70 @@ var ConfigManager = class {
       concurrency: this.config.concurrency,
       timeoutMs: this.config.timeoutMs,
       channels: [...this.config.channels],
-      translateThinking: this.config.translateThinking === true
+      translateThinking: this.config.translateThinking === true,
+      targetLang: this.config.targetLang || "zh-Hans"
     };
+  }
+  onConfigChange(listener) {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+  notifyListeners() {
+    const snapshot = this.getConfig();
+    for (const listener of this.listeners) {
+      try {
+        listener(snapshot);
+      } catch (err) {
+        console.warn("[dsh-chat-tidy] Config listener error:", err);
+      }
+    }
   }
   async updateConfig(partial) {
     const next = {
       ...this.config,
       ...partial
     };
-    if (typeof next.concurrency === "number") {
-      next.concurrency = Math.min(Math.max(Math.round(next.concurrency), 1), MAX_CONCURRENCY);
+    if (typeof partial.concurrency === "number" && Number.isFinite(partial.concurrency)) {
+      next.concurrency = Math.min(Math.max(Math.round(partial.concurrency), 1), MAX_CONCURRENCY);
+    } else {
+      next.concurrency = this.config.concurrency;
     }
-    if (typeof next.timeoutMs === "number") {
-      next.timeoutMs = Math.min(Math.max(Math.round(next.timeoutMs), 500), 1e4);
+    if (typeof partial.timeoutMs === "number" && Number.isFinite(partial.timeoutMs)) {
+      next.timeoutMs = Math.min(Math.max(Math.round(partial.timeoutMs), 500), 1e4);
+    } else {
+      next.timeoutMs = this.config.timeoutMs;
+    }
+    if (typeof partial.enabled === "boolean") {
+      next.enabled = partial.enabled;
+    }
+    if (typeof partial.translateThinking === "boolean") {
+      next.translateThinking = partial.translateThinking;
+    }
+    if (typeof partial.targetLang === "string" && partial.targetLang.trim()) {
+      next.targetLang = partial.targetLang.trim();
+    }
+    if (Array.isArray(partial.channels)) {
+      next.channels = partial.channels.filter((ch) => typeof ch === "string");
     }
     this.config = next;
     await this.save();
+    this.notifyListeners();
     return this.getConfig();
   }
   async save() {
+    const tmpPath = `${this.configPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
     try {
       await fs.mkdir(path.dirname(this.configPath), { recursive: true });
-      await fs.writeFile(this.configPath, JSON.stringify(this.config, null, 2), "utf-8");
+      await fs.writeFile(tmpPath, JSON.stringify(this.config, null, 2), "utf-8");
+      await fs.rename(tmpPath, this.configPath);
     } catch (err) {
-      console.warn("[dsh-chat-tidy] Failed to save config file:", err);
+      console.warn("[dsh-chat-tidy] Failed to save config file atomically:", err);
+      try {
+        await fs.unlink(tmpPath);
+      } catch {
+      }
     }
   }
 };
@@ -145,15 +200,35 @@ var LruDiskCache = class {
     }, 5e3);
   }
   async flush() {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    this.dirty = false;
+    const tmpPath = `${this.filePath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
     try {
       const obj = {};
       for (const [k, v] of this.cache.entries()) {
         obj[k] = v;
       }
       await fs2.mkdir(path2.dirname(this.filePath), { recursive: true });
-      await fs2.writeFile(this.filePath, JSON.stringify(obj, null, 2), "utf-8");
+      await fs2.writeFile(tmpPath, JSON.stringify(obj, null, 2), "utf-8");
+      await fs2.rename(tmpPath, this.filePath);
     } catch (err) {
-      console.warn("[dsh-chat-tidy] Failed to write cache file:", err);
+      console.warn("[dsh-chat-tidy] Failed to write cache file atomically:", err);
+      try {
+        await fs2.unlink(tmpPath);
+      } catch {
+      }
+    }
+  }
+  async dispose() {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    if (this.dirty) {
+      await this.flush();
     }
   }
 };
@@ -162,34 +237,73 @@ var LruDiskCache = class {
 var TRANSLATOR_URL = "https://cn.bing.com/translator";
 var TRANSLATE_URL = "https://cn.bing.com/ttranslatev3?isVertical=1&&IG={IG}&IID=translator.5025.1";
 var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-var IG_RE = /,IG:"(.*?)",/;
-var ABUSE_RE = /var\s+params_AbusePreventionHelper\s*=\s*\[\s*(\d+),\s*"([^"]+)"/;
+var IG_RES = [
+  /_IG="([a-zA-Z0-9]+)"/,
+  /,IG:"([a-zA-Z0-9]+)"/,
+  /IG:"([a-zA-Z0-9]+)"/,
+  /"IG":"([a-zA-Z0-9]+)"/
+];
+var ABUSE_RES = [
+  /params_AbusePreventionHelper\s*=\s*\[\s*(\d+)\s*,\s*"([^"]+)"/,
+  /var\s+params_AbusePreventionHelper\s*=\s*\[\s*(\d+)\s*,\s*"([^"]+)"/
+];
 var cachedTokens = null;
 var tokensFetchedAt = 0;
 var TOKEN_TTL_MS = 15 * 60 * 1e3;
-async function fetchTokens(signal) {
-  if (cachedTokens && Date.now() - tokensFetchedAt < TOKEN_TTL_MS) {
+var inFlightTokenPromise = null;
+function parseTokens(html) {
+  let ig;
+  for (const re of IG_RES) {
+    const m = re.exec(html);
+    if (m && m[1]) {
+      ig = m[1];
+      break;
+    }
+  }
+  let key;
+  let token;
+  for (const re of ABUSE_RES) {
+    const m = re.exec(html);
+    if (m && m[1] && m[2]) {
+      key = m[1];
+      token = m[2];
+      break;
+    }
+  }
+  if (!ig || !key || !token) {
+    throw new Error(`Bing translator page: missing tokens (ig: ${!!ig}, key: ${!!key}, token: ${!!token})`);
+  }
+  return { ig, key, token };
+}
+async function fetchTokens(signal, forceRefresh = false) {
+  if (!forceRefresh && cachedTokens && Date.now() - tokensFetchedAt < TOKEN_TTL_MS) {
     return cachedTokens;
   }
-  const response = await fetch(TRANSLATOR_URL, {
-    headers: {
-      "User-Agent": UA,
-      Accept: "text/html"
-    },
-    signal
-  });
-  if (!response.ok) {
-    throw new Error(`Bing translator page responded with status ${response.status}`);
+  if (inFlightTokenPromise) {
+    return inFlightTokenPromise;
   }
-  const html = await response.text();
-  const igMatch = IG_RE.exec(html);
-  const abuseMatch = ABUSE_RE.exec(html);
-  if (!igMatch || !abuseMatch) {
-    throw new Error("Bing translator page: IG or abuse-prevention token not found");
-  }
-  cachedTokens = { ig: igMatch[1], key: abuseMatch[1], token: abuseMatch[2] };
-  tokensFetchedAt = Date.now();
-  return cachedTokens;
+  inFlightTokenPromise = (async () => {
+    try {
+      const response = await fetch(TRANSLATOR_URL, {
+        headers: {
+          "User-Agent": UA,
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        },
+        signal
+      });
+      if (!response.ok) {
+        throw new Error(`Bing translator page responded with status ${response.status}`);
+      }
+      const html = await response.text();
+      const tokens = parseTokens(html);
+      cachedTokens = tokens;
+      tokensFetchedAt = Date.now();
+      return tokens;
+    } finally {
+      inFlightTokenPromise = null;
+    }
+  })();
+  return inFlightTokenPromise;
 }
 var BingWebAdapter = class {
   id = "bing";
@@ -197,17 +311,21 @@ var BingWebAdapter = class {
   isAvailable(_config) {
     return true;
   }
-  async translate(text, signal, _config) {
-    const { ig, key, token } = await fetchTokens(signal);
+  async translate(text, signal, config) {
+    const targetLang = config.targetLang || "zh-Hans";
+    return this.executeTranslate(text, signal, targetLang, false);
+  }
+  async executeTranslate(text, signal, targetLang, isRetry) {
+    const tokens = await fetchTokens(signal, isRetry);
     const body = new URLSearchParams({
       fromLang: "auto-detect",
       text,
-      to: "zh-Hans",
-      key,
-      token,
+      to: targetLang,
+      key: tokens.key,
+      token: tokens.token,
       tryFetchingGenderDebiasedTranslations: "true"
     });
-    const response = await fetch(TRANSLATE_URL.replace("{IG}", ig), {
+    const response = await fetch(TRANSLATE_URL.replace("{IG}", tokens.ig), {
       method: "POST",
       headers: {
         "User-Agent": UA,
@@ -220,29 +338,86 @@ var BingWebAdapter = class {
     });
     if (!response.ok) {
       cachedTokens = null;
+      if (!isRetry && (response.status === 400 || response.status === 401 || response.status === 403)) {
+        return this.executeTranslate(text, signal, targetLang, true);
+      }
       throw new Error(`Bing translate responded with status ${response.status}`);
     }
     const json = await response.json();
     const translated = json?.[0]?.translations?.[0]?.text?.trim();
     if (!translated) {
       cachedTokens = null;
+      if (!isRetry) {
+        return this.executeTranslate(text, signal, targetLang, true);
+      }
       throw new Error("Bing translate returned an empty result");
     }
     return translated;
   }
 };
 
+// src/server/pipeline/masking.ts
+var ContentMaskingPipeline = class {
+  mask(text) {
+    if (!text || typeof text !== "string") {
+      return {
+        maskedText: text,
+        unmask: (t) => t
+      };
+    }
+    const masks = [];
+    const addMask = (match) => {
+      const idx = masks.length;
+      masks.push(match);
+      return `__DSH_MASK_${idx}__`;
+    };
+    let processed = text;
+    processed = processed.replace(/(?:```|~~~)[\s\S]*?(?:```|~~~)/g, (m) => addMask(m));
+    processed = processed.replace(/`[^`\n]+`/g, (m) => addMask(m));
+    processed = processed.replace(/https?:\/\/[^\s)\];,;"'<>]+/g, (m) => addMask(m));
+    processed = processed.replace(
+      /(?:(?:\/|[a-zA-Z]:[\\\/]|\.\.?[\\\/])[\w.\-\\\/]+|\b(?:[\w.\-]+\/)+[\w.\-]+\.[a-zA-Z0-9]+\b|\b[\w.\-]+\.(?:ts|tsx|js|jsx|json|ya?ml|md|py|go|rs|c|cpp|h|hpp|css|scss|html|sh|bash|mjs|cjs|toml|lock|log|env|svg|png|jpe?g|gif|tar|gz|zip|xml|sql)\b)/g,
+      (m) => addMask(m)
+    );
+    processed = processed.replace(
+      /(?<=^|[\s(\[{"'])((?:--[a-zA-Z0-9_\-]+(?:=[^\s"'<>]+)?)|(?:-[a-zA-Z0-9]+))(?=[\s)\]}",:;!?]|$)/g,
+      (m) => addMask(m)
+    );
+    const unmask = (translatedText) => {
+      if (!translatedText || masks.length === 0) {
+        return translatedText;
+      }
+      return translatedText.replace(
+        /__\s*DSH\s*_\s*MASK\s*_\s*(\d+)\s*__/gi,
+        (_fullMatch, indexStr) => {
+          const idx = parseInt(indexStr, 10);
+          if (!Number.isNaN(idx) && idx >= 0 && idx < masks.length) {
+            return masks[idx];
+          }
+          return _fullMatch;
+        }
+      );
+    };
+    return {
+      maskedText: processed,
+      unmask
+    };
+  }
+};
+
 // src/server/dispatcher.ts
-function isMostlyChinese(text, threshold = 0.2) {
-  const m = text.match(/[\u4e00-\u9fa5]/g);
-  const c = m ? m.length : 0;
-  if (c === 0) return false;
-  if (text.length < 80) return true;
-  return c > 15 || c / text.length > threshold;
+function isMostlyChinese(text, threshold = 0.4) {
+  const clean = text.replace(/\s+/g, "");
+  if (!clean) return false;
+  const cjkMatches = clean.match(/[\u4e00-\u9fa5]/g);
+  const cjkCount = cjkMatches ? cjkMatches.length : 0;
+  if (cjkCount === 0) return false;
+  return cjkCount / clean.length >= threshold;
 }
 var TranslationDispatcher = class {
   configManager;
   cache;
+  masking = new ContentMaskingPipeline();
   adapters = /* @__PURE__ */ new Map();
   circuitStates = /* @__PURE__ */ new Map();
   inFlightMap = /* @__PURE__ */ new Map();
@@ -252,6 +427,9 @@ var TranslationDispatcher = class {
     this.configManager = configManager;
     this.cache = cache;
     this.registerAdapter(new BingWebAdapter());
+    this.configManager.onConfigChange(() => {
+      this.processNext();
+    });
   }
   registerAdapter(adapter) {
     this.adapters.set(adapter.id, adapter);
@@ -278,9 +456,15 @@ var TranslationDispatcher = class {
         return { original: rawText, translated: cached, channel: "cache", cached: true };
       }
     }
-    const inFlight = this.inFlightMap.get(cacheKey);
-    if (inFlight) {
-      return inFlight;
+    if (!forceRefresh) {
+      const inFlight = this.inFlightMap.get(cacheKey);
+      if (inFlight) {
+        return inFlight;
+      }
+    }
+    const { maskedText, unmask } = this.masking.mask(text);
+    if (isMostlyChinese(maskedText)) {
+      return { original: rawText, translated: rawText, channel: "none", cached: true };
     }
     const taskPromise = this.enqueueTask(async () => {
       const currentConfig = this.configManager.getConfig();
@@ -294,19 +478,20 @@ var TranslationDispatcher = class {
           const timeout = currentConfig.timeoutMs || 2e3;
           const abortCtrl = new AbortController();
           const timer = setTimeout(() => abortCtrl.abort(), timeout);
-          let translatedText = "";
+          let translatedMasked = "";
           try {
-            translatedText = await adapter.translate(text, abortCtrl.signal, currentConfig);
+            translatedMasked = await adapter.translate(maskedText, abortCtrl.signal, currentConfig);
           } finally {
             clearTimeout(timer);
           }
-          const cleaned = translatedText?.trim();
+          const cleaned = translatedMasked?.trim();
           if (cleaned && cleaned.length > 0) {
+            const finalTranslated = unmask(cleaned);
             this.recordSuccess(chId);
-            this.cache.set(cacheKey, cleaned);
+            this.cache.set(cacheKey, finalTranslated);
             return {
               original: rawText,
-              translated: cleaned,
+              translated: finalTranslated,
               channel: chId,
               cached: false
             };
@@ -320,11 +505,15 @@ var TranslationDispatcher = class {
       }
       return { original: rawText, translated: rawText, channel: "fallback", cached: false };
     });
-    this.inFlightMap.set(cacheKey, taskPromise);
+    if (!forceRefresh) {
+      this.inFlightMap.set(cacheKey, taskPromise);
+    }
     try {
       return await taskPromise;
     } finally {
-      this.inFlightMap.delete(cacheKey);
+      if (!forceRefresh) {
+        this.inFlightMap.delete(cacheKey);
+      }
     }
   }
   async testChannel(channelId) {
@@ -394,17 +583,24 @@ var TranslationDispatcher = class {
     }
   }
   isCircuitOpen(channelId) {
-    const state = this.circuitStates.get(channelId);
+    let state = this.circuitStates.get(channelId);
     if (!state) return false;
-    if (state.openUntil > Date.now()) {
+    if (state.state === "open") {
+      if (Date.now() >= state.openUntil) {
+        state.state = "half-open";
+        return false;
+      }
       return true;
     }
-    state.openUntil = 0;
+    if (state.state === "half-open") {
+      return false;
+    }
     return false;
   }
   recordSuccess(channelId) {
     const state = this.circuitStates.get(channelId);
     if (state) {
+      state.state = "closed";
       state.failureCount = 0;
       state.openUntil = 0;
     }
@@ -412,17 +608,25 @@ var TranslationDispatcher = class {
   recordFailure(channelId) {
     let state = this.circuitStates.get(channelId);
     if (!state) {
-      state = { failureCount: 0, openUntil: 0 };
+      state = { state: "closed", failureCount: 0, openUntil: 0 };
       this.circuitStates.set(channelId, state);
+    }
+    if (state.state === "half-open") {
+      state.state = "open";
+      state.failureCount = 3;
+      state.openUntil = Date.now() + 3e4;
+      return;
     }
     state.failureCount++;
     if (state.failureCount >= 3) {
+      state.state = "open";
       state.openUntil = Date.now() + 3e4;
     }
   }
 };
 
 // src/server/router.ts
+var MAX_BODY_BYTES = 1024 * 1024;
 function sendJson(res, status, body) {
   const json = JSON.stringify(body);
   res.writeHead(status, {
@@ -434,7 +638,17 @@ function sendJson(res, status, body) {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    let totalLength = 0;
+    req.on("data", (chunk) => {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalLength += buf.length;
+      if (totalLength > MAX_BODY_BYTES) {
+        req.destroy();
+        reject(new Error("Request body exceeded maximum allowed size (1MB)"));
+        return;
+      }
+      chunks.push(buf);
+    });
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
     req.on("error", reject);
   });
@@ -448,8 +662,14 @@ function createHttpHandler(configManager, dispatcher) {
       if (endpoint === "translate" && req.method === "POST") {
         const raw = await readBody(req);
         const parsed = JSON.parse(raw || "{}");
-        const texts = Array.isArray(parsed.texts) ? parsed.texts : typeof parsed.text === "string" ? [parsed.text] : [];
-        const forceRefresh = !!parsed.forceRefresh;
+        const rawTexts = parsed.texts !== void 0 ? parsed.texts : parsed.text;
+        let texts = [];
+        if (Array.isArray(rawTexts)) {
+          texts = rawTexts.filter((t) => typeof t === "string");
+        } else if (typeof rawTexts === "string") {
+          texts = [rawTexts];
+        }
+        const forceRefresh = Boolean(parsed.forceRefresh);
         if (texts.length === 0) {
           sendJson(res, 200, { ok: true, results: [] });
           return;
@@ -466,6 +686,10 @@ function createHttpHandler(configManager, dispatcher) {
         if (req.method === "POST") {
           const raw = await readBody(req);
           const updates = JSON.parse(raw || "{}");
+          if (typeof updates !== "object" || updates === null || Array.isArray(updates)) {
+            sendJson(res, 400, { ok: false, error: "Invalid config payload" });
+            return;
+          }
           await configManager.updateConfig(updates);
           sendJson(res, 200, { ok: true, config: configManager.getMaskedConfig() });
           return;
@@ -481,7 +705,8 @@ function createHttpHandler(configManager, dispatcher) {
       }
       sendJson(res, 404, { ok: false, error: "Endpoint not found" });
     } catch (err) {
-      sendJson(res, 500, { ok: false, error: err?.message || String(err) });
+      const status = err?.message?.includes("exceeded maximum allowed size") ? 413 : 500;
+      sendJson(res, status, { ok: false, error: err?.message || String(err) });
     }
   };
 }
@@ -493,18 +718,32 @@ function apply(ctx) {
   const configManager = new ConfigManager();
   const cache = new LruDiskCache(1e3);
   const dispatcher = new TranslationDispatcher(configManager, cache);
-  Promise.all([configManager.init(), cache.init()]).catch((err) => {
+  const initPromise = Promise.all([configManager.init(), cache.init()]).catch((err) => {
     console.warn("[dsh-chat-tidy] Initialization error:", err);
   });
   const webServer = ctx.webServer || (ctx.get ? ctx.get("webServer") : null);
   if (webServer && typeof webServer.register === "function") {
-    const handler = createHttpHandler(configManager, dispatcher);
+    const rawHandler = createHttpHandler(configManager, dispatcher);
+    const handler = async (req, res) => {
+      await initPromise;
+      return rawHandler(req, res);
+    };
     ctx.effect(
-      () => webServer.register({
-        kind: "prefix",
-        path: "/api/dsh-chat-tidy",
-        handler
-      }),
+      () => {
+        const unregister = webServer.register({
+          kind: "prefix",
+          path: "/api/dsh-chat-tidy",
+          handler
+        });
+        return () => {
+          if (typeof unregister === "function") {
+            unregister();
+          }
+          cache.dispose().catch((err) => {
+            console.warn("[dsh-chat-tidy] Dispose cache error:", err);
+          });
+        };
+      },
       "dsh-chat-tidy: translation API routes"
     );
   }

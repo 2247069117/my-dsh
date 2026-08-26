@@ -4,6 +4,7 @@ export interface PluginConfig {
     timeoutMs: number;
     channels: string[];
     translateThinking?: boolean;
+    targetLang?: string;
 }
 export interface MaskedPluginConfig {
     enabled: boolean;
@@ -11,6 +12,7 @@ export interface MaskedPluginConfig {
     timeoutMs: number;
     channels: string[];
     translateThinking: boolean;
+    targetLang: string;
 }
 export interface TranslateItemResult {
     original: string;

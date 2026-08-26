@@ -3,11 +3,16 @@ export interface ClientSettingsState {
     concurrency: number;
     translateThinking: boolean;
 }
+export declare const LS_ENABLED = "dsh-chat-tidy:enabled";
+export declare const LS_CONCURRENCY = "dsh-chat-tidy:concurrency";
+export declare const LS_TRANSLATE_THINKING = "dsh-chat-tidy:translate-thinking";
 declare class SettingsStore {
     private state;
     private listeners;
+    private storageListener;
     constructor();
     private loadFromLocalStorage;
+    private initStorageListener;
     private syncFromServer;
     getState(): ClientSettingsState;
     subscribe(listener: () => void): () => void;
@@ -18,6 +23,7 @@ declare class SettingsStore {
         latencyMs: number;
         error?: string;
     }>;
+    dispose(): void;
 }
 export declare const settingsStore: SettingsStore;
 export {};

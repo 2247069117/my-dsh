@@ -8,7 +8,8 @@ interface CacheEntry {
   v: string;
 }
 
-class ClientCache {
+export class ClientCache {
+  // Map preserves insertion order in JS, enabling true LRU semantics.
   private memCache = new Map<string, CacheEntry>();
   private dirty = false;
   private saveTimer: number | null = null;
@@ -45,8 +46,13 @@ class ClientCache {
     if (entry === undefined) return undefined;
     if (entry.t > 0 && Date.now() - entry.t > TTL_MS) {
       this.memCache.delete(key);
+      this.dirty = true;
+      this.scheduleSave();
       return undefined;
     }
+    // True LRU: Re-insert to move to the end (most recently used)
+    this.memCache.delete(key);
+    this.memCache.set(key, entry);
     return entry.v;
   }
 
@@ -55,9 +61,10 @@ class ClientCache {
     if (this.memCache.has(key)) {
       this.memCache.delete(key);
     } else if (this.memCache.size >= MAX_LOCAL_ENTRIES) {
-      const oldest = this.memCache.keys().next().value;
-      if (oldest !== undefined) {
-        this.memCache.delete(oldest);
+      // Evict least recently used (first item in Map)
+      const oldestKey = this.memCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.memCache.delete(oldestKey);
       }
     }
     this.memCache.set(key, { t: Date.now(), v: translated });
@@ -69,19 +76,32 @@ class ClientCache {
     if (this.saveTimer !== null || typeof window === 'undefined') return;
     this.saveTimer = window.setTimeout(() => {
       this.saveTimer = null;
-      if (this.dirty) {
-        this.dirty = false;
-        try {
-          const obj: Record<string, CacheEntry> = {};
-          for (const [k, v] of this.memCache.entries()) {
-            obj[k] = v;
-          }
-          localStorage.setItem(CACHE_KEY, JSON.stringify(obj));
-        } catch {
-          // Ignore quota error
-        }
-      }
+      this.flushSync();
     }, 2000);
+  }
+
+  flushSync(): void {
+    if (!this.dirty || typeof localStorage === 'undefined') return;
+    this.dirty = false;
+    try {
+      const obj: Record<string, CacheEntry> = {};
+      for (const [k, v] of this.memCache.entries()) {
+        obj[k] = v;
+      }
+      localStorage.setItem(CACHE_KEY, JSON.stringify(obj));
+    } catch {
+      // Ignore quota error
+    }
+  }
+
+  clear(): void {
+    this.memCache.clear();
+    this.dirty = true;
+    this.flushSync();
+  }
+
+  size(): number {
+    return this.memCache.size;
   }
 }
 

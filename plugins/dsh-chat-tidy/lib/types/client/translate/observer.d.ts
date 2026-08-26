@@ -1,3 +1,10 @@
+/**
+ * Checks whether text is predominantly Chinese.
+ * Threshold: > 40% CJK characters.
+ * Note: Removed the buggy "< 80 chars short-circuit" to avoid skipping short mixed strings.
+ */
+export declare function isMostlyChinese(text: string, threshold?: number): boolean;
+export declare function containsChinese(text: string): boolean;
 export declare class ChatTranslateObserver {
     private observer;
     private rootElement;
@@ -28,9 +35,7 @@ export declare class ChatTranslateObserver {
     private scanContainer;
     private scanNode;
     private processSpan;
-    /** Serial chain must be drained before dispose to avoid stray writes. */
     private drainThinkChain;
-    /** Restore think-translated nodes (used when the thinking toggle goes off). */
     private restoreThinkOriginals;
     disconnect(): void;
 }

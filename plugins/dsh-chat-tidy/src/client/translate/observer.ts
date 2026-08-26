@@ -1,15 +1,25 @@
 import { clientCache } from './client-cache.ts';
 import { lazyQueue } from './lazy.ts';
 import { requestTranslateBatch } from './api.ts';
+import { NonDestructiveTranslationMount } from './mount.ts';
 
 const CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
 
-function isMostlyChinese(text: string, threshold = 0.2): boolean {
+/**
+ * Checks whether text is predominantly Chinese.
+ * Threshold: > 40% CJK characters.
+ * Note: Removed the buggy "< 80 chars short-circuit" to avoid skipping short mixed strings.
+ */
+export function isMostlyChinese(text: string, threshold = 0.4): boolean {
+  if (!text || text.length === 0) return false;
   const m = text.match(/[\u4e00-\u9fa5]/g);
   const count = m ? m.length : 0;
   if (count === 0) return false;
-  if (text.length < 80) return true; // short title: any Chinese means already translated
-  return count > 15 || count / text.length > threshold;
+  return count / text.length > threshold;
+}
+
+export function containsChinese(text: string): boolean {
+  return CHINESE_CHAR_REGEX.test(text);
 }
 
 const TOOL_TITLE_SELECTOR = [
@@ -30,9 +40,6 @@ const TOOL_ERROR_OUT_SELECTOR = [
   '[class*="ioText"][data-error]',
   '[class*="terminalBody"], [class*="terminalBodyWrap"]',
 ].join(', ');
-
-/** Max characters per line-group chunk sent to the translation API. */
-const ERROR_OUT_CHUNK_MAX = 600;
 
 /** Lines that carry an error semantics — the only lines worth translating. */
 const ERROR_LINE_RE =
@@ -61,9 +68,20 @@ function isToolSummarySpan(span: HTMLElement, translateThinking: boolean): boole
   // Never translate the fold/expand toggle itself ("展开"/"收起"/"Expand")
   // and never translate the Think card's own title badge ("Think"/"思考").
   const rawToggle = (span.textContent || '').trim();
-  if (rawToggle.length <= 12 && /^(展开|收起|展开全部|收起全部|Expand|Collapse|Show more|Show less|Think|思考)$/i.test(rawToggle)) return false;
+  if (
+    rawToggle.length <= 12 &&
+    /^(展开|收起|展开全部|收起全部|Expand|Collapse|Show more|Show less|Think|思考)$/i.test(rawToggle)
+  ) {
+    return false;
+  }
   if (rawToggle === 'Think' || rawToggle === '思考') return false;
-  if (span.closest('button, [role="button"]') && rawToggle.length <= 12 && /展开|收起|Expand|Collapse|Think|思考/i.test(rawToggle)) return false;
+  if (
+    span.closest('button, [role="button"]') &&
+    rawToggle.length <= 12 &&
+    /展开|收起|Expand|Collapse|Think|思考/i.test(rawToggle)
+  ) {
+    return false;
+  }
   // Think / reasoning blocks are skipped unless "translate thinking chain" is on.
   if (!translateThinking) {
     if (isThinkSpan(span)) return false;
@@ -71,9 +89,13 @@ function isToolSummarySpan(span: HTMLElement, translateThinking: boolean): boole
       return false;
     }
   }
-  
+
   // Must belong to tool call
-  if (span.closest('[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool]')) {
+  if (
+    span.closest(
+      '[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool]'
+    )
+  ) {
     return true;
   }
   return false;
@@ -82,12 +104,16 @@ function isToolSummarySpan(span: HTMLElement, translateThinking: boolean): boole
 function isErrorOutNode(span: HTMLElement): boolean {
   if (span.hasAttribute('aria-hidden')) return false;
   // Never touch code blocks / rich output — only plain IO preview text.
-  if (span.closest('pre, code, [class*="ioCard"] [class*="markdown"], [class*="_file_"]')) return false;
+  if (span.closest('pre, code, [class*="ioCard"] [class*="markdown"], [class*="_file_"]')) {
+    return false;
+  }
   const cls = span.className || '';
   if (/terminalBody/i.test(cls)) return true;
   if (/ioText/i.test(cls)) {
-    return span.hasAttribute('data-error') ||
-      !!span.closest('[data-variant][data-state="error"], [data-variant][data-state="aborted"]');
+    return (
+      span.hasAttribute('data-error') ||
+      !!span.closest('[data-variant][data-state="error"], [data-variant][data-state="aborted"]')
+    );
   }
   return false;
 }
@@ -99,14 +125,14 @@ function isTranslateableErrorText(t: string): boolean {
   // A single long no-space token (path, hash, command line) — leave as-is.
   if (t.length > 40 && !/\s/.test(t.trim())) return false;
   // A pure path / symbol line without spaces.
-  if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) return false;
+  if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) {
+    return false;
+  }
   return true;
 }
 
 /**
- * Split long prose (Think blocks) into chunks of <= max chars, breaking at
- * line/space boundaries where possible — Bing rejects oversized payloads and
- * heavy think loads must never starve the shared pool.
+ * Split long prose (Think blocks) into chunks of <= max chars.
  */
 function chunkText(text: string, max: number): string[] {
   const out: string[] = [];
@@ -120,23 +146,6 @@ function chunkText(text: string, max: number): string[] {
   }
   if (rest.trim()) out.push(rest.trim());
   return out;
-}
-
-function chunkLines(text: string, max: number): string[] {
-  const lines = text.split('\n');
-  const chunks: string[] = [];
-  let cur = '';
-  for (const line of lines) {
-    const candidate = cur ? `${cur}\n${line}` : line;
-    if (candidate.length > max && cur) {
-      chunks.push(cur);
-      cur = line;
-    } else {
-      cur = candidate;
-    }
-  }
-  if (cur) chunks.push(cur);
-  return chunks;
 }
 
 const translatingErrorOuts = new WeakSet<HTMLElement>();
@@ -229,47 +238,29 @@ export class ChatTranslateObserver {
 
   private async translateThink(span: HTMLElement, text: string): Promise<void> {
     if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
-    // If already marked translated but React reverted the text back to English
-    // (streaming / re-render), clear the guard so we can re-translate.
-    if (span.dataset.tidyTranslated === 'true') {
-      const original = span.dataset.original;
-      const cur = span.textContent?.trim() || '';
-      if (original && cur === original) {
-        delete span.dataset.tidyTranslated;
-        delete span.dataset.original;
-        delete span.dataset.tidyThink;
-      } else if (original) {
+    
+    // If already mounted, check if text was updated
+    if (NonDestructiveTranslationMount.isMounted(span)) {
+      const original = NonDestructiveTranslationMount.getOriginal(span);
+      if (original) {
         const cached = clientCache.get(original);
-        if (cached && cur === cached) return;
-        // Text is new English (expanded after streaming) — allow re-translate
-        if (cur && !isMostlyChinese(cur) && cur !== cached) {
-          delete span.dataset.tidyTranslated;
-          delete span.dataset.original;
-          delete span.dataset.tidyThink;
-        } else {
-          return;
-        }
-      } else {
-        return;
+        if (cached) return;
       }
     }
-    const raw = span.textContent?.trim() || text;
+
+    const raw = NonDestructiveTranslationMount.extractVisibleText(span) || text;
     if (!raw || isMostlyChinese(raw)) return;
 
-    // Heavy prose: chunk by line groups (<=600 chars each, never splitting a
-    // line), translate with a small worker pool (3 in flight per element —
-    // think load must never consume the whole concurrency budget), and roll
-    // finished chunks into the DOM as a prefix so long chains render
-    // progressively instead of appearing all at once.
-    const chunks = chunkText(raw, 600).slice(0, 60); // hard cap: rest stays raw
+    // Heavy prose: chunk by line groups (<=600 chars each)
+    const chunks = chunkText(raw, 600).slice(0, 60); // hard cap
     if (chunks.length === 1) {
       const res = await requestTranslateBatch(chunks);
       const merged = res[0]?.translated?.trim();
       if (merged && merged !== chunks[0]) {
-        span.dataset.original = raw;
-        span.dataset.tidyTranslated = 'true';
-        span.dataset.tidyThink = 'true';
-        span.textContent = merged;
+        NonDestructiveTranslationMount.mount(span, merged, {
+          originalText: raw,
+          isThink: true,
+        });
       }
       return;
     }
@@ -282,7 +273,10 @@ export class ChatTranslateObserver {
     const paint = (): void => {
       if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
       const parts = chunks.map((c, i) => (i < prefixDone && results[i] ? (results[i] as string) : c));
-      span.textContent = parts.join('\n');
+      NonDestructiveTranslationMount.mount(span, parts.join('\n'), {
+        originalText: raw,
+        isThink: true,
+      });
     };
 
     await new Promise<void>((resolve) => {
@@ -313,12 +307,6 @@ export class ChatTranslateObserver {
       };
       pump();
     });
-
-    if (prefixDone === chunks.length) {
-      span.dataset.original = raw;
-      span.dataset.tidyTranslated = 'true';
-      span.dataset.tidyThink = 'true';
-    }
   }
 
   constructor() {
@@ -347,12 +335,7 @@ export class ChatTranslateObserver {
     const scope = this.rootElement ?? document;
     const spans = scope.querySelectorAll<HTMLElement>('[data-tidy-translated="true"]');
     for (const span of spans) {
-      const original = span.dataset.original;
-      if (original && original !== span.textContent) {
-        span.textContent = original;
-      }
-      delete span.dataset.tidyTranslated;
-      delete span.dataset.original;
+      NonDestructiveTranslationMount.unmount(span);
     }
   }
 
@@ -405,21 +388,42 @@ export class ChatTranslateObserver {
         for (let i = 0; i < mutation.addedNodes.length; i++) {
           const node = mutation.addedNodes[i];
           if (node instanceof HTMLElement) {
+            // Avoid re-observing our own created mount wrappers
+            if (
+              node.classList?.contains('dsh-tidy-translated-block') ||
+              node.classList?.contains('dsh-tidy-original-hidden') ||
+              node.classList?.contains('dsh-tidy-original-shown')
+            ) {
+              continue;
+            }
             this.scanNode(node);
           }
         }
       } else if (mutation.type === 'attributes') {
         const target = mutation.target;
         if (target instanceof HTMLElement) {
+          // Avoid scanning our own wrapper attributes
+          if (
+            target.classList?.contains('dsh-tidy-translated-block') ||
+            target.classList?.contains('dsh-tidy-original-hidden') ||
+            target.classList?.contains('dsh-tidy-original-shown')
+          ) {
+            continue;
+          }
           // React state change (running -> error, accordion expansion)
           this.scanNode(target);
         }
       } else if (mutation.type === 'characterData') {
-        // React re-rendered a text node (e.g. wiped our translation back to
-        // English). Re-scan the owner element; the dataset guard keeps this
-        // loop-free: translated text is Chinese or equals the cached value.
+        // React re-rendered a text node
         const parent = mutation.target.parentElement;
         if (parent instanceof HTMLElement) {
+          if (
+            parent.classList?.contains('dsh-tidy-translated-block') ||
+            parent.classList?.contains('dsh-tidy-original-hidden') ||
+            parent.classList?.contains('dsh-tidy-original-shown')
+          ) {
+            continue;
+          }
           this.scanNode(parent);
         }
       }
@@ -442,14 +446,9 @@ export class ChatTranslateObserver {
   }
 
   private scanNode(node: HTMLElement): void {
-    // Self: the added node itself may be a title summary or a think body (DIV).
-    // Original code only handled SPAN, so DIV think bodies expanded after a
-    // click were never translated while their collapsed SPAN summaries were.
     if (node.matches?.(TOOL_TITLE_SELECTOR) && isToolSummarySpan(node, this.translateThinking)) {
       this.processSpan(node);
     } else if (isToolSummarySpan(node, this.translateThinking) && isThinkSpan(node)) {
-      // Fallback: think body DIV/P that is inside [data-variant=think] but was
-      // missed by the selector (e.g. markdown wrapper). Still translate it.
       this.processSpan(node);
     }
     if (node.matches?.(TOOL_ERROR_OUT_SELECTOR) && isErrorOutNode(node)) {
@@ -471,77 +470,62 @@ export class ChatTranslateObserver {
   }
 
   private processSpan(span: HTMLElement): void {
-    const text = span.textContent?.trim() || '';
-    if (!text) return;
+    const isThink = isThinkSpan(span);
+    if (isThink && !this.translateThinking) return;
 
-    // Pre-mark think nodes so "translate thinking" can be toggled off and
-    // restore them independently of the main switch (covers cache-hit paths too).
-    const isThink = this.translateThinking && isThinkSpan(span);
     if (isThink) {
       span.dataset.tidyThink = 'true';
     }
 
-    // Check if already in Chinese — for think blocks only skip when mostly
-    // Chinese (short titles: any Chinese means translated; long think prose
-    // may legitimately contain a few Chinese chars like "你好").
-    if (isThink) {
-      if (isMostlyChinese(text)) {
-        span.dataset.tidyTranslated = 'true';
-        return;
+    // If already mounted with our non-destructive mount, check if text or translation changed
+    if (NonDestructiveTranslationMount.isMounted(span)) {
+      const original = NonDestructiveTranslationMount.getOriginal(span);
+      if (original) {
+        const cached = clientCache.get(original);
+        if (cached) return;
       }
-    } else if (CHINESE_CHAR_REGEX.test(text)) {
-      span.dataset.tidyTranslated = 'true';
       return;
     }
 
-    // Check if already translated to this exact translation
-    if (span.dataset.tidyTranslated === 'true') {
-      const original = span.dataset.original;
-      if (original) {
-        const cached = clientCache.get(original);
-        if (cached && text === cached) {
-          return;
-        }
-      }
+    const text = NonDestructiveTranslationMount.extractVisibleText(span);
+    if (!text) return;
+
+    // Check if mostly Chinese
+    if (isMostlyChinese(text)) {
+      span.dataset.tidyTranslated = 'true';
+      if (isThink) span.dataset.tidyThink = 'true';
+      return;
     }
 
     // Check fast client cache
     const cached = clientCache.get(text);
     if (cached) {
-      span.dataset.tidyTranslated = 'true';
-      span.dataset.original = text;
-      span.textContent = cached;
+      NonDestructiveTranslationMount.mount(span, cached, {
+        originalText: text,
+        isThink,
+      });
       return;
     }
 
-    // Think prose is heavy: route long blocks through the serial chain so
-    // it can never borrow the whole concurrency budget in one burst.
+    // Think prose is heavy: route long blocks through serial chain
     if (isThink && text.length > 120) {
       this.enqueueThink(span, text);
       return;
     }
 
     // Send to viewport lazy queue
-    lazyQueue.observe(span, text);
+    lazyQueue.observe(span, text, false, isThink);
   }
 
-  /** Serial chain must be drained before dispose to avoid stray writes. */
   private drainThinkChain(): void {
     this.thinkChain = this.thinkChain.then(() => {}).catch(() => {});
   }
 
-  /** Restore think-translated nodes (used when the thinking toggle goes off). */
   private restoreThinkOriginals(): void {
     const scope = this.rootElement ?? document;
     const spans = scope.querySelectorAll<HTMLElement>('[data-tidy-think="true"]');
     for (const span of spans) {
-      const original = span.dataset.original;
-      if (original && original !== span.textContent) {
-        span.textContent = original;
-      }
-      delete span.dataset.original;
-      delete span.dataset.tidyTranslated;
-      delete span.dataset.tidyThink;
+      NonDestructiveTranslationMount.unmount(span);
     }
   }
 

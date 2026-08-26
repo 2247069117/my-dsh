@@ -1,66 +1,63 @@
 import { clientCache } from './client-cache.ts';
 import { requestTranslateBatch } from './api.ts';
+import { NonDestructiveTranslationMount } from './mount.ts';
+import { StreamDebounceViewportObserver } from './viewport-observer.ts';
 
 type TranslateTask = {
   element: HTMLElement;
   text: string;
+  isThink?: boolean;
 };
 
 class LazyTranslationQueue {
-  private batchQueue: TranslateTask[] = [];
-  private debounceTimer: number | null = null;
   private enabled = true;
+  private viewportObserver: StreamDebounceViewportObserver;
+
+  constructor() {
+    this.viewportObserver = new StreamDebounceViewportObserver({
+      rootMargin: '150px 0px',
+      debounceMs: 400,
+      onVisibleBatch: (items) => this.handleVisibleBatch(items),
+    });
+  }
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (!enabled) {
-      // Drop buffered work so nothing can write after a toggle-off.
-      this.batchQueue = [];
+      this.viewportObserver.disconnect();
     }
   }
 
-  observe(element: HTMLElement, text: string): void {
-    if (!this.enabled) return;
-    // 1. If cached, apply immediately
+  observe(element: HTMLElement, text: string, immediate = false, isThink = false): void {
+    if (!this.enabled || !element.isConnected) return;
+
+    // 1. If cached, apply immediately non-destructively
     const cached = clientCache.get(text);
     if (cached) {
-      this.applyTranslation(element, cached, text);
+      this.applyTranslation(element, cached, text, isThink);
       return;
     }
 
-    // 2. Enqueue into debounced batch
-    this.enqueueBatch(element, text);
+    // 2. Delegate to streaming-debounced viewport observer
+    this.viewportObserver.observeWithDebounce(element, text, immediate, isThink);
   }
 
-  private enqueueBatch(element: HTMLElement, text: string): void {
-    this.batchQueue.push({ element, text });
-    if (this.debounceTimer === null) {
-      this.debounceTimer = window.setTimeout(() => {
-        this.debounceTimer = null;
-        this.flushBatch();
-      }, 80);
-    }
-  }
+  private async handleVisibleBatch(items: TranslateTask[]): Promise<void> {
+    if (!this.enabled || items.length === 0) return;
 
-  private async flushBatch(): Promise<void> {
-    if (this.batchQueue.length === 0 || !this.enabled) return;
-
-    const currentBatch = [...this.batchQueue];
-    this.batchQueue = [];
-
-    // Group elements by text to avoid redundant API calls
-    const textMap = new Map<string, HTMLElement[]>();
-    for (const item of currentBatch) {
+    // Group elements by text to deduplicate API requests
+    const textMap = new Map<string, Array<{ element: HTMLElement; isThink?: boolean }>>();
+    for (const item of items) {
       if (!item.element.isConnected) continue;
 
       const cached = clientCache.get(item.text);
       if (cached) {
-        this.applyTranslation(item.element, cached, item.text);
+        this.applyTranslation(item.element, cached, item.text, item.isThink);
         continue;
       }
 
       const list = textMap.get(item.text) || [];
-      list.push(item.element);
+      list.push({ element: item.element, isThink: item.isThink });
       textMap.set(item.text, list);
     }
 
@@ -72,29 +69,26 @@ class LazyTranslationQueue {
     for (const res of results) {
       if (res.translated && res.translated.trim()) {
         clientCache.set(res.original, res.translated);
-        const elements = textMap.get(res.original) || [];
-        for (const el of elements) {
-          if (el.isConnected) {
-            this.applyTranslation(el, res.translated, res.original);
+        const entries = textMap.get(res.original) || [];
+        for (const entry of entries) {
+          if (entry.element.isConnected && this.enabled) {
+            this.applyTranslation(entry.element, res.translated, res.original, entry.isThink);
           }
         }
       }
     }
   }
 
-  private applyTranslation(element: HTMLElement, translated: string, original: string): void {
+  private applyTranslation(element: HTMLElement, translated: string, original: string, isThink?: boolean): void {
     if (!element.isConnected || !this.enabled) return;
-    element.dataset.tidyTranslated = 'true';
-    element.dataset.original = original;
-    element.textContent = translated;
+    NonDestructiveTranslationMount.mount(element, translated, {
+      originalText: original,
+      isThink: isThink || element.dataset.tidyThink === 'true',
+    });
   }
 
   disconnect(): void {
-    if (this.debounceTimer !== null) {
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
-    }
-    this.batchQueue = [];
+    this.viewportObserver.disconnect();
   }
 }
 

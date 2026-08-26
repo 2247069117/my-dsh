@@ -12,8 +12,16 @@ const TRANSLATE_URL = 'https://cn.bing.com/ttranslatev3?isVertical=1&&IG={IG}&II
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-const IG_RE = /,IG:"(.*?)",/;
-const ABUSE_RE = /var\s+params_AbusePreventionHelper\s*=\s*\[\s*(\d+),\s*"([^"]+)"/;
+const IG_RES = [
+  /_IG="([a-zA-Z0-9]+)"/,
+  /,IG:"([a-zA-Z0-9]+)"/,
+  /IG:"([a-zA-Z0-9]+)"/,
+  /"IG":"([a-zA-Z0-9]+)"/,
+];
+const ABUSE_RES = [
+  /params_AbusePreventionHelper\s*=\s*\[\s*(\d+)\s*,\s*"([^"]+)"/,
+  /var\s+params_AbusePreventionHelper\s*=\s*\[\s*(\d+)\s*,\s*"([^"]+)"/,
+];
 
 interface BingTokens {
   ig: string;
@@ -24,33 +32,68 @@ interface BingTokens {
 let cachedTokens: BingTokens | null = null;
 let tokensFetchedAt = 0;
 const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+let inFlightTokenPromise: Promise<BingTokens> | null = null;
 
-async function fetchTokens(signal: AbortSignal): Promise<BingTokens> {
-  if (cachedTokens && Date.now() - tokensFetchedAt < TOKEN_TTL_MS) {
+function parseTokens(html: string): BingTokens {
+  let ig: string | undefined;
+  for (const re of IG_RES) {
+    const m = re.exec(html);
+    if (m && m[1]) {
+      ig = m[1];
+      break;
+    }
+  }
+
+  let key: string | undefined;
+  let token: string | undefined;
+  for (const re of ABUSE_RES) {
+    const m = re.exec(html);
+    if (m && m[1] && m[2]) {
+      key = m[1];
+      token = m[2];
+      break;
+    }
+  }
+
+  if (!ig || !key || !token) {
+    throw new Error(`Bing translator page: missing tokens (ig: ${!!ig}, key: ${!!key}, token: ${!!token})`);
+  }
+
+  return { ig, key, token };
+}
+
+export async function fetchTokens(signal: AbortSignal, forceRefresh = false): Promise<BingTokens> {
+  if (!forceRefresh && cachedTokens && Date.now() - tokensFetchedAt < TOKEN_TTL_MS) {
     return cachedTokens;
   }
 
-  const response = await fetch(TRANSLATOR_URL, {
-    headers: {
-      'User-Agent': UA,
-      Accept: 'text/html',
-    },
-    signal,
-  });
-  if (!response.ok) {
-    throw new Error(`Bing translator page responded with status ${response.status}`);
-  }
-  const html = await response.text();
-
-  const igMatch = IG_RE.exec(html);
-  const abuseMatch = ABUSE_RE.exec(html);
-  if (!igMatch || !abuseMatch) {
-    throw new Error('Bing translator page: IG or abuse-prevention token not found');
+  if (inFlightTokenPromise) {
+    return inFlightTokenPromise;
   }
 
-  cachedTokens = { ig: igMatch[1], key: abuseMatch[1], token: abuseMatch[2] };
-  tokensFetchedAt = Date.now();
-  return cachedTokens;
+  inFlightTokenPromise = (async () => {
+    try {
+      const response = await fetch(TRANSLATOR_URL, {
+        headers: {
+          'User-Agent': UA,
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+        signal,
+      });
+      if (!response.ok) {
+        throw new Error(`Bing translator page responded with status ${response.status}`);
+      }
+      const html = await response.text();
+      const tokens = parseTokens(html);
+      cachedTokens = tokens;
+      tokensFetchedAt = Date.now();
+      return tokens;
+    } finally {
+      inFlightTokenPromise = null;
+    }
+  })();
+
+  return inFlightTokenPromise;
 }
 
 export class BingWebAdapter implements ITranslationAdapter {
@@ -61,19 +104,29 @@ export class BingWebAdapter implements ITranslationAdapter {
     return true; // No key, no gateway URL required
   }
 
-  async translate(text: string, signal: AbortSignal, _config: PluginConfig): Promise<string> {
-    const { ig, key, token } = await fetchTokens(signal);
+  async translate(text: string, signal: AbortSignal, config: PluginConfig): Promise<string> {
+    const targetLang = config.targetLang || 'zh-Hans';
+    return this.executeTranslate(text, signal, targetLang, false);
+  }
+
+  private async executeTranslate(
+    text: string,
+    signal: AbortSignal,
+    targetLang: string,
+    isRetry: boolean
+  ): Promise<string> {
+    const tokens = await fetchTokens(signal, isRetry);
 
     const body = new URLSearchParams({
       fromLang: 'auto-detect',
       text,
-      to: 'zh-Hans',
-      key,
-      token,
+      to: targetLang,
+      key: tokens.key,
+      token: tokens.token,
       tryFetchingGenderDebiasedTranslations: 'true',
     });
 
-    const response = await fetch(TRANSLATE_URL.replace('{IG}', ig), {
+    const response = await fetch(TRANSLATE_URL.replace('{IG}', tokens.ig), {
       method: 'POST',
       headers: {
         'User-Agent': UA,
@@ -86,17 +139,21 @@ export class BingWebAdapter implements ITranslationAdapter {
     });
 
     if (!response.ok) {
-      // Token may have expired — next attempt will re-fetch.
       cachedTokens = null;
+      // Auto retry once with fresh tokens if not already retrying
+      if (!isRetry && (response.status === 400 || response.status === 401 || response.status === 403)) {
+        return this.executeTranslate(text, signal, targetLang, true);
+      }
       throw new Error(`Bing translate responded with status ${response.status}`);
     }
 
     const json = (await response.json()) as Array<{ translations?: Array<{ text?: string }> }>;
     const translated = json?.[0]?.translations?.[0]?.text?.trim();
     if (!translated) {
-      // Empty result usually means a stale token or an API change — treat as
-      // failure (triggers circuit breaker) and force a token re-fetch.
       cachedTokens = null;
+      if (!isRetry) {
+        return this.executeTranslate(text, signal, targetLang, true);
+      }
       throw new Error('Bing translate returned an empty result');
     }
     return translated;

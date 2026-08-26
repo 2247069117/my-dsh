@@ -21,13 +21,21 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/client/index.ts
 var index_exports = {};
 __export(index_exports, {
+  NonDestructiveTranslationMount: () => NonDestructiveTranslationMount,
   STYLE_MARKER: () => STYLE_MARKER,
+  StreamDebounceViewportObserver: () => StreamDebounceViewportObserver,
   TIDY_CHAT_CSS: () => TIDY_CHAT_CSS,
   adoptStyles: () => adoptStyles,
   apply: () => apply,
   chatTranslateObserver: () => chatTranslateObserver,
+  clientCache: () => clientCache,
+  containsChinese: () => containsChinese,
   inject: () => inject,
+  installQuickToggle: () => installQuickToggle,
+  isMostlyChinese: () => isMostlyChinese,
+  lazyQueue: () => lazyQueue,
   name: () => name,
+  settingsStore: () => settingsStore,
   setupSettingsUi: () => setupSettingsUi
 });
 module.exports = __toCommonJS(index_exports);
@@ -179,6 +187,32 @@ body [data-composer-card] {
   line-height: var(--dsh-ct-line-height);
 }
 
+/* --- Non-destructive Translation Styles --- */
+.dsh-tidy-translated-block {
+  display: inline;
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(59, 130, 246, 0.4);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.dsh-tidy-translated-block:hover {
+  border-bottom-color: #3b82f6;
+  color: var(--dsw-alias-brand-primary, #3b82f6);
+}
+
+.dsh-tidy-original-hidden {
+  display: none !important;
+}
+
+.dsh-tidy-original-shown {
+  display: inline !important;
+  cursor: pointer;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 4px;
+  padding: 1px 4px;
+  border-bottom: 1px dashed rgba(128, 128, 128, 0.4);
+}
+
 @media (max-width: 700px) {
   body [data-chat-flow-kind='user'] [data-time-hover-root] > div:first-child {
     max-width: 88%;
@@ -217,6 +251,7 @@ var CACHE_KEY = "dsh-chat-tidy:cache";
 var MAX_LOCAL_ENTRIES = 500;
 var TTL_MS = 7 * 24 * 60 * 60 * 1e3;
 var ClientCache = class {
+  // Map preserves insertion order in JS, enabling true LRU semantics.
   memCache = /* @__PURE__ */ new Map();
   dirty = false;
   saveTimer = null;
@@ -248,8 +283,12 @@ var ClientCache = class {
     if (entry === void 0) return void 0;
     if (entry.t > 0 && Date.now() - entry.t > TTL_MS) {
       this.memCache.delete(key);
+      this.dirty = true;
+      this.scheduleSave();
       return void 0;
     }
+    this.memCache.delete(key);
+    this.memCache.set(key, entry);
     return entry.v;
   }
   set(text, translated) {
@@ -257,9 +296,9 @@ var ClientCache = class {
     if (this.memCache.has(key)) {
       this.memCache.delete(key);
     } else if (this.memCache.size >= MAX_LOCAL_ENTRIES) {
-      const oldest = this.memCache.keys().next().value;
-      if (oldest !== void 0) {
-        this.memCache.delete(oldest);
+      const oldestKey = this.memCache.keys().next().value;
+      if (oldestKey !== void 0) {
+        this.memCache.delete(oldestKey);
       }
     }
     this.memCache.set(key, { t: Date.now(), v: translated });
@@ -270,32 +309,51 @@ var ClientCache = class {
     if (this.saveTimer !== null || typeof window === "undefined") return;
     this.saveTimer = window.setTimeout(() => {
       this.saveTimer = null;
-      if (this.dirty) {
-        this.dirty = false;
-        try {
-          const obj = {};
-          for (const [k, v] of this.memCache.entries()) {
-            obj[k] = v;
-          }
-          localStorage.setItem(CACHE_KEY, JSON.stringify(obj));
-        } catch {
-        }
-      }
+      this.flushSync();
     }, 2e3);
+  }
+  flushSync() {
+    if (!this.dirty || typeof localStorage === "undefined") return;
+    this.dirty = false;
+    try {
+      const obj = {};
+      for (const [k, v] of this.memCache.entries()) {
+        obj[k] = v;
+      }
+      localStorage.setItem(CACHE_KEY, JSON.stringify(obj));
+    } catch {
+    }
+  }
+  clear() {
+    this.memCache.clear();
+    this.dirty = true;
+    this.flushSync();
+  }
+  size() {
+    return this.memCache.size;
   }
 };
 var clientCache = new ClientCache();
 
 // src/client/translate/api.ts
-async function requestTranslateBatch(texts) {
-  if (texts.length === 0) return [];
+async function requestTranslateBatch(texts, options = {}) {
+  if (!Array.isArray(texts) || texts.length === 0) return [];
+  const validTexts = texts.map((t) => typeof t === "string" ? t : "");
+  if (validTexts.length === 0) return [];
+  const controller = new AbortController();
+  const timeoutId = options.timeoutMs ? setTimeout(() => controller.abort(), options.timeoutMs) : null;
+  const effectiveSignal = options.signal ? options.signal.aborted ? options.signal : controller.signal : controller.signal;
+  if (options.signal) {
+    options.signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
   try {
     const res = await fetch("/api/dsh-chat-tidy/translate", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ texts })
+      body: JSON.stringify({ texts: validTexts }),
+      signal: effectiveSignal
     });
     if (res.ok) {
       const data = await res.json();
@@ -303,9 +361,15 @@ async function requestTranslateBatch(texts) {
         return data.results;
       }
     }
-  } catch {
+  } catch (err) {
+    if (err?.name === "AbortError") {
+    }
+  } finally {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
   }
-  return texts.map((t) => ({
+  return validTexts.map((t) => ({
     original: t,
     translated: t,
     channel: "fallback-client",
@@ -349,49 +413,282 @@ async function testServerChannel(channel) {
   }
 }
 
+// src/client/translate/mount.ts
+var CLASS_ORIGINAL_HIDDEN = "dsh-tidy-original-hidden";
+var CLASS_ORIGINAL_SHOWN = "dsh-tidy-original-shown";
+var CLASS_TRANSLATED_BLOCK = "dsh-tidy-translated-block";
+var NonDestructiveTranslationMount = class {
+  /**
+   * Mounts a translated string onto the target element non-destructively.
+   */
+  static mount(element, translated, options = {}) {
+    if (!element || !element.ownerDocument) return;
+    const doc = element.ownerDocument;
+    let transWrapper = element.querySelector(`:scope > .${CLASS_TRANSLATED_BLOCK}`);
+    let origWrapper = element.querySelector(
+      `:scope > .${CLASS_ORIGINAL_HIDDEN}, :scope > .${CLASS_ORIGINAL_SHOWN}`
+    );
+    if (transWrapper && origWrapper) {
+      transWrapper.textContent = translated;
+      element.dataset.tidyTranslated = "true";
+      if (options.isThink) element.dataset.tidyThink = "true";
+      if (options.originalText) element.dataset.original = options.originalText;
+      return;
+    }
+    const originalText = options.originalText ?? this.extractVisibleText(element);
+    origWrapper = doc.createElement("span");
+    origWrapper.className = CLASS_ORIGINAL_HIDDEN;
+    origWrapper.style.display = "none";
+    while (element.firstChild) {
+      origWrapper.appendChild(element.firstChild);
+    }
+    transWrapper = doc.createElement("span");
+    transWrapper.className = CLASS_TRANSLATED_BLOCK;
+    transWrapper.textContent = translated;
+    transWrapper.title = "\u70B9\u51FB\u5207\u6362\u539F\u6587 / \u8BD1\u6587";
+    const interactive = options.interactive !== false;
+    if (interactive) {
+      origWrapper.title = "\u70B9\u51FB\u5207\u56DE\u8BD1\u6587";
+      origWrapper.style.cursor = "pointer";
+      const showOriginal = (e) => {
+        e.stopPropagation();
+        if (!origWrapper || !transWrapper) return;
+        origWrapper.style.display = "inline";
+        origWrapper.className = CLASS_ORIGINAL_SHOWN;
+        transWrapper.style.display = "none";
+      };
+      const showTranslated = (e) => {
+        e.stopPropagation();
+        if (!origWrapper || !transWrapper) return;
+        origWrapper.style.display = "none";
+        origWrapper.className = CLASS_ORIGINAL_HIDDEN;
+        transWrapper.style.display = "inline";
+      };
+      transWrapper.addEventListener("click", showOriginal);
+      origWrapper.addEventListener("click", showTranslated);
+    }
+    element.appendChild(transWrapper);
+    element.appendChild(origWrapper);
+    element.dataset.tidyTranslated = "true";
+    element.dataset.original = originalText;
+    if (options.isThink) {
+      element.dataset.tidyThink = "true";
+    }
+  }
+  /**
+   * Unmounts translation and restores original DOM nodes completely.
+   */
+  static unmount(element) {
+    if (!element) return;
+    const origWrapper = element.querySelector(
+      `:scope > .${CLASS_ORIGINAL_HIDDEN}, :scope > .${CLASS_ORIGINAL_SHOWN}`
+    );
+    const transWrapper = element.querySelector(`:scope > .${CLASS_TRANSLATED_BLOCK}`);
+    if (origWrapper) {
+      while (origWrapper.firstChild) {
+        element.insertBefore(origWrapper.firstChild, origWrapper);
+      }
+      origWrapper.remove();
+    }
+    if (transWrapper) {
+      transWrapper.remove();
+    }
+    if (!origWrapper && element.dataset.original) {
+      element.textContent = element.dataset.original;
+    }
+    delete element.dataset.tidyTranslated;
+    delete element.dataset.original;
+    delete element.dataset.tidyThink;
+  }
+  /**
+   * Checks if an element has non-destructive translation mounted.
+   */
+  static isMounted(element) {
+    return element.dataset.tidyTranslated === "true" && !!element.querySelector(`:scope > .${CLASS_TRANSLATED_BLOCK}`);
+  }
+  /**
+   * Gets the original text recorded on the element or contained in origWrapper.
+   */
+  static getOriginal(element) {
+    if (element.dataset.original) return element.dataset.original;
+    const origWrapper = element.querySelector(
+      `:scope > .${CLASS_ORIGINAL_HIDDEN}, :scope > .${CLASS_ORIGINAL_SHOWN}`
+    );
+    return origWrapper ? origWrapper.textContent?.trim() : void 0;
+  }
+  /**
+   * Extracts text content excluding our own translation wrappers.
+   */
+  static extractVisibleText(element) {
+    const origWrapper = element.querySelector(
+      `:scope > .${CLASS_ORIGINAL_HIDDEN}, :scope > .${CLASS_ORIGINAL_SHOWN}`
+    );
+    if (origWrapper) {
+      return origWrapper.textContent?.trim() || "";
+    }
+    const transWrapper = element.querySelector(`:scope > .${CLASS_TRANSLATED_BLOCK}`);
+    if (transWrapper) {
+      return transWrapper.textContent?.trim() || "";
+    }
+    return element.textContent?.trim() || "";
+  }
+};
+
+// src/client/translate/viewport-observer.ts
+var StreamDebounceViewportObserver = class {
+  intersectionObserver = null;
+  streamingTimers = /* @__PURE__ */ new WeakMap();
+  pendingQueue = [];
+  batchFlushTimer = null;
+  options;
+  constructor(options) {
+    this.options = {
+      rootMargin: options.rootMargin ?? "150px 0px",
+      debounceMs: options.debounceMs ?? 400,
+      onVisibleBatch: options.onVisibleBatch
+    };
+    this.initIntersectionObserver();
+  }
+  initIntersectionObserver() {
+    if (typeof window === "undefined" || typeof IntersectionObserver === "undefined") {
+      return;
+    }
+    this.intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && entry.target instanceof HTMLElement) {
+            const el = entry.target;
+            this.intersectionObserver?.unobserve(el);
+            const text = el.dataset.tidyPendingText || el.textContent?.trim() || "";
+            const isThink = el.dataset.tidyPendingThink === "true";
+            if (text) {
+              delete el.dataset.tidyPendingText;
+              delete el.dataset.tidyPendingThink;
+              this.enqueueBatch(el, text, isThink);
+            }
+          }
+        }
+      },
+      {
+        root: null,
+        // viewport
+        rootMargin: this.options.rootMargin,
+        threshold: 0
+      }
+    );
+  }
+  /**
+   * Observe an element with streaming debounce.
+   * If streaming updates characterData repeatedly within debounceMs, the timer resets.
+   */
+  observeWithDebounce(element, text, immediate = false, isThink = false) {
+    if (!element || !text) return;
+    const existingTimer = this.streamingTimers.get(element);
+    if (existingTimer !== void 0) {
+      clearTimeout(existingTimer);
+      this.streamingTimers.delete(element);
+    }
+    if (immediate || this.options.debounceMs <= 0) {
+      this.registerForViewport(element, text, isThink);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      this.streamingTimers.delete(element);
+      if (element.isConnected) {
+        const latestText = element.textContent?.trim() || text;
+        this.registerForViewport(element, latestText, isThink);
+      }
+    }, this.options.debounceMs);
+    this.streamingTimers.set(element, timer);
+  }
+  registerForViewport(element, text, isThink = false) {
+    if (!element.isConnected) return;
+    if (!this.intersectionObserver) {
+      this.enqueueBatch(element, text, isThink);
+      return;
+    }
+    element.dataset.tidyPendingText = text;
+    if (isThink) element.dataset.tidyPendingThink = "true";
+    this.intersectionObserver.observe(element);
+  }
+  enqueueBatch(element, text, isThink = false) {
+    this.pendingQueue.push({ element, text, isThink });
+    if (this.batchFlushTimer === null && typeof window !== "undefined") {
+      this.batchFlushTimer = window.setTimeout(() => {
+        this.batchFlushTimer = null;
+        this.flushQueue();
+      }, 50);
+    }
+  }
+  flushQueue() {
+    if (this.pendingQueue.length === 0) return;
+    const batch = [...this.pendingQueue];
+    this.pendingQueue = [];
+    this.options.onVisibleBatch(batch);
+  }
+  unobserve(element) {
+    const timer = this.streamingTimers.get(element);
+    if (timer !== void 0) {
+      clearTimeout(timer);
+      this.streamingTimers.delete(element);
+    }
+    delete element.dataset.tidyPendingText;
+    delete element.dataset.tidyPendingThink;
+    if (this.intersectionObserver) {
+      this.intersectionObserver.unobserve(element);
+    }
+  }
+  disconnect() {
+    if (this.batchFlushTimer !== null) {
+      clearTimeout(this.batchFlushTimer);
+      this.batchFlushTimer = null;
+    }
+    this.pendingQueue = [];
+    if (this.intersectionObserver) {
+      this.intersectionObserver.disconnect();
+      this.initIntersectionObserver();
+    }
+  }
+};
+
 // src/client/translate/lazy.ts
 var LazyTranslationQueue = class {
-  batchQueue = [];
-  debounceTimer = null;
   enabled = true;
+  viewportObserver;
+  constructor() {
+    this.viewportObserver = new StreamDebounceViewportObserver({
+      rootMargin: "150px 0px",
+      debounceMs: 400,
+      onVisibleBatch: (items) => this.handleVisibleBatch(items)
+    });
+  }
   setEnabled(enabled) {
     this.enabled = enabled;
     if (!enabled) {
-      this.batchQueue = [];
+      this.viewportObserver.disconnect();
     }
   }
-  observe(element, text) {
-    if (!this.enabled) return;
+  observe(element, text, immediate = false, isThink = false) {
+    if (!this.enabled || !element.isConnected) return;
     const cached = clientCache.get(text);
     if (cached) {
-      this.applyTranslation(element, cached, text);
+      this.applyTranslation(element, cached, text, isThink);
       return;
     }
-    this.enqueueBatch(element, text);
+    this.viewportObserver.observeWithDebounce(element, text, immediate, isThink);
   }
-  enqueueBatch(element, text) {
-    this.batchQueue.push({ element, text });
-    if (this.debounceTimer === null) {
-      this.debounceTimer = window.setTimeout(() => {
-        this.debounceTimer = null;
-        this.flushBatch();
-      }, 80);
-    }
-  }
-  async flushBatch() {
-    if (this.batchQueue.length === 0 || !this.enabled) return;
-    const currentBatch = [...this.batchQueue];
-    this.batchQueue = [];
+  async handleVisibleBatch(items) {
+    if (!this.enabled || items.length === 0) return;
     const textMap = /* @__PURE__ */ new Map();
-    for (const item of currentBatch) {
+    for (const item of items) {
       if (!item.element.isConnected) continue;
       const cached = clientCache.get(item.text);
       if (cached) {
-        this.applyTranslation(item.element, cached, item.text);
+        this.applyTranslation(item.element, cached, item.text, item.isThink);
         continue;
       }
       const list = textMap.get(item.text) || [];
-      list.push(item.element);
+      list.push({ element: item.element, isThink: item.isThink });
       textMap.set(item.text, list);
     }
     const uniqueTexts = Array.from(textMap.keys());
@@ -400,39 +697,39 @@ var LazyTranslationQueue = class {
     for (const res of results) {
       if (res.translated && res.translated.trim()) {
         clientCache.set(res.original, res.translated);
-        const elements = textMap.get(res.original) || [];
-        for (const el of elements) {
-          if (el.isConnected) {
-            this.applyTranslation(el, res.translated, res.original);
+        const entries = textMap.get(res.original) || [];
+        for (const entry of entries) {
+          if (entry.element.isConnected && this.enabled) {
+            this.applyTranslation(entry.element, res.translated, res.original, entry.isThink);
           }
         }
       }
     }
   }
-  applyTranslation(element, translated, original) {
+  applyTranslation(element, translated, original, isThink) {
     if (!element.isConnected || !this.enabled) return;
-    element.dataset.tidyTranslated = "true";
-    element.dataset.original = original;
-    element.textContent = translated;
+    NonDestructiveTranslationMount.mount(element, translated, {
+      originalText: original,
+      isThink: isThink || element.dataset.tidyThink === "true"
+    });
   }
   disconnect() {
-    if (this.debounceTimer !== null) {
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
-    }
-    this.batchQueue = [];
+    this.viewportObserver.disconnect();
   }
 };
 var lazyQueue = new LazyTranslationQueue();
 
 // src/client/translate/observer.ts
 var CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
-function isMostlyChinese(text, threshold = 0.2) {
+function isMostlyChinese(text, threshold = 0.4) {
+  if (!text || text.length === 0) return false;
   const m = text.match(/[\u4e00-\u9fa5]/g);
   const count = m ? m.length : 0;
   if (count === 0) return false;
-  if (text.length < 80) return true;
-  return count > 15 || count / text.length > threshold;
+  return count / text.length > threshold;
+}
+function containsChinese(text) {
+  return CHINESE_CHAR_REGEX.test(text);
 }
 var TOOL_TITLE_SELECTOR = [
   '[data-chat-call-id] [class*="summary"]',
@@ -468,23 +765,31 @@ function isToolSummarySpan(span, translateThinking) {
   const cls = span.className || "";
   if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
   const rawToggle = (span.textContent || "").trim();
-  if (rawToggle.length <= 12 && /^(展开|收起|展开全部|收起全部|Expand|Collapse|Show more|Show less|Think|思考)$/i.test(rawToggle)) return false;
+  if (rawToggle.length <= 12 && /^(展开|收起|展开全部|收起全部|Expand|Collapse|Show more|Show less|Think|思考)$/i.test(rawToggle)) {
+    return false;
+  }
   if (rawToggle === "Think" || rawToggle === "\u601D\u8003") return false;
-  if (span.closest('button, [role="button"]') && rawToggle.length <= 12 && /展开|收起|Expand|Collapse|Think|思考/i.test(rawToggle)) return false;
+  if (span.closest('button, [role="button"]') && rawToggle.length <= 12 && /展开|收起|Expand|Collapse|Think|思考/i.test(rawToggle)) {
+    return false;
+  }
   if (!translateThinking) {
     if (isThinkSpan(span)) return false;
     if (span.parentElement && span.parentElement.textContent?.includes("Think")) {
       return false;
     }
   }
-  if (span.closest('[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool]')) {
+  if (span.closest(
+    '[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool]'
+  )) {
     return true;
   }
   return false;
 }
 function isErrorOutNode(span) {
   if (span.hasAttribute("aria-hidden")) return false;
-  if (span.closest('pre, code, [class*="ioCard"] [class*="markdown"], [class*="_file_"]')) return false;
+  if (span.closest('pre, code, [class*="ioCard"] [class*="markdown"], [class*="_file_"]')) {
+    return false;
+  }
   const cls = span.className || "";
   if (/terminalBody/i.test(cls)) return true;
   if (/ioText/i.test(cls)) {
@@ -496,7 +801,9 @@ function isTranslateableErrorText(t) {
   if (CHINESE_CHAR_REGEX.test(t)) return false;
   if (t.trim().length < 4) return false;
   if (t.length > 40 && !/\s/.test(t.trim())) return false;
-  if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) return false;
+  if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) {
+    return false;
+  }
   return true;
 }
 function chunkText(text, max) {
@@ -589,38 +896,24 @@ var ChatTranslateObserver = class {
   }
   async translateThink(span, text) {
     if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
-    if (span.dataset.tidyTranslated === "true") {
-      const original = span.dataset.original;
-      const cur = span.textContent?.trim() || "";
-      if (original && cur === original) {
-        delete span.dataset.tidyTranslated;
-        delete span.dataset.original;
-        delete span.dataset.tidyThink;
-      } else if (original) {
+    if (NonDestructiveTranslationMount.isMounted(span)) {
+      const original = NonDestructiveTranslationMount.getOriginal(span);
+      if (original) {
         const cached = clientCache.get(original);
-        if (cached && cur === cached) return;
-        if (cur && !isMostlyChinese(cur) && cur !== cached) {
-          delete span.dataset.tidyTranslated;
-          delete span.dataset.original;
-          delete span.dataset.tidyThink;
-        } else {
-          return;
-        }
-      } else {
-        return;
+        if (cached) return;
       }
     }
-    const raw = span.textContent?.trim() || text;
+    const raw = NonDestructiveTranslationMount.extractVisibleText(span) || text;
     if (!raw || isMostlyChinese(raw)) return;
     const chunks = chunkText(raw, 600).slice(0, 60);
     if (chunks.length === 1) {
       const res = await requestTranslateBatch(chunks);
       const merged = res[0]?.translated?.trim();
       if (merged && merged !== chunks[0]) {
-        span.dataset.original = raw;
-        span.dataset.tidyTranslated = "true";
-        span.dataset.tidyThink = "true";
-        span.textContent = merged;
+        NonDestructiveTranslationMount.mount(span, merged, {
+          originalText: raw,
+          isThink: true
+        });
       }
       return;
     }
@@ -631,7 +924,10 @@ var ChatTranslateObserver = class {
     const paint = () => {
       if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
       const parts = chunks.map((c, i) => i < prefixDone && results[i] ? results[i] : c);
-      span.textContent = parts.join("\n");
+      NonDestructiveTranslationMount.mount(span, parts.join("\n"), {
+        originalText: raw,
+        isThink: true
+      });
     };
     await new Promise((resolve) => {
       const pump = () => {
@@ -660,11 +956,6 @@ var ChatTranslateObserver = class {
       };
       pump();
     });
-    if (prefixDone === chunks.length) {
-      span.dataset.original = raw;
-      span.dataset.tidyTranslated = "true";
-      span.dataset.tidyThink = "true";
-    }
   }
   constructor() {
     this.handleMutations = this.handleMutations.bind(this);
@@ -689,12 +980,7 @@ var ChatTranslateObserver = class {
     const scope = this.rootElement ?? document;
     const spans = scope.querySelectorAll('[data-tidy-translated="true"]');
     for (const span of spans) {
-      const original = span.dataset.original;
-      if (original && original !== span.textContent) {
-        span.textContent = original;
-      }
-      delete span.dataset.tidyTranslated;
-      delete span.dataset.original;
+      NonDestructiveTranslationMount.unmount(span);
     }
   }
   start(documentRef = document) {
@@ -733,17 +1019,26 @@ var ChatTranslateObserver = class {
         for (let i = 0; i < mutation.addedNodes.length; i++) {
           const node = mutation.addedNodes[i];
           if (node instanceof HTMLElement) {
+            if (node.classList?.contains("dsh-tidy-translated-block") || node.classList?.contains("dsh-tidy-original-hidden") || node.classList?.contains("dsh-tidy-original-shown")) {
+              continue;
+            }
             this.scanNode(node);
           }
         }
       } else if (mutation.type === "attributes") {
         const target = mutation.target;
         if (target instanceof HTMLElement) {
+          if (target.classList?.contains("dsh-tidy-translated-block") || target.classList?.contains("dsh-tidy-original-hidden") || target.classList?.contains("dsh-tidy-original-shown")) {
+            continue;
+          }
           this.scanNode(target);
         }
       } else if (mutation.type === "characterData") {
         const parent = mutation.target.parentElement;
         if (parent instanceof HTMLElement) {
+          if (parent.classList?.contains("dsh-tidy-translated-block") || parent.classList?.contains("dsh-tidy-original-hidden") || parent.classList?.contains("dsh-tidy-original-shown")) {
+            continue;
+          }
           this.scanNode(parent);
         }
       }
@@ -786,61 +1081,50 @@ var ChatTranslateObserver = class {
     });
   }
   processSpan(span) {
-    const text = span.textContent?.trim() || "";
-    if (!text) return;
-    const isThink = this.translateThinking && isThinkSpan(span);
+    const isThink = isThinkSpan(span);
+    if (isThink && !this.translateThinking) return;
     if (isThink) {
       span.dataset.tidyThink = "true";
     }
-    if (isThink) {
-      if (isMostlyChinese(text)) {
-        span.dataset.tidyTranslated = "true";
-        return;
-      }
-    } else if (CHINESE_CHAR_REGEX.test(text)) {
-      span.dataset.tidyTranslated = "true";
-      return;
-    }
-    if (span.dataset.tidyTranslated === "true") {
-      const original = span.dataset.original;
+    if (NonDestructiveTranslationMount.isMounted(span)) {
+      const original = NonDestructiveTranslationMount.getOriginal(span);
       if (original) {
         const cached2 = clientCache.get(original);
-        if (cached2 && text === cached2) {
-          return;
-        }
+        if (cached2) return;
       }
+      return;
+    }
+    const text = NonDestructiveTranslationMount.extractVisibleText(span);
+    if (!text) return;
+    if (isMostlyChinese(text)) {
+      span.dataset.tidyTranslated = "true";
+      if (isThink) span.dataset.tidyThink = "true";
+      return;
     }
     const cached = clientCache.get(text);
     if (cached) {
-      span.dataset.tidyTranslated = "true";
-      span.dataset.original = text;
-      span.textContent = cached;
+      NonDestructiveTranslationMount.mount(span, cached, {
+        originalText: text,
+        isThink
+      });
       return;
     }
     if (isThink && text.length > 120) {
       this.enqueueThink(span, text);
       return;
     }
-    lazyQueue.observe(span, text);
+    lazyQueue.observe(span, text, false, isThink);
   }
-  /** Serial chain must be drained before dispose to avoid stray writes. */
   drainThinkChain() {
     this.thinkChain = this.thinkChain.then(() => {
     }).catch(() => {
     });
   }
-  /** Restore think-translated nodes (used when the thinking toggle goes off). */
   restoreThinkOriginals() {
     const scope = this.rootElement ?? document;
     const spans = scope.querySelectorAll('[data-tidy-think="true"]');
     for (const span of spans) {
-      const original = span.dataset.original;
-      if (original && original !== span.textContent) {
-        span.textContent = original;
-      }
-      delete span.dataset.original;
-      delete span.dataset.tidyTranslated;
-      delete span.dataset.tidyThink;
+      NonDestructiveTranslationMount.unmount(span);
     }
   }
   disconnect() {
@@ -870,8 +1154,10 @@ var SettingsStore = class {
     translateThinking: false
   };
   listeners = /* @__PURE__ */ new Set();
+  storageListener = null;
   constructor() {
     this.loadFromLocalStorage();
+    this.initStorageListener();
     this.syncFromServer();
   }
   loadFromLocalStorage() {
@@ -884,7 +1170,7 @@ var SettingsStore = class {
       const concurrencyRaw = localStorage.getItem(LS_CONCURRENCY);
       if (concurrencyRaw !== null) {
         const c = parseInt(concurrencyRaw, 10);
-        if (!isNaN(c) && c >= 1 && c <= 100) {
+        if (Number.isFinite(c) && c >= 1 && c <= 100) {
           this.state.concurrency = c;
         }
       }
@@ -900,15 +1186,50 @@ var SettingsStore = class {
     } catch {
     }
   }
+  initStorageListener() {
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+    this.storageListener = (e) => {
+      if (!e.key || !e.key.startsWith(LS_PREFIX)) return;
+      let changed = false;
+      if (e.key === LS_ENABLED && e.newValue !== null) {
+        const val = e.newValue === "true";
+        if (this.state.enabled !== val) {
+          this.state.enabled = val;
+          chatTranslateObserver.setEnabled(val);
+          changed = true;
+        }
+      } else if (e.key === LS_CONCURRENCY && e.newValue !== null) {
+        const c = parseInt(e.newValue, 10);
+        if (Number.isFinite(c) && c >= 1 && c <= 100 && this.state.concurrency !== c) {
+          this.state.concurrency = c;
+          changed = true;
+        }
+      } else if (e.key === LS_TRANSLATE_THINKING && e.newValue !== null) {
+        const val = e.newValue === "true";
+        if (this.state.translateThinking !== val) {
+          this.state.translateThinking = val;
+          chatTranslateObserver.setTranslateThinking(val);
+          changed = true;
+        }
+      }
+      if (changed) {
+        this.notify();
+      }
+    };
+    window.addEventListener("storage", this.storageListener);
+  }
   async syncFromServer() {
     try {
       const config = await fetchServerConfig();
       if (config) {
+        const newEnabled = typeof config.enabled === "boolean" ? config.enabled : this.state.enabled;
+        const newConcurrency = typeof config.concurrency === "number" && Number.isFinite(config.concurrency) ? config.concurrency : this.state.concurrency;
+        const newThinking = typeof config.translateThinking === "boolean" ? config.translateThinking : this.state.translateThinking;
         this.state = {
           ...this.state,
-          enabled: config.enabled ?? this.state.enabled,
-          concurrency: config.concurrency ?? this.state.concurrency,
-          translateThinking: config.translateThinking ?? this.state.translateThinking
+          enabled: newEnabled,
+          concurrency: newConcurrency,
+          translateThinking: newThinking
         };
         chatTranslateObserver.setEnabled(this.state.enabled);
         chatTranslateObserver.setTranslateThinking(this.state.translateThinking);
@@ -935,9 +1256,16 @@ var SettingsStore = class {
     });
   }
   async update(partial) {
+    let sanitizedConcurrency = this.state.concurrency;
+    if (typeof partial.concurrency === "number") {
+      if (Number.isFinite(partial.concurrency)) {
+        sanitizedConcurrency = Math.min(Math.max(Math.round(partial.concurrency), 1), 100);
+      }
+    }
     this.state = {
       ...this.state,
-      ...partial
+      ...partial,
+      concurrency: sanitizedConcurrency
     };
     if (typeof partial.enabled === "boolean") {
       try {
@@ -946,9 +1274,9 @@ var SettingsStore = class {
       }
       chatTranslateObserver.setEnabled(partial.enabled);
     }
-    if (typeof partial.concurrency === "number") {
+    if (typeof partial.concurrency === "number" && Number.isFinite(partial.concurrency)) {
       try {
-        localStorage.setItem(LS_CONCURRENCY, String(partial.concurrency));
+        localStorage.setItem(LS_CONCURRENCY, String(sanitizedConcurrency));
       } catch {
       }
     }
@@ -974,6 +1302,13 @@ var SettingsStore = class {
   }
   async testChannel(channel) {
     return testServerChannel(channel);
+  }
+  dispose() {
+    if (this.storageListener && typeof window !== "undefined") {
+      window.removeEventListener("storage", this.storageListener);
+      this.storageListener = null;
+    }
+    this.listeners.clear();
   }
 };
 var settingsStore = new SettingsStore();
@@ -1260,8 +1595,9 @@ function TidySettingsPanel() {
   const handleToggleThinking = () => {
     settingsStore.update({ translateThinking: !state.translateThinking });
   };
-  const handleConcurrencyChange = (val) => {
-    if (Number.isNaN(val)) return;
+  const handleConcurrencyChange = (valStr) => {
+    const val = parseInt(valStr, 10);
+    if (!Number.isFinite(val)) return;
     settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 100) });
   };
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-settings", children: [
@@ -1281,16 +1617,16 @@ function TidySettingsPanel() {
         )
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-desc", children: [
-        "\u4EC5\u5728\u6E32\u67D3\u5C42\u5C06\u5DE5\u5177\u8C03\u7528\u52A8\u4F5C\u63CF\u8FF0\uFF08\u5982 ",
+        "\u91C7\u7528\u975E\u4FB5\u5165\u5F0F\u53CC\u8BED\u6E32\u67D3\uFF0C\u5C06\u5DE5\u5177\u8C03\u7528\u63CF\u8FF0\uFF08\u5982 ",
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "Locate DSH home directory structure" }),
-        "\uFF09\u81EA\u52A8\u7FFB\u8BD1\u8986\u76D6\u4E3A\u7B80\u6D01\u4E2D\u6587\u3002\u4E0D\u89E6\u78B0\u6B63\u6587\u4E0E\u601D\u8003\u5757\uFF0C\u4E0D\u5360\u4E0A\u4E0B\u6587\u7A97\u53E3\u3002"
+        "\uFF09\u81EA\u52A8\u7FFB\u8BD1\u4E3A\u7B80\u6D01\u4E2D\u6587\uFF0C\u70B9\u51FB\u8BD1\u6587\u53EF\u539F\u5730\u5207\u6362\u539F\u6587/\u8BD1\u6587\u3002\u4E0D\u89E6\u78B0\u771F\u5B9E DOM \u6811\u4E0E\u4E0A\u4E0B\u6587\u3002"
       ] })
     ] }),
     state.enabled && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u7FFB\u8BD1\u601D\u7EF4\u94FE\uFF08Think \u5757\uFF09" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u5F00\u542F\u540E\u5C06\u601D\u8003\u5757\u5185\u5BB9\uFF08reasoning\uFF09\u4E5F\u7FFB\u8BD1\u4E3A\u4E2D\u6587\uFF1B\u9ED8\u8BA4\u5173\u95ED\uFF0C\u4FDD\u6301\u601D\u8003\u539F\u6587\u3002" })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u5F00\u542F\u540E\u5C06\u601D\u8003\u5757\u5185\u5BB9\uFF08reasoning\uFF09\u901A\u8FC7\u89C6\u53E3\u61D2\u52A0\u8F7D\u4E0E\u4E32\u884C\u6D41\u5F0F\u7FFB\u8BD1\u4E3A\u4E2D\u6587\uFF1B\u9ED8\u8BA4\u5173\u95ED\uFF0C\u4FDD\u6301\u601D\u8003\u539F\u6587\u3002" })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "button",
@@ -1307,7 +1643,7 @@ function TidySettingsPanel() {
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u5386\u53F2\u4F1A\u8BDD\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u63A8\u8350 3\uFF09\u3002" })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u89C6\u53E3\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u8303\u56F4 1-100\uFF0C\u63A8\u8350 3\uFF09\u3002" })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "input",
@@ -1318,7 +1654,7 @@ function TidySettingsPanel() {
             max: 100,
             step: 1,
             value: state.concurrency,
-            onChange: (e) => handleConcurrencyChange(parseInt(e.target.value, 10)),
+            onChange: (e) => handleConcurrencyChange(e.target.value),
             style: { width: "88px" },
             "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
           }
@@ -1385,9 +1721,14 @@ var TOGGLE_CSS = String.raw`
   opacity: 0.45;
 }
 `;
+function findHeaderContainer() {
+  return document.querySelector(
+    '[data-slot="conversation.session.header"], [data-slot="header"]'
+  );
+}
 function findHeader() {
   return document.querySelector(
-    '[data-slot="conversation.session.header"] header, [data-slot="conversation.session.header"]'
+    '[data-slot="conversation.session.header"] header, [data-slot="conversation.session.header"], [data-slot="header"]'
   );
 }
 function createButton() {
@@ -1423,6 +1764,8 @@ function installQuickToggle() {
     style.textContent = TOGGLE_CSS;
     document.head.appendChild(style);
   }
+  let scopedObserver = null;
+  let pollTimer = null;
   const ensure = () => {
     const header = findHeader();
     if (!header) return;
@@ -1435,13 +1778,43 @@ function installQuickToggle() {
         header.insertBefore(btn, cluster.nextSibling);
       }
     }
+    const container = findHeaderContainer() ?? header;
+    if (!scopedObserver && container) {
+      scopedObserver = new MutationObserver(() => {
+        if (!document.getElementById(TOGGLE_ID)) {
+          ensure();
+        }
+      });
+      scopedObserver.observe(container, { childList: true, subtree: true });
+    }
   };
   ensure();
-  const keepAlive = new MutationObserver(() => ensure());
-  keepAlive.observe(document.body, { childList: true, subtree: true });
+  if (!findHeader()) {
+    let attempts = 0;
+    pollTimer = setInterval(() => {
+      attempts++;
+      ensure();
+      if (findHeader() || attempts > 20) {
+        if (pollTimer !== null) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }
+    }, 250);
+    if (pollTimer && typeof pollTimer.unref === "function") {
+      pollTimer.unref();
+    }
+  }
   const unsubscribe = settingsStore.subscribe(syncButtonState);
   return () => {
-    keepAlive.disconnect();
+    if (pollTimer !== null) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    if (scopedObserver) {
+      scopedObserver.disconnect();
+      scopedObserver = null;
+    }
     unsubscribe();
     document.getElementById(TOGGLE_ID)?.remove();
   };

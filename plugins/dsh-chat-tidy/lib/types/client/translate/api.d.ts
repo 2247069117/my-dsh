@@ -4,7 +4,11 @@ export interface TranslateItemResult {
     channel: string;
     cached: boolean;
 }
-export declare function requestTranslateBatch(texts: string[]): Promise<TranslateItemResult[]>;
+export interface TranslateBatchOptions {
+    signal?: AbortSignal;
+    timeoutMs?: number;
+}
+export declare function requestTranslateBatch(texts: string[], options?: TranslateBatchOptions): Promise<TranslateItemResult[]>;
 export declare function fetchServerConfig(): Promise<any>;
 export declare function updateServerConfig(updates: any): Promise<any>;
 export declare function testServerChannel(channel: string): Promise<{

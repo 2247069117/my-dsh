@@ -28,20 +28,34 @@ export function apply(ctx: HostContext): void {
   const dispatcher = new TranslationDispatcher(configManager, cache);
 
   // Initialize async resources
-  Promise.all([configManager.init(), cache.init()]).catch((err) => {
+  const initPromise = Promise.all([configManager.init(), cache.init()]).catch((err) => {
     console.warn('[dsh-chat-tidy] Initialization error:', err);
   });
 
   const webServer = ctx.webServer || (ctx.get ? ctx.get('webServer') : null);
   if (webServer && typeof webServer.register === 'function') {
-    const handler = createHttpHandler(configManager, dispatcher);
+    const rawHandler = createHttpHandler(configManager, dispatcher);
+    const handler = async (req: any, res: any) => {
+      await initPromise;
+      return rawHandler(req, res);
+    };
+
     ctx.effect(
-      () =>
-        webServer.register({
+      () => {
+        const unregister = webServer.register({
           kind: 'prefix',
           path: '/api/dsh-chat-tidy',
           handler,
-        }),
+        });
+        return () => {
+          if (typeof unregister === 'function') {
+            unregister();
+          }
+          cache.dispose().catch((err) => {
+            console.warn('[dsh-chat-tidy] Dispose cache error:', err);
+          });
+        };
+      },
       'dsh-chat-tidy: translation API routes'
     );
   }

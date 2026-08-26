@@ -15,11 +15,13 @@ const DEFAULT_CONFIG: PluginConfig = {
   timeoutMs: 2000,
   channels: [...KNOWN_CHANNELS],
   translateThinking: false,
+  targetLang: 'zh-Hans',
 };
 
 export class ConfigManager {
   private config: PluginConfig = { ...DEFAULT_CONFIG };
   private configPath: string;
+  private listeners = new Set<(config: PluginConfig) => void>();
 
   constructor() {
     const dshHome = process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
@@ -37,11 +39,29 @@ export class ConfigManager {
     } catch {
       this.config = { ...DEFAULT_CONFIG };
     }
-    // Drop channels that no longer exist (siliconflow / zhipu LLM channels and
-    // earlier retired ids), then merge in any adapter channels the config
-    // predates, so a persisted order from an older release keeps working.
+
+    // Sanitize values
+    if (!Number.isFinite(this.config.concurrency) || this.config.concurrency < 1) {
+      this.config.concurrency = DEFAULT_CONFIG.concurrency;
+    } else {
+      this.config.concurrency = Math.min(Math.max(Math.round(this.config.concurrency), 1), MAX_CONCURRENCY);
+    }
+
+    if (!Number.isFinite(this.config.timeoutMs) || this.config.timeoutMs < 500) {
+      this.config.timeoutMs = DEFAULT_CONFIG.timeoutMs;
+    } else {
+      this.config.timeoutMs = Math.min(Math.max(Math.round(this.config.timeoutMs), 500), 10000);
+    }
+
+    if (!this.config.targetLang || typeof this.config.targetLang !== 'string') {
+      this.config.targetLang = DEFAULT_CONFIG.targetLang;
+    }
+
+    // Drop retired channels
     const retired = new Set(['google', 'gateway', 'builtin', 'mymemory', 'siliconflow', 'zhipu']);
-    const merged = this.config.channels.filter((ch) => !retired.has(ch));
+    const merged = Array.isArray(this.config.channels)
+      ? this.config.channels.filter((ch) => typeof ch === 'string' && !retired.has(ch))
+      : [];
     for (const ch of KNOWN_CHANNELS) {
       if (!merged.includes(ch)) merged.push(ch);
     }
@@ -49,7 +69,7 @@ export class ConfigManager {
   }
 
   getConfig(): PluginConfig {
-    return { ...this.config };
+    return { ...this.config, channels: [...this.config.channels] };
   }
 
   getMaskedConfig(): MaskedPluginConfig {
@@ -59,7 +79,26 @@ export class ConfigManager {
       timeoutMs: this.config.timeoutMs,
       channels: [...this.config.channels],
       translateThinking: this.config.translateThinking === true,
+      targetLang: this.config.targetLang || 'zh-Hans',
     };
+  }
+
+  onConfigChange(listener: (config: PluginConfig) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notifyListeners(): void {
+    const snapshot = this.getConfig();
+    for (const listener of this.listeners) {
+      try {
+        listener(snapshot);
+      } catch (err) {
+        console.warn('[dsh-chat-tidy] Config listener error:', err);
+      }
+    }
   }
 
   async updateConfig(partial: Partial<PluginConfig>): Promise<PluginConfig> {
@@ -68,25 +107,52 @@ export class ConfigManager {
       ...partial,
     };
 
-    // Bounds check
-    if (typeof next.concurrency === 'number') {
-      next.concurrency = Math.min(Math.max(Math.round(next.concurrency), 1), MAX_CONCURRENCY);
+    // Bounds check with Number.isFinite
+    if (typeof partial.concurrency === 'number' && Number.isFinite(partial.concurrency)) {
+      next.concurrency = Math.min(Math.max(Math.round(partial.concurrency), 1), MAX_CONCURRENCY);
+    } else {
+      next.concurrency = this.config.concurrency;
     }
-    if (typeof next.timeoutMs === 'number') {
-      next.timeoutMs = Math.min(Math.max(Math.round(next.timeoutMs), 500), 10000);
+
+    if (typeof partial.timeoutMs === 'number' && Number.isFinite(partial.timeoutMs)) {
+      next.timeoutMs = Math.min(Math.max(Math.round(partial.timeoutMs), 500), 10000);
+    } else {
+      next.timeoutMs = this.config.timeoutMs;
+    }
+
+    if (typeof partial.enabled === 'boolean') {
+      next.enabled = partial.enabled;
+    }
+
+    if (typeof partial.translateThinking === 'boolean') {
+      next.translateThinking = partial.translateThinking;
+    }
+
+    if (typeof partial.targetLang === 'string' && partial.targetLang.trim()) {
+      next.targetLang = partial.targetLang.trim();
+    }
+
+    if (Array.isArray(partial.channels)) {
+      next.channels = partial.channels.filter((ch): ch is string => typeof ch === 'string');
     }
 
     this.config = next;
     await this.save();
+    this.notifyListeners();
     return this.getConfig();
   }
 
   private async save(): Promise<void> {
+    const tmpPath = `${this.configPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
     try {
       await fs.mkdir(path.dirname(this.configPath), { recursive: true });
-      await fs.writeFile(this.configPath, JSON.stringify(this.config, null, 2), 'utf-8');
+      await fs.writeFile(tmpPath, JSON.stringify(this.config, null, 2), 'utf-8');
+      await fs.rename(tmpPath, this.configPath);
     } catch (err) {
-      console.warn('[dsh-chat-tidy] Failed to save config file:', err);
+      console.warn('[dsh-chat-tidy] Failed to save config file atomically:', err);
+      try {
+        await fs.unlink(tmpPath);
+      } catch {}
     }
   }
 }
