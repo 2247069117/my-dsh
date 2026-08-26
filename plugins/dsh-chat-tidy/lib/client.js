@@ -29,10 +29,7 @@ __export(index_exports, {
   apply: () => apply,
   chatTranslateObserver: () => chatTranslateObserver,
   clientCache: () => clientCache,
-  containsChinese: () => containsChinese,
   inject: () => inject,
-  installQuickToggle: () => installQuickToggle,
-  isMostlyChinese: () => isMostlyChinese,
   lazyQueue: () => lazyQueue,
   name: () => name,
   settingsStore: () => settingsStore,
@@ -190,14 +187,6 @@ body [data-composer-card] {
 /* --- Non-destructive Translation Styles --- */
 .dsh-tidy-translated-block {
   display: inline;
-  cursor: pointer;
-  border-bottom: 1px dashed rgba(59, 130, 246, 0.4);
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-
-.dsh-tidy-translated-block:hover {
-  border-bottom-color: #3b82f6;
-  color: var(--dsw-alias-brand-primary, #3b82f6);
 }
 
 .dsh-tidy-original-hidden {
@@ -210,7 +199,6 @@ body [data-composer-card] {
   background: rgba(59, 130, 246, 0.08);
   border-radius: 4px;
   padding: 1px 4px;
-  border-bottom: 1px dashed rgba(128, 128, 128, 0.4);
 }
 
 @media (max-width: 700px) {
@@ -281,6 +269,12 @@ var ClientCache = class {
     const key = text.trim().toLowerCase();
     const entry = this.memCache.get(key);
     if (entry === void 0) return void 0;
+    if (entry.v && entry.v.trim().toLowerCase() === key) {
+      this.memCache.delete(key);
+      this.dirty = true;
+      this.scheduleSave();
+      return void 0;
+    }
     if (entry.t > 0 && Date.now() - entry.t > TTL_MS) {
       this.memCache.delete(key);
       this.dirty = true;
@@ -359,7 +353,11 @@ async function requestTranslateBatch(texts, options = {}) {
       const data = await res.json();
       if (data.ok && Array.isArray(data.results) && data.results.length > 0) {
         return data.results;
+      } else if (data.error) {
+        console.warn(`[dsh-chat-tidy] \u7FFB\u8BD1\u63A5\u53E3\u9519\u8BEF: ${data.error}`);
       }
+    } else {
+      console.warn(`[dsh-chat-tidy] \u7FFB\u8BD1\u8BF7\u6C42\u5931\u8D25 (HTTP ${res.status})`);
     }
   } catch (err) {
     if (err?.name === "AbortError") {
@@ -445,11 +443,8 @@ var NonDestructiveTranslationMount = class {
     transWrapper = doc.createElement("span");
     transWrapper.className = CLASS_TRANSLATED_BLOCK;
     transWrapper.textContent = translated;
-    transWrapper.title = "\u70B9\u51FB\u5207\u6362\u539F\u6587 / \u8BD1\u6587";
     const interactive = options.interactive !== false;
     if (interactive) {
-      origWrapper.title = "\u70B9\u51FB\u5207\u56DE\u8BD1\u6587";
-      origWrapper.style.cursor = "pointer";
       const showOriginal = (e) => {
         e.stopPropagation();
         if (!origWrapper || !transWrapper) return;
@@ -695,7 +690,7 @@ var LazyTranslationQueue = class {
     if (uniqueTexts.length === 0) return;
     const results = await requestTranslateBatch(uniqueTexts);
     for (const res of results) {
-      if (res.translated && res.translated.trim()) {
+      if (res.translated && res.translated.trim() && res.channel !== "fallback" && res.channel !== "fallback-client" && res.translated.trim() !== res.original.trim()) {
         clientCache.set(res.original, res.translated);
         const entries = textMap.get(res.original) || [];
         for (const entry of entries) {
@@ -703,6 +698,8 @@ var LazyTranslationQueue = class {
             this.applyTranslation(entry.element, res.translated, res.original, entry.isThink);
           }
         }
+      } else if (res.channel === "fallback" || res.channel === "fallback-client") {
+        console.debug(`[dsh-chat-tidy] \u7FFB\u8BD1\u672A\u6210\u529F (\u964D\u7EA7\u4FDD\u7559\u539F\u6587): "${res.original.slice(0, 40)}"`);
       }
     }
   }
@@ -720,27 +717,7 @@ var LazyTranslationQueue = class {
 var lazyQueue = new LazyTranslationQueue();
 
 // src/client/translate/observer.ts
-var CHINESE_CHAR_REGEX = /[\u4e00-\u9fa5]/;
-function isMostlyChinese(text, threshold = 0.4) {
-  if (!text || text.length === 0) return false;
-  const m = text.match(/[\u4e00-\u9fa5]/g);
-  const count = m ? m.length : 0;
-  if (count === 0) return false;
-  return count / text.length > threshold;
-}
-function containsChinese(text) {
-  return CHINESE_CHAR_REGEX.test(text);
-}
-var TOOL_TITLE_SELECTOR = [
-  '[data-chat-call-id] [class*="summary"]',
-  '[data-slot="tool.call.toolview"] [class*="summary"]',
-  '[data-sample] [class*="summary"]',
-  '[data-variant] [class*="summary"]',
-  "[data-tool] [data-disclosure-row] > span:not([aria-hidden])",
-  '[data-disclosure-row] [class*="summary"]',
-  '[class*="thinkBody"]',
-  '[data-variant="think"] [class*="markdown"]'
-].join(", ");
+var TOOL_TITLE_SELECTOR = '[class*="summary"]';
 var TOOL_ERROR_OUT_SELECTOR = [
   '[data-variant][data-state="error"] [class*="ioText"]',
   '[data-variant][data-state="aborted"] [class*="ioText"]',
@@ -749,21 +726,18 @@ var TOOL_ERROR_OUT_SELECTOR = [
 ].join(", ");
 var ERROR_LINE_RE = /error|fail(?:ed|ure)?|cannot|unable|no such|not found|denied|fatal|command not found|exit code|exited with|aborted|timed? ?out|exception|permission|killed|enoent|eacces|unreachable|refused/i;
 function isErrorLine(t) {
-  if (CHINESE_CHAR_REGEX.test(t)) return false;
   if (t.trim().length < 4) return false;
   if (t.length > 40 && !/\s/.test(t.trim())) return false;
   return ERROR_LINE_RE.test(t);
 }
-function isThinkSpan(el) {
-  if (/thinkBody/i.test(el.className || "")) return true;
-  return !!el.closest(
-    '[data-variant="think"], [data-sample="think"], [class*="_reasoning_"], [data-slot="conversation.reasoning"], .QWLzlG_row'
-  );
-}
-function isToolSummarySpan(span, translateThinking) {
+function isToolSummarySpan(span) {
+  if (!span || span.nodeType !== 1) return false;
   if (span.hasAttribute("aria-hidden")) return false;
+  if (span.querySelector?.('[class*="title"], [class*="leading"], [class*="chevron"], [class*="sep"], [class*="summary"]')) {
+    return false;
+  }
   const cls = span.className || "";
-  if (/title|leading|icon|badge|chevron/i.test(cls)) return false;
+  if (/title|leading|icon|badge|chevron|separator|sep\b|row\b|root\b|card\b/i.test(cls)) return false;
   const rawToggle = (span.textContent || "").trim();
   if (rawToggle.length <= 12 && /^(展开|收起|展开全部|收起全部|Expand|Collapse|Show more|Show less|Think|思考)$/i.test(rawToggle)) {
     return false;
@@ -772,14 +746,8 @@ function isToolSummarySpan(span, translateThinking) {
   if (span.closest('button, [role="button"]') && rawToggle.length <= 12 && /展开|收起|Expand|Collapse|Think|思考/i.test(rawToggle)) {
     return false;
   }
-  if (!translateThinking) {
-    if (isThinkSpan(span)) return false;
-    if (span.parentElement && span.parentElement.textContent?.includes("Think")) {
-      return false;
-    }
-  }
   if (span.closest(
-    '[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool]'
+    '[data-chat-call-id], [data-slot="tool.call.toolview"], [data-sample], [data-variant], [data-tool], [data-disclosure-row]'
   )) {
     return true;
   }
@@ -798,26 +766,12 @@ function isErrorOutNode(span) {
   return false;
 }
 function isTranslateableErrorText(t) {
-  if (CHINESE_CHAR_REGEX.test(t)) return false;
   if (t.trim().length < 4) return false;
   if (t.length > 40 && !/\s/.test(t.trim())) return false;
   if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) {
     return false;
   }
   return true;
-}
-function chunkText(text, max) {
-  const out = [];
-  let rest = text;
-  while (rest.length > max) {
-    let cut = rest.lastIndexOf("\n", max);
-    if (cut < max * 0.5) cut = rest.lastIndexOf(" ", max);
-    if (cut <= 0) cut = max;
-    out.push(rest.slice(0, cut).trim());
-    rest = rest.slice(cut).trimStart();
-  }
-  if (rest.trim()) out.push(rest.trim());
-  return out;
 }
 var translatingErrorOuts = /* @__PURE__ */ new WeakSet();
 var errorOutEnabled = true;
@@ -834,7 +788,6 @@ async function translateErrorOut(span) {
     }
   });
   if (targets.length === 0) {
-    if (CHINESE_CHAR_REGEX.test(raw)) span.dataset.tidyTranslated = "true";
     return;
   }
   const uniqueLines = Array.from(new Set(targets.map((x) => x.text)));
@@ -871,92 +824,6 @@ var ChatTranslateObserver = class {
   observer = null;
   rootElement = null;
   isEnabled = true;
-  translateThinking = false;
-  thinkChain = Promise.resolve();
-  /**
-   * Toggle Think/reasoning translation. Turning it on scans immediately;
-   * turning it off restores already-translated think nodes right away.
-   */
-  setTranslateThinking(enabled) {
-    this.translateThinking = enabled;
-    if (enabled) {
-      if (this.rootElement) this.scanContainer(this.rootElement);
-    } else {
-      this.restoreThinkOriginals();
-    }
-  }
-  /**
-   * Think translation runs on its own serial chain (one request in flight at
-   * a time) so long reasoning blocks can never fan out into a burst that
-   * hammers Bing. Short think lines still use the debounced shared queue.
-   */
-  enqueueThink(span, text) {
-    this.thinkChain = this.thinkChain.then(() => this.translateThink(span, text)).catch(() => {
-    });
-  }
-  async translateThink(span, text) {
-    if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
-    if (NonDestructiveTranslationMount.isMounted(span)) {
-      const original = NonDestructiveTranslationMount.getOriginal(span);
-      if (original) {
-        const cached = clientCache.get(original);
-        if (cached) return;
-      }
-    }
-    const raw = NonDestructiveTranslationMount.extractVisibleText(span) || text;
-    if (!raw || isMostlyChinese(raw)) return;
-    const chunks = chunkText(raw, 600).slice(0, 60);
-    if (chunks.length === 1) {
-      const res = await requestTranslateBatch(chunks);
-      const merged = res[0]?.translated?.trim();
-      if (merged && merged !== chunks[0]) {
-        NonDestructiveTranslationMount.mount(span, merged, {
-          originalText: raw,
-          isThink: true
-        });
-      }
-      return;
-    }
-    const results = new Array(chunks.length).fill(null);
-    let cursor = 0;
-    let inFlight = 0;
-    let prefixDone = 0;
-    const paint = () => {
-      if (!this.translateThinking || !this.isEnabled || !span.isConnected) return;
-      const parts = chunks.map((c, i) => i < prefixDone && results[i] ? results[i] : c);
-      NonDestructiveTranslationMount.mount(span, parts.join("\n"), {
-        originalText: raw,
-        isThink: true
-      });
-    };
-    await new Promise((resolve) => {
-      const pump = () => {
-        if (!this.translateThinking || !this.isEnabled || !span.isConnected) {
-          resolve();
-          return;
-        }
-        while (inFlight < 3 && cursor < chunks.length) {
-          const k = cursor++;
-          inFlight++;
-          (async () => {
-            try {
-              const r = await requestTranslateBatch([chunks[k]]);
-              const t = r[0]?.translated?.trim();
-              if (t && t !== chunks[k]) results[k] = t;
-            } catch {
-            } finally {
-              inFlight--;
-              while (prefixDone < chunks.length && results[prefixDone] !== null) prefixDone++;
-              paint();
-              pump();
-            }
-          })();
-        }
-        if (cursor >= chunks.length && inFlight === 0) resolve();
-      };
-      pump();
-    });
-  }
   constructor() {
     this.handleMutations = this.handleMutations.bind(this);
   }
@@ -972,10 +839,6 @@ var ChatTranslateObserver = class {
       lazyQueue.setEnabled(false);
     }
   }
-  /**
-   * Restore every translated node back to its English original so toggling
-   * the switch off takes effect immediately (no browser refresh needed).
-   */
   restoreOriginals() {
     const scope = this.rootElement ?? document;
     const spans = scope.querySelectorAll('[data-tidy-translated="true"]');
@@ -1047,7 +910,7 @@ var ChatTranslateObserver = class {
   scanContainer(container) {
     const spans = container.querySelectorAll(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {
-      if (isToolSummarySpan(span, this.translateThinking)) {
+      if (isToolSummarySpan(span)) {
         this.processSpan(span);
       }
     });
@@ -1059,9 +922,7 @@ var ChatTranslateObserver = class {
     });
   }
   scanNode(node) {
-    if (node.matches?.(TOOL_TITLE_SELECTOR) && isToolSummarySpan(node, this.translateThinking)) {
-      this.processSpan(node);
-    } else if (isToolSummarySpan(node, this.translateThinking) && isThinkSpan(node)) {
+    if (node.matches?.(TOOL_TITLE_SELECTOR) && isToolSummarySpan(node)) {
       this.processSpan(node);
     }
     if (node.matches?.(TOOL_ERROR_OUT_SELECTOR) && isErrorOutNode(node)) {
@@ -1069,7 +930,7 @@ var ChatTranslateObserver = class {
     }
     const spans = node.querySelectorAll(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {
-      if (isToolSummarySpan(span, this.translateThinking)) {
+      if (isToolSummarySpan(span)) {
         this.processSpan(span);
       }
     });
@@ -1081,11 +942,6 @@ var ChatTranslateObserver = class {
     });
   }
   processSpan(span) {
-    const isThink = isThinkSpan(span);
-    if (isThink && !this.translateThinking) return;
-    if (isThink) {
-      span.dataset.tidyThink = "true";
-    }
     if (NonDestructiveTranslationMount.isMounted(span)) {
       const original = NonDestructiveTranslationMount.getOriginal(span);
       if (original) {
@@ -1096,36 +952,14 @@ var ChatTranslateObserver = class {
     }
     const text = NonDestructiveTranslationMount.extractVisibleText(span);
     if (!text) return;
-    if (isMostlyChinese(text)) {
-      span.dataset.tidyTranslated = "true";
-      if (isThink) span.dataset.tidyThink = "true";
-      return;
-    }
     const cached = clientCache.get(text);
     if (cached) {
       NonDestructiveTranslationMount.mount(span, cached, {
-        originalText: text,
-        isThink
+        originalText: text
       });
       return;
     }
-    if (isThink && text.length > 120) {
-      this.enqueueThink(span, text);
-      return;
-    }
-    lazyQueue.observe(span, text, false, isThink);
-  }
-  drainThinkChain() {
-    this.thinkChain = this.thinkChain.then(() => {
-    }).catch(() => {
-    });
-  }
-  restoreThinkOriginals() {
-    const scope = this.rootElement ?? document;
-    const spans = scope.querySelectorAll('[data-tidy-think="true"]');
-    for (const span of spans) {
-      NonDestructiveTranslationMount.unmount(span);
-    }
+    lazyQueue.observe(span, text);
   }
   disconnect() {
     if (this.observer) {
@@ -1133,7 +967,6 @@ var ChatTranslateObserver = class {
       this.observer = null;
     }
     lazyQueue.disconnect();
-    this.drainThinkChain();
     this.rootElement = null;
   }
 };
@@ -1146,12 +979,10 @@ var import_react = require("react");
 var LS_PREFIX = "dsh-chat-tidy:";
 var LS_ENABLED = `${LS_PREFIX}enabled`;
 var LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
-var LS_TRANSLATE_THINKING = `${LS_PREFIX}translate-thinking`;
 var SettingsStore = class {
   state = {
     enabled: true,
-    concurrency: 3,
-    translateThinking: false
+    concurrency: 3
   };
   listeners = /* @__PURE__ */ new Set();
   storageListener = null;
@@ -1174,15 +1005,10 @@ var SettingsStore = class {
           this.state.concurrency = c;
         }
       }
-      const thinkRaw = localStorage.getItem(LS_TRANSLATE_THINKING);
-      if (thinkRaw !== null) {
-        this.state.translateThinking = thinkRaw === "true";
-      }
     } catch {
     }
     try {
       chatTranslateObserver.setEnabled(this.state.enabled);
-      chatTranslateObserver.setTranslateThinking(this.state.translateThinking);
     } catch {
     }
   }
@@ -1204,13 +1030,6 @@ var SettingsStore = class {
           this.state.concurrency = c;
           changed = true;
         }
-      } else if (e.key === LS_TRANSLATE_THINKING && e.newValue !== null) {
-        const val = e.newValue === "true";
-        if (this.state.translateThinking !== val) {
-          this.state.translateThinking = val;
-          chatTranslateObserver.setTranslateThinking(val);
-          changed = true;
-        }
       }
       if (changed) {
         this.notify();
@@ -1224,15 +1043,12 @@ var SettingsStore = class {
       if (config) {
         const newEnabled = typeof config.enabled === "boolean" ? config.enabled : this.state.enabled;
         const newConcurrency = typeof config.concurrency === "number" && Number.isFinite(config.concurrency) ? config.concurrency : this.state.concurrency;
-        const newThinking = typeof config.translateThinking === "boolean" ? config.translateThinking : this.state.translateThinking;
         this.state = {
           ...this.state,
           enabled: newEnabled,
-          concurrency: newConcurrency,
-          translateThinking: newThinking
+          concurrency: newConcurrency
         };
         chatTranslateObserver.setEnabled(this.state.enabled);
-        chatTranslateObserver.setTranslateThinking(this.state.translateThinking);
         this.notify();
       }
     } catch {
@@ -1280,23 +1096,14 @@ var SettingsStore = class {
       } catch {
       }
     }
-    if (typeof partial.translateThinking === "boolean") {
-      try {
-        localStorage.setItem(LS_TRANSLATE_THINKING, String(partial.translateThinking));
-      } catch {
-      }
-      chatTranslateObserver.setTranslateThinking(partial.translateThinking);
-    }
     this.notify();
     const updated = await updateServerConfig({
       enabled: this.state.enabled,
-      concurrency: this.state.concurrency,
-      translateThinking: this.state.translateThinking
+      concurrency: this.state.concurrency
     });
     if (updated) {
       this.state.enabled = updated.enabled ?? this.state.enabled;
       this.state.concurrency = updated.concurrency ?? this.state.concurrency;
-      this.state.translateThinking = updated.translateThinking ?? this.state.translateThinking;
       this.notify();
     }
   }
@@ -1592,9 +1399,6 @@ function TidySettingsPanel() {
   const handleToggleEnabled = () => {
     settingsStore.update({ enabled: !state.enabled });
   };
-  const handleToggleThinking = () => {
-    settingsStore.update({ translateThinking: !state.translateThinking });
-  };
   const handleConcurrencyChange = (valStr) => {
     const val = parseInt(valStr, 10);
     if (!Number.isFinite(val)) return;
@@ -1603,7 +1407,7 @@ function TidySettingsPanel() {
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-settings", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-title", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u5DE5\u5177\u8C03\u7528\u6807\u9898\u7FFB\u8BD1" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u5DE5\u5177\u8C03\u7528\u4E0E\u6458\u8981\u7FFB\u8BD1" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "button",
           {
@@ -1612,55 +1416,36 @@ function TidySettingsPanel() {
             role: "switch",
             "aria-checked": state.enabled,
             onClick: handleToggleEnabled,
-            "aria-label": "\u542F\u7528\u5DE5\u5177\u8C03\u7528\u6807\u9898\u7FFB\u8BD1"
+            "aria-label": "\u542F\u7528\u5DE5\u5177\u8C03\u7528\u4E0E\u6458\u8981\u7FFB\u8BD1"
           }
         )
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-desc", children: [
-        "\u91C7\u7528\u975E\u4FB5\u5165\u5F0F\u53CC\u8BED\u6E32\u67D3\uFF0C\u5C06\u5DE5\u5177\u8C03\u7528\u63CF\u8FF0\uFF08\u5982 ",
+        "\u91C7\u7528\u975E\u4FB5\u5165\u5F0F\u53CC\u8BED\u6E32\u67D3\uFF0C\u5C06\u5DE5\u5177\u8C03\u7528\u4E0E\u601D\u8003\u6298\u53E0\u6458\u8981\uFF08\u5982 ",
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "Locate DSH home directory structure" }),
-        "\uFF09\u81EA\u52A8\u7FFB\u8BD1\u4E3A\u7B80\u6D01\u4E2D\u6587\uFF0C\u70B9\u51FB\u8BD1\u6587\u53EF\u539F\u5730\u5207\u6362\u539F\u6587/\u8BD1\u6587\u3002\u4E0D\u89E6\u78B0\u771F\u5B9E DOM \u6811\u4E0E\u4E0A\u4E0B\u6587\u3002"
+        "\uFF09\u81EA\u52A8\u7FFB\u8BD1\u4E3A\u4E2D\u6587\uFF0C\u70B9\u51FB\u8BD1\u6587\u53EF\u539F\u5730\u5207\u6362\u539F\u6587/\u8BD1\u6587\u3002\u4E0D\u89E6\u78B0\u771F\u5B9E DOM \u6811\u4E0E\u4E0A\u4E0B\u6587\u3002"
       ] })
     ] }),
-    state.enabled && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u7FFB\u8BD1\u601D\u7EF4\u94FE\uFF08Think \u5757\uFF09" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u5F00\u542F\u540E\u5C06\u601D\u8003\u5757\u5185\u5BB9\uFF08reasoning\uFF09\u901A\u8FC7\u89C6\u53E3\u61D2\u52A0\u8F7D\u4E0E\u4E32\u884C\u6D41\u5F0F\u7FFB\u8BD1\u4E3A\u4E2D\u6587\uFF1B\u9ED8\u8BA4\u5173\u95ED\uFF0C\u4FDD\u6301\u601D\u8003\u539F\u6587\u3002" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            type: "button",
-            className: "dsh-tidy-switch",
-            role: "switch",
-            "aria-checked": state.translateThinking,
-            onClick: handleToggleThinking,
-            "aria-label": "\u7FFB\u8BD1\u601D\u7EF4\u94FE"
-          }
-        )
-      ] }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u89C6\u53E3\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u8303\u56F4 1-100\uFF0C\u63A8\u8350 3\uFF09\u3002" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "input",
-          {
-            type: "number",
-            className: "dsh-tidy-input",
-            min: 1,
-            max: 100,
-            step: 1,
-            value: state.concurrency,
-            onChange: (e) => handleConcurrencyChange(e.target.value),
-            style: { width: "88px" },
-            "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
-          }
-        )
-      ] }) })
-    ] })
+    state.enabled && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u89C6\u53E3\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u8303\u56F4 1-100\uFF0C\u63A8\u8350 3\uFF09\u3002" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "input",
+        {
+          type: "number",
+          className: "dsh-tidy-input",
+          min: 1,
+          max: 100,
+          step: 1,
+          value: state.concurrency,
+          onChange: (e) => handleConcurrencyChange(e.target.value),
+          style: { width: "88px" },
+          "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
+        }
+      )
+    ] }) }) })
   ] });
 }
 function setupSettingsUi(ctx) {
@@ -1684,142 +1469,6 @@ function setupSettingsUi(ctx) {
   }
 }
 
-// src/client/settings/toggle.ts
-var TOGGLE_ID = "dsh-chat-tidy-toggle";
-var TOGGLE_CSS_ID = "dsh-tidy-toggle-css";
-var TOGGLE_CSS = String.raw`
-.dsh-tidy-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  border: 1px solid var(--dsw-alias-border-l2, rgba(128, 128, 128, 0.3));
-  background: transparent;
-  color: var(--dsw-alias-label-secondary, rgba(128, 128, 128, 0.8));
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  flex: none;
-  padding: 0;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.dsh-tidy-toggle:hover {
-  border-color: rgba(59, 130, 246, 0.6);
-}
-
-.dsh-tidy-toggle[aria-pressed="true"] {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-  border-color: rgba(59, 130, 246, 0.45);
-}
-
-.dsh-tidy-toggle[aria-pressed="false"] span {
-  text-decoration: line-through;
-  opacity: 0.45;
-}
-`;
-function findHeaderContainer() {
-  return document.querySelector(
-    '[data-slot="conversation.session.header"], [data-slot="header"]'
-  );
-}
-function findHeader() {
-  return document.querySelector(
-    '[data-slot="conversation.session.header"] header, [data-slot="conversation.session.header"], [data-slot="header"]'
-  );
-}
-function createButton() {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.id = TOGGLE_ID;
-  btn.className = "dsh-tidy-toggle";
-  const on = settingsStore.getState().enabled;
-  btn.setAttribute("aria-pressed", String(on));
-  btn.title = on ? "\u6807\u9898\u7FFB\u8BD1\uFF1A\u5DF2\u5F00\u542F\uFF08\u70B9\u51FB\u5173\u95ED\uFF09" : "\u6807\u9898\u7FFB\u8BD1\uFF1A\u5DF2\u5173\u95ED\uFF08\u70B9\u51FB\u5F00\u542F\uFF09";
-  btn.setAttribute("aria-label", "\u6807\u9898\u7FFB\u8BD1\u5F00\u5173");
-  const mark = document.createElement("span");
-  mark.textContent = "\u8BD1";
-  btn.appendChild(mark);
-  btn.addEventListener("click", () => {
-    settingsStore.update({ enabled: !settingsStore.getState().enabled });
-  });
-  return btn;
-}
-function syncButtonState() {
-  const btn = document.getElementById(TOGGLE_ID);
-  if (!btn) return;
-  const on = settingsStore.getState().enabled;
-  btn.setAttribute("aria-pressed", String(on));
-  btn.title = on ? "\u6807\u9898\u7FFB\u8BD1\uFF1A\u5DF2\u5F00\u542F\uFF08\u70B9\u51FB\u5173\u95ED\uFF09" : "\u6807\u9898\u7FFB\u8BD1\uFF1A\u5DF2\u5173\u95ED\uFF08\u70B9\u51FB\u5F00\u542F\uFF09";
-}
-function installQuickToggle() {
-  if (typeof document === "undefined") return () => {
-  };
-  if (!document.getElementById(TOGGLE_CSS_ID)) {
-    const style = document.createElement("style");
-    style.id = TOGGLE_CSS_ID;
-    style.textContent = TOGGLE_CSS;
-    document.head.appendChild(style);
-  }
-  let scopedObserver = null;
-  let pollTimer = null;
-  const ensure = () => {
-    const header = findHeader();
-    if (!header) return;
-    if (!document.getElementById(TOGGLE_ID)) {
-      const btn = createButton();
-      header.appendChild(btn);
-      btn.style.marginLeft = "8px";
-      const cluster = btn.closest('[class*="utilities"], [class*="header"] > div:last-child');
-      if (cluster && cluster !== header) {
-        header.insertBefore(btn, cluster.nextSibling);
-      }
-    }
-    const container = findHeaderContainer() ?? header;
-    if (!scopedObserver && container) {
-      scopedObserver = new MutationObserver(() => {
-        if (!document.getElementById(TOGGLE_ID)) {
-          ensure();
-        }
-      });
-      scopedObserver.observe(container, { childList: true, subtree: true });
-    }
-  };
-  ensure();
-  if (!findHeader()) {
-    let attempts = 0;
-    pollTimer = setInterval(() => {
-      attempts++;
-      ensure();
-      if (findHeader() || attempts > 20) {
-        if (pollTimer !== null) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
-      }
-    }, 250);
-    if (pollTimer && typeof pollTimer.unref === "function") {
-      pollTimer.unref();
-    }
-  }
-  const unsubscribe = settingsStore.subscribe(syncButtonState);
-  return () => {
-    if (pollTimer !== null) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
-    if (scopedObserver) {
-      scopedObserver.disconnect();
-      scopedObserver = null;
-    }
-    unsubscribe();
-    document.getElementById(TOGGLE_ID)?.remove();
-  };
-}
-
 // src/client/index.ts
 var name = "dsh-chat-tidy";
 var inject = ["slots"];
@@ -1827,7 +1476,6 @@ function apply(ctx) {
   ctx.effect(() => adoptStyles(document), "dsh-chat-tidy: stylesheet");
   ctx.effect(() => chatTranslateObserver.start(document), "dsh-chat-tidy: title translate observer");
   ctx.effect(() => setupSettingsUi(ctx), "dsh-chat-tidy: settings section");
-  ctx.effect(() => installQuickToggle(), "dsh-chat-tidy: quick toggle");
 }
 return module.exports; } });
 //# sourceMappingURL=client.js.map

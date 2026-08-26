@@ -161,14 +161,6 @@ body [data-composer-card] {
 /* --- Non-destructive Translation Styles --- */
 .dsh-tidy-translated-block {
   display: inline;
-  cursor: pointer;
-  border-bottom: 1px dashed rgba(59, 130, 246, 0.4);
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-
-.dsh-tidy-translated-block:hover {
-  border-bottom-color: #3b82f6;
-  color: var(--dsw-alias-brand-primary, #3b82f6);
 }
 
 .dsh-tidy-original-hidden {
@@ -181,7 +173,6 @@ body [data-composer-card] {
   background: rgba(59, 130, 246, 0.08);
   border-radius: 4px;
   padding: 1px 4px;
-  border-bottom: 1px dashed rgba(128, 128, 128, 0.4);
 }
 
 @media (max-width: 700px) {

@@ -22,7 +22,9 @@ function readBody(req: IncomingMessage): Promise<string> {
       const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       totalLength += buf.length;
       if (totalLength > MAX_BODY_BYTES) {
-        req.destroy();
+        if (typeof req.destroy === 'function') {
+          req.destroy();
+        }
         reject(new Error('Request body exceeded maximum allowed size (1MB)'));
         return;
       }

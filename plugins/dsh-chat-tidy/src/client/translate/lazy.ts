@@ -67,7 +67,13 @@ class LazyTranslationQueue {
     const results = await requestTranslateBatch(uniqueTexts);
 
     for (const res of results) {
-      if (res.translated && res.translated.trim()) {
+      if (
+        res.translated &&
+        res.translated.trim() &&
+        res.channel !== 'fallback' &&
+        res.channel !== 'fallback-client' &&
+        res.translated.trim() !== res.original.trim()
+      ) {
         clientCache.set(res.original, res.translated);
         const entries = textMap.get(res.original) || [];
         for (const entry of entries) {
@@ -75,6 +81,8 @@ class LazyTranslationQueue {
             this.applyTranslation(entry.element, res.translated, res.original, entry.isThink);
           }
         }
+      } else if (res.channel === 'fallback' || res.channel === 'fallback-client') {
+        console.debug(`[dsh-chat-tidy] 翻译未成功 (降级保留原文): "${res.original.slice(0, 40)}"`);
       }
     }
   }

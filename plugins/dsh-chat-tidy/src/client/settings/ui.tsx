@@ -28,10 +28,6 @@ export function TidySettingsPanel(): React.ReactElement {
     settingsStore.update({ enabled: !state.enabled });
   };
 
-  const handleToggleThinking = (): void => {
-    settingsStore.update({ translateThinking: !state.translateThinking });
-  };
-
   const handleConcurrencyChange = (valStr: string): void => {
     const val = parseInt(valStr, 10);
     if (!Number.isFinite(val)) return;
@@ -43,44 +39,24 @@ export function TidySettingsPanel(): React.ReactElement {
       {/* 1. 总开关卡片 */}
       <div className="dsh-tidy-card">
         <div className="dsh-tidy-title">
-          <span>工具调用标题翻译</span>
+          <span>工具调用与摘要翻译</span>
           <button
             type="button"
             className="dsh-tidy-switch"
             role="switch"
             aria-checked={state.enabled}
             onClick={handleToggleEnabled}
-            aria-label="启用工具调用标题翻译"
+            aria-label="启用工具调用与摘要翻译"
           />
         </div>
         <div className="dsh-tidy-desc">
-          采用非侵入式双语渲染，将工具调用描述（如 <code>Locate DSH home directory structure</code>）自动翻译为简洁中文，点击译文可原地切换原文/译文。不触碰真实 DOM 树与上下文。
+          采用非侵入式双语渲染，将工具调用与思考折叠摘要（如 <code>Locate DSH home directory structure</code>）自动翻译为中文，点击译文可原地切换原文/译文。不触碰真实 DOM 树与上下文。
         </div>
       </div>
 
       {state.enabled && (
         <>
-          {/* 2. 翻译思维链开关 */}
-          <div className="dsh-tidy-card">
-            <div className="dsh-tidy-row">
-              <div className="dsh-tidy-row-info">
-                <div className="dsh-tidy-row-title">翻译思维链（Think 块）</div>
-                <div className="dsh-tidy-row-desc">
-                  开启后将思考块内容（reasoning）通过视口懒加载与串行流式翻译为中文；默认关闭，保持思考原文。
-                </div>
-              </div>
-              <button
-                type="button"
-                className="dsh-tidy-switch"
-                role="switch"
-                aria-checked={state.translateThinking}
-                onClick={handleToggleThinking}
-                aria-label="翻译思维链"
-              />
-            </div>
-          </div>
-
-          {/* 3. 并发控制 */}
+          {/* 2. 并发控制 */}
           <div className="dsh-tidy-card">
             <div className="dsh-tidy-row">
               <div className="dsh-tidy-row-info">

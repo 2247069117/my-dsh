@@ -14,7 +14,6 @@ const DEFAULT_CONFIG: PluginConfig = {
   concurrency: 3,
   timeoutMs: 2000,
   channels: [...KNOWN_CHANNELS],
-  translateThinking: false,
   targetLang: 'zh-Hans',
 };
 
@@ -78,7 +77,6 @@ export class ConfigManager {
       concurrency: this.config.concurrency,
       timeoutMs: this.config.timeoutMs,
       channels: [...this.config.channels],
-      translateThinking: this.config.translateThinking === true,
       targetLang: this.config.targetLang || 'zh-Hans',
     };
   }
@@ -122,10 +120,6 @@ export class ConfigManager {
 
     if (typeof partial.enabled === 'boolean') {
       next.enabled = partial.enabled;
-    }
-
-    if (typeof partial.translateThinking === 'boolean') {
-      next.translateThinking = partial.translateThinking;
     }
 
     if (typeof partial.targetLang === 'string' && partial.targetLang.trim()) {

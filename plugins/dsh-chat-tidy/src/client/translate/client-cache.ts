@@ -44,6 +44,13 @@ export class ClientCache {
     const key = text.trim().toLowerCase();
     const entry = this.memCache.get(key);
     if (entry === undefined) return undefined;
+    // Drop dirty fallback entries where value equals key
+    if (entry.v && entry.v.trim().toLowerCase() === key) {
+      this.memCache.delete(key);
+      this.dirty = true;
+      this.scheduleSave();
+      return undefined;
+    }
     if (entry.t > 0 && Date.now() - entry.t > TTL_MS) {
       this.memCache.delete(key);
       this.dirty = true;

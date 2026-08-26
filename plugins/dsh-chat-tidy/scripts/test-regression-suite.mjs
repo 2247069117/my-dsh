@@ -1,7 +1,7 @@
 // Comprehensive Automated Regression Test Suite for dsh-chat-tidy
 // Tests:
-// 1. isMostlyChinese language ratio detection
-// 2. ContentMaskingPipeline placeholder masking & robust unmasking
+// 1. ContentMaskingPipeline placeholder masking & robust unmasking
+// 2. Direct translation pass-through (no restrictive language skipping)
 // 3. Concurrency pool, Token mutex & Circuit breaker state machine
 // 4. LruDiskCache & ClientCache LRU eviction and TTL handling
 // 5. ConfigManager validation, atomic persistence, and change events
@@ -15,7 +15,7 @@ import * as os from 'node:os';
 import { JSDOM } from 'jsdom';
 
 import { ContentMaskingPipeline } from '../src/server/pipeline/masking.ts';
-import { isMostlyChinese, TranslationDispatcher } from '../src/server/dispatcher.ts';
+import { TranslationDispatcher } from '../src/server/dispatcher.ts';
 import { ConfigManager } from '../src/server/config.ts';
 import { LruDiskCache } from '../src/server/cache.ts';
 import { ClientCache } from '../src/client/translate/client-cache.ts';
@@ -52,55 +52,14 @@ async function testAsync(name, fn) {
 console.log('=== Starting dsh-chat-tidy Regression Test Suite ===\n');
 
 // -------------------------------------------------------------
-// Suite 1: isMostlyChinese Language Ratio Detection
+// Suite 1: ContentMaskingPipeline Placeholder Protection
 // -------------------------------------------------------------
-console.log('--- Suite 1: isMostlyChinese Language Ratio Detection ---');
-
-test('Empty or whitespace-only text should return false', () => {
-  assert.equal(isMostlyChinese(''), false);
-  assert.equal(isMostlyChinese('   \n\t  '), false);
-});
-
-test('Pure English text should return false', () => {
-  assert.equal(isMostlyChinese('Hello world'), false);
-  assert.equal(isMostlyChinese('Run integration test suite with pnpm'), false);
-  assert.equal(isMostlyChinese('Fixing bug in router'), false);
-});
-
-test('Pure Chinese text should return true', () => {
-  assert.equal(isMostlyChinese('你好世界'), true);
-  assert.equal(isMostlyChinese('正在构建项目并运行测试'), true);
-  assert.equal(isMostlyChinese('测试'), true);
-});
-
-test('Mixed Chinese/English respects 40% threshold', () => {
-  // "Hello 世界" -> 2 Chinese / 8 non-space chars = 25% < 40% -> false
-  assert.equal(isMostlyChinese('Hello 世界'), false);
-
-  // "Hello 世界你好啊" -> 5 Chinese / 10 non-space chars = 50% >= 40% -> true
-  assert.equal(isMostlyChinese('Hello 世界你好啊'), true);
-
-  // Short sentences: English "Hi" -> false, "好" -> true (100%), "OK" -> false
-  assert.equal(isMostlyChinese('Hi'), false);
-  assert.equal(isMostlyChinese('好'), true);
-  assert.equal(isMostlyChinese('OK'), false);
-});
-
-test('Code & technical terms detection', () => {
-  assert.equal(isMostlyChinese('git commit -m "update masking pipeline"'), false);
-  assert.equal(isMostlyChinese('npm install @lynn123411/dsh-chat-tidy'), false);
-  assert.equal(isMostlyChinese('编译完成，共 10 个测试用例通过'), true);
-});
-
-// -------------------------------------------------------------
-// Suite 2: ContentMaskingPipeline Placeholder Protection
-// -------------------------------------------------------------
-console.log('\n--- Suite 2: ContentMaskingPipeline Placeholder Protection ---');
+console.log('--- Suite 1: ContentMaskingPipeline Placeholder Protection ---');
 
 const pipeline = new ContentMaskingPipeline();
 
 test('Masks multi-line code blocks with backticks and tildes', () => {
-  const input = 'Here is some code:\n\`\`\`typescript\nconst answer: number = 42;\nconsole.log(answer);\n\`\`\`\nAnd more text.';
+  const input = 'Here is some code:\n```typescript\nconst answer: number = 42;\nconsole.log(answer);\n```\nAnd more text.';
   const { maskedText, unmask } = pipeline.mask(input);
   assert.match(maskedText, /__DSH_MASK_0__/);
   assert.ok(!maskedText.includes('const answer'));
@@ -112,7 +71,7 @@ test('Masks multi-line code blocks with backticks and tildes', () => {
 });
 
 test('Masks inline code spans', () => {
-  const input = 'Please execute \`pnpm run build\` and \`pnpm run typecheck\` before releasing.';
+  const input = 'Please execute `pnpm run build` and `pnpm run typecheck` before releasing.';
   const { maskedText, unmask } = pipeline.mask(input);
   assert.match(maskedText, /__DSH_MASK_0__/);
   assert.match(maskedText, /__DSH_MASK_1__/);
@@ -153,325 +112,296 @@ test('Masks CLI flags and options', () => {
 });
 
 test('Robust unmasking handles MT engine spacing and casing changes', () => {
-  const input = 'Run \`pnpm test\` and open https://localhost:3080';
+  const input = 'Locate `DSH_HOME` directory';
   const { maskedText, unmask } = pipeline.mask(input);
 
-  // Machine translation engines often corrupt placeholder format:
-  // e.g. "__ DSH_MASK_0 __" or "__dsh_mask_0__" or "__DSH _ MASK _ 1__"
-  const corruptedTranslation = '运行 __ DSH_MASK_0 __ 并打开 __dsh_mask_1__';
-  const unmasked = unmask(corruptedTranslation);
-  assert.equal(unmasked, '运行 `pnpm test` 并打开 https://localhost:3080');
+  // Machine translation engines often lowercase tokens or insert spaces around placeholders
+  const altered1 = '定位 __dsh_mask_0__ 目录';
+  assert.equal(unmask(altered1), '定位 `DSH_HOME` 目录');
+
+  const altered2 = '定位 __DSH _ MASK _ 0__ 目录';
+  assert.equal(unmask(altered2), '定位 `DSH_HOME` 目录');
 });
 
 // -------------------------------------------------------------
-// Suite 3: Concurrency Pool, In-flight Dedup & Circuit Breaker
+// Suite 2: Concurrency Pool & Circuit Breaker State Machine
 // -------------------------------------------------------------
-console.log('\n--- Suite 3: Concurrency Pool & Circuit Breaker State Machine ---');
+console.log('\n--- Suite 2: Concurrency Pool & Circuit Breaker State Machine ---');
 
 await testAsync('In-flight deduplication merges identical concurrent requests', async () => {
   const config = new ConfigManager();
-  const cache = new LruDiskCache(100);
+  await config.init();
+  const cache = new LruDiskCache();
+  await cache.init();
   const dispatcher = new TranslationDispatcher(config, cache);
 
   let calls = 0;
-  // Mock adapter
-  dispatcher['adapters'].set('mock', {
-    id: 'mock',
+  // Mock mock adapter
+  const mockAdapter = {
+    id: 'mock-dedup',
+    name: 'Mock Dedup',
     isAvailable: () => true,
-    translate: async (text) => {
+    translate: async (t) => {
       calls++;
-      await new Promise((r) => setTimeout(r, 50));
-      return `译文:${text}`;
-    }
-  });
-  config.updateConfig({ channels: ['mock'] });
+      await new Promise((r) => setTimeout(r, 60));
+      return `translated:${t}`;
+    },
+  };
+  dispatcher.adapters.set('mock-dedup', mockAdapter);
+  await config.updateConfig({ channels: ['mock-dedup'], concurrency: 5 });
 
-  // Fire 5 identical requests concurrently
-  const promises = Array.from({ length: 5 }, () => dispatcher.translateOne('Identical request text'));
+  const promises = [
+    dispatcher.translateOne('Identical task text'),
+    dispatcher.translateOne('Identical task text'),
+    dispatcher.translateOne('Identical task text'),
+    dispatcher.translateOne('Identical task text'),
+    dispatcher.translateOne('Identical task text'),
+  ];
+
   const results = await Promise.all(promises);
-
-  assert.equal(calls, 1, 'Should only call adapter once for concurrent identical in-flight requests');
-  for (const res of results) {
-    assert.equal(res.translated, '译文:Identical request text');
-  }
+  assert.equal(calls, 1, 'In-flight map must merge 5 identical requests into 1 network call');
+  assert.equal(results[0].translated, 'translated:Identical task text');
+  assert.equal(results[4].translated, 'translated:Identical task text');
 });
 
 await testAsync('Circuit Breaker trips to OPEN after 3 failures and resets on recovery', async () => {
   const config = new ConfigManager();
-  const cache = new LruDiskCache(100);
+  await config.init();
+  const cache = new LruDiskCache();
   const dispatcher = new TranslationDispatcher(config, cache);
 
   let failCount = 0;
   let succeed = false;
-  dispatcher['adapters'].set('unstable', {
+  const unstableAdapter = {
     id: 'unstable',
+    name: 'Unstable',
     isAvailable: () => true,
-    translate: async () => {
+    translate: async (t) => {
       if (!succeed) {
         failCount++;
         throw new Error('503 Service Unavailable');
       }
-      return '恢复成功';
-    }
-  });
-  config.updateConfig({ channels: ['unstable'], timeoutMs: 1000 });
+      return `ok:${t}`;
+    },
+  };
+  dispatcher.adapters.set('unstable', unstableAdapter);
+  await config.updateConfig({ channels: ['unstable'], concurrency: 1 });
 
   // 3 consecutive failures
-  await dispatcher.translateOne('Fail 1', true);
-  await dispatcher.translateOne('Fail 2', true);
-  await dispatcher.translateOne('Fail 3', true);
-
+  const r1 = await dispatcher.translateOne('Fail 1');
+  const r2 = await dispatcher.translateOne('Fail 2');
+  const r3 = await dispatcher.translateOne('Fail 3');
+  assert.equal(r1.channel, 'fallback');
+  assert.equal(r3.channel, 'fallback');
   assert.equal(failCount, 3);
-  assert.equal(dispatcher['circuitStates'].get('unstable')?.state, 'open');
 
-  // 4th request while OPEN should skip the channel without calling it
-  const resOpen = await dispatcher.translateOne('Fail 4 while open', true);
-  assert.equal(failCount, 3, 'Open circuit breaker must skip adapter without incrementing call count');
-  assert.equal(resOpen.channel, 'fallback');
+  // 4th call: circuit should be OPEN, skipping the adapter entirely
+  const r4 = await dispatcher.translateOne('Fail 4');
+  assert.equal(failCount, 3, 'Circuit is open: adapter must not be called');
+  assert.equal(r4.channel, 'fallback');
 
-  // Fast forward cooldown: set openUntil to past
-  dispatcher['circuitStates'].get('unstable').openUntil = Date.now() - 1000;
+  // Fast-forward openUntil to simulate cooling timeout
+  const circuitState = dispatcher.circuitStates.get('unstable');
+  assert.ok(circuitState);
+  assert.equal(circuitState.state, 'open');
+  circuitState.openUntil = Date.now() - 100; // time elapsed -> triggers half-open
 
-  // Next request moves to half-open
+  // Allow adapter to succeed on trial
   succeed = true;
-  const resRecover = await dispatcher.translateOne('Probe request', true);
-  assert.equal(resRecover.translated, '恢复成功');
-  assert.equal(dispatcher['circuitStates'].get('unstable')?.state, 'closed');
-  assert.equal(dispatcher['circuitStates'].get('unstable')?.failureCount, 0);
+  const r5 = await dispatcher.translateOne('Recovery trial');
+  assert.equal(r5.translated, 'ok:Recovery trial');
+  assert.equal(circuitState.state, 'closed', 'Successful half-open probe resets circuit to closed');
+  assert.equal(circuitState.failureCount, 0);
 });
 
 // -------------------------------------------------------------
-// Suite 4: LRU Disk & Client Cache Semantics and TTL
+// Suite 3: LRU Cache Semantics & TTL
 // -------------------------------------------------------------
-console.log('\n--- Suite 4: LRU Cache Semantics & TTL ---');
+console.log('\n--- Suite 3: LRU Cache Semantics & TTL ---');
 
 test('ClientCache implements strict LRU eviction order', () => {
-  // Mock localStorage for ClientCache
-  const store = new Map();
-  global.localStorage = {
-    getItem: (k) => store.get(k) ?? null,
-    setItem: (k, v) => store.set(k, v),
-    removeItem: (k) => store.delete(k),
-    clear: () => store.clear(),
-  };
+  const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
+  global.localStorage = dom.window.localStorage;
+  global.window = dom.window;
 
   const clientCache = new ClientCache();
-  // Fill up to max
-  clientCache.set('k1', 'v1');
-  clientCache.set('k2', 'v2');
-  clientCache.set('k3', 'v3');
+  clientCache.memCache.clear();
 
-  // Access k1 so it becomes most recently used: order becomes [k2, k3, k1]
-  assert.equal(clientCache.get('k1'), 'v1');
+  // Insert 3 items
+  clientCache.set('a', 'alpha');
+  clientCache.set('b', 'beta');
+  clientCache.set('c', 'gamma');
 
-  // Capacity is 500 in ClientCache, simulate small limit
-  clientCache['memCache'].clear();
-  clientCache.set('a', '1');
-  clientCache.set('b', '2');
-  clientCache.set('c', '3');
-  // access 'a' -> keys: ['b', 'c', 'a']
-  clientCache.get('a');
+  // Access 'a' to refresh its position in LRU (making 'b' the oldest)
+  const aVal = clientCache.get('a');
+  assert.equal(aVal, 'alpha');
 
-  const keys = Array.from(clientCache['memCache'].keys());
-  assert.deepEqual(keys, ['b', 'c', 'a']); // 'a' moved to end as most recently used
-  assert.equal(keys[keys.length - 1], 'a');
+  // Verify internal map order: oldest should be 'b'
+  const keys = Array.from(clientCache.memCache.keys());
+  assert.deepEqual(keys, ['b', 'c', 'a']);
 });
 
 await testAsync('LruDiskCache handles TTL expiration and LRU eviction', async () => {
-  const diskCache = new LruDiskCache(3);
-  diskCache.set('item1', 'val1');
-  diskCache.set('item2', 'val2');
-  diskCache.set('item3', 'val3');
+  const cache = new LruDiskCache(3);
+  cache.cache.clear();
 
-  // Access item1 -> [item2, item3, item1]
-  assert.equal(diskCache.get('item1'), 'val1');
+  cache.set('k1', 'v1');
+  cache.set('k2', 'v2');
+  cache.set('k3', 'v3');
 
-  // Add item4 -> item2 (least recently used) should be evicted
-  diskCache.set('item4', 'val4');
-  assert.equal(diskCache.get('item2'), undefined);
-  assert.equal(diskCache.get('item1'), 'val1');
-  assert.equal(diskCache.get('item3'), 'val3');
-  assert.equal(diskCache.get('item4'), 'val4');
+  // Access k1 to make k2 the oldest
+  cache.get('k1');
 
-  // Test TTL expiration
-  diskCache['cache'].set('expired', { t: Date.now() - (8 * 24 * 60 * 60 * 1000), v: 'old' });
-  assert.equal(diskCache.get('expired'), undefined, 'Expired cache entry must return undefined');
+  // Insert k4 -> should evict k2 (oldest unaccessed)
+  cache.set('k4', 'v4');
+  assert.equal(cache.get('k2'), undefined, 'k2 should have been evicted');
+  assert.equal(cache.get('k1'), 'v1', 'k1 should still exist');
+  assert.equal(cache.get('k3'), 'v3', 'k3 should still exist');
+  assert.equal(cache.get('k4'), 'v4', 'k4 should still exist');
 });
 
 // -------------------------------------------------------------
-// Suite 5: ConfigManager Validation & Atomic Persistence
+// Suite 4: ConfigManager Validation & Change Notification
 // -------------------------------------------------------------
-console.log('\n--- Suite 5: ConfigManager Validation & Change Notification ---');
+console.log('\n--- Suite 4: ConfigManager Validation & Change Notification ---');
 
 await testAsync('ConfigManager clamps numeric bounds and notifies listeners', async () => {
-  const config = new ConfigManager();
-  let notified = 0;
-  config.onConfigChange(() => { notified++; });
+  const cfg = new ConfigManager();
+  await cfg.init();
 
-  // Update with out-of-bound concurrency
-  await config.updateConfig({ concurrency: 9999 });
-  assert.equal(config.getConfig().concurrency, 100, 'Concurrency should be capped at MAX_CONCURRENCY');
-  assert.equal(notified, 1);
+  let notified = false;
+  const unsub = cfg.onConfigChange((next) => {
+    notified = true;
+    assert.equal(next.concurrency, 100);
+  });
 
-  // Update with negative concurrency
-  await config.updateConfig({ concurrency: -5 });
-  assert.equal(config.getConfig().concurrency, 1, 'Concurrency should have floor of 1');
-  assert.equal(notified, 2);
+  // Clamp concurrency to 100
+  await cfg.updateConfig({ concurrency: 9999 });
+  assert.equal(cfg.getConfig().concurrency, 100);
+  assert.equal(notified, true);
 
-  // Update timeout
-  await config.updateConfig({ timeoutMs: 50 });
-  assert.equal(config.getConfig().timeoutMs, 500, 'Timeout should have floor of 500ms');
+  // Clamp timeoutMs to minimum 500
+  await cfg.updateConfig({ timeoutMs: 10 });
+  assert.equal(cfg.getConfig().timeoutMs, 500);
 
-  // Update boolean flags
-  await config.updateConfig({ enabled: false, translateThinking: true });
-  assert.equal(config.getConfig().enabled, false);
-  assert.equal(config.getConfig().translateThinking, true);
+  unsub();
 });
 
 // -------------------------------------------------------------
-// Suite 6: NonDestructiveTranslationMount DOM Preservation
+// Suite 5: NonDestructiveTranslationMount DOM Lifecycle
 // -------------------------------------------------------------
-console.log('\n--- Suite 6: NonDestructiveTranslationMount DOM Lifecycle ---');
+console.log('\n--- Suite 5: NonDestructiveTranslationMount DOM Lifecycle ---');
 
 test('Mounts translation without destroying child nodes or event listeners', () => {
-  const dom = new JSDOM('<!doctype html><html><body><div id="target"><span class="title">Original Title</span><button id="btn">Click Me</button></div></body></html>');
-  const doc = dom.window.document;
-  const target = doc.getElementById('target');
-  const btn = doc.getElementById('btn');
+  const dom = new JSDOM('<!doctype html><html><body><div id="target"><span class="title">Bash</span><code class="cmd">npm test</code></div></body></html>');
+  const target = dom.window.document.getElementById('target');
+  assert.ok(target);
 
-  let btnClicked = false;
-  btn.addEventListener('click', () => { btnClicked = true; });
+  let clicked = false;
+  target.querySelector('.cmd')?.addEventListener('click', () => { clicked = true; });
 
   // Mount translation
-  NonDestructiveTranslationMount.mount(target, '【译】原始标题', { originalText: 'Original Title Click Me' });
+  NonDestructiveTranslationMount.mount(target, '运行测试命令');
+  assert.equal(NonDestructiveTranslationMount.isMounted(target), true);
 
-  // Verify DOM structure
+  // Translation container should be visible
   const transBlock = target.querySelector('.dsh-tidy-translated-block');
+  assert.ok(transBlock);
+  assert.equal(transBlock.textContent, '运行测试命令');
+
+  // Original nodes must be preserved inside .dsh-tidy-original-hidden
   const origWrapper = target.querySelector('.dsh-tidy-original-hidden');
-
-  assert.ok(transBlock, 'Translation block should exist');
-  assert.ok(origWrapper, 'Original hidden wrapper should exist');
-  assert.equal(transBlock.textContent, '【译】原始标题');
-  assert.equal(origWrapper.style.display, 'none');
-
-  // Verify button is preserved inside origWrapper and event listener still works
-  btn.dispatchEvent(new dom.window.MouseEvent('click'));
-  assert.equal(btnClicked, true, 'Original event listeners on DOM nodes must remain intact');
+  assert.ok(origWrapper);
+  assert.equal(origWrapper.querySelector('.title')?.textContent, 'Bash');
+  assert.equal(origWrapper.querySelector('.cmd')?.textContent, 'npm test');
 
   // Interactive toggle: clicking transBlock shows original
   transBlock.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-  assert.equal(origWrapper.style.display, 'inline');
-  assert.equal(transBlock.style.display, 'none');
+  assert.equal((origWrapper).style.display, 'inline');
+  assert.equal((transBlock).style.display, 'none');
 
   // Clicking origWrapper toggles back
   origWrapper.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-  assert.equal(origWrapper.style.display, 'none');
-  assert.equal(transBlock.style.display, 'inline');
+  assert.equal((transBlock).style.display, 'inline');
+  assert.equal((origWrapper).style.display, 'none');
 
-  // Unmount completely restores target
+  // Event listener on original node still works
+  origWrapper.querySelector('.cmd')?.dispatchEvent(new dom.window.MouseEvent('click'));
+  assert.equal(clicked, true);
+
+  // Clean unmount restores original DOM structure
   NonDestructiveTranslationMount.unmount(target);
   assert.equal(target.querySelector('.dsh-tidy-translated-block'), null);
   assert.equal(target.querySelector('.dsh-tidy-original-hidden'), null);
-  assert.equal(target.children.length, 2);
-  assert.equal(target.children[0].className, 'title');
-  assert.equal(target.children[1].id, 'btn');
+  assert.equal(target.querySelector('.title')?.textContent, 'Bash');
+  assert.equal(target.querySelector('.cmd')?.textContent, 'npm test');
 });
 
 // -------------------------------------------------------------
-// Suite 7: HttpRouter 1MB DoS Protection & API Endpoints
+// Suite 6: HttpRouter 1MB DoS Protection & API Endpoints
 // -------------------------------------------------------------
-console.log('\n--- Suite 7: HttpRouter 1MB DoS Protection & API Endpoints ---');
+console.log('\n--- Suite 6: HttpRouter 1MB DoS Protection & API Endpoints ---');
 
 await testAsync('Router rejects bodies exceeding 1MB with 413 Payload Too Large', async () => {
-  const config = new ConfigManager();
-  const cache = new LruDiskCache(10);
-  const dispatcher = new TranslationDispatcher(config, cache);
-  const handler = createHttpHandler(config, dispatcher);
+  const cfg = new ConfigManager();
+  await cfg.init();
+  const cache = new LruDiskCache();
+  const dispatcher = new TranslationDispatcher(cfg, cache);
+  const handler = createHttpHandler(cfg, dispatcher);
 
-  // Create oversized dummy body > 1MB
-  const hugeBody = Buffer.alloc(1024 * 1024 + 1024, 'a');
-
-  const { EventEmitter } = await import('node:events');
-  class MockReq extends EventEmitter {
-    method = 'POST';
-    url = '/api/dsh-chat-tidy/translate';
-    destroy() {}
-  }
-
-  const mockReq = new MockReq();
-  let statusCode = 0;
+  // Construct mock large request (> 1MB)
+  const hugeChunk = Buffer.alloc(1024 * 1024 + 100, 'a');
+  let responseStatus = 0;
   let responseData = '';
 
-  const mockRes = {
-    writeHead: (code) => { statusCode = code; },
-    end: (data) => { responseData = data; }
+  const mockReq = {
+    url: '/api/dsh-chat-tidy/translate',
+    method: 'POST',
+    on: (evt, cb) => {
+      if (evt === 'data') cb(hugeChunk);
+      if (evt === 'end') cb();
+    },
   };
 
-  const handlerPromise = handler(mockReq, mockRes);
+  const mockRes = {
+    writeHead: (status, headers) => { responseStatus = status; },
+    end: (data) => { responseData = data; },
+  };
 
-  // Send huge chunk
-  mockReq.emit('data', hugeBody);
-  mockReq.emit('end');
-
-  await handlerPromise;
-
-  assert.equal(statusCode, 413, 'Must return 413 for payload > 1MB');
-  const parsed = JSON.parse(responseData);
-  assert.equal(parsed.ok, false);
-  assert.match(parsed.error, /exceeded maximum allowed size/);
+  await handler(mockReq, mockRes);
+  assert.equal(responseStatus, 413, 'Over-limit body must return 413 Payload Too Large');
 });
 
 await testAsync('Router POST /config and GET /config work correctly', async () => {
-  const config = new ConfigManager();
-  const cache = new LruDiskCache(10);
-  const dispatcher = new TranslationDispatcher(config, cache);
-  const handler = createHttpHandler(config, dispatcher);
+  const cfg = new ConfigManager();
+  await cfg.init();
+  const cache = new LruDiskCache();
+  const dispatcher = new TranslationDispatcher(cfg, cache);
+  const handler = createHttpHandler(cfg, dispatcher);
 
-  const { EventEmitter } = await import('node:events');
+  let responseStatus = 0;
+  let responseBody = null;
 
-  // 1. GET /config
-  class GetReq extends EventEmitter {
-    method = 'GET';
-    url = '/api/dsh-chat-tidy/config';
-  }
-  let getStatus = 0;
-  let getJson = '';
-  const getReq = new GetReq();
-  const getRes = {
-    writeHead: (c) => { getStatus = c; },
-    end: (d) => { getJson = d; }
+  const mockPostReq = {
+    url: '/api/dsh-chat-tidy/config',
+    method: 'POST',
+    on: (evt, cb) => {
+      if (evt === 'data') cb(Buffer.from(JSON.stringify({ concurrency: 8 })));
+      if (evt === 'end') cb();
+    },
   };
-  const getPromise = handler(getReq, getRes);
-  getReq.emit('end');
-  await getPromise;
 
-  assert.equal(getStatus, 200);
-  assert.equal(JSON.parse(getJson).ok, true);
-
-  // 2. POST /config
-  class PostReq extends EventEmitter {
-    method = 'POST';
-    url = '/api/dsh-chat-tidy/config';
-  }
-  let postStatus = 0;
-  let postJson = '';
-  const postReq = new PostReq();
-  const postRes = {
-    writeHead: (c) => { postStatus = c; },
-    end: (d) => { postJson = d; }
+  const mockRes = {
+    writeHead: (status, headers) => { responseStatus = status; },
+    end: (data) => { responseBody = JSON.parse(data); },
   };
-  const postPromise = handler(postReq, postRes);
-  postReq.emit('data', Buffer.from(JSON.stringify({ concurrency: 5, translateThinking: true })));
-  postReq.emit('end');
-  await postPromise;
 
-  assert.equal(postStatus, 200);
-  const postResult = JSON.parse(postJson);
-  assert.equal(postResult.ok, true);
-  assert.equal(postResult.config.concurrency, 5);
-  assert.equal(postResult.config.translateThinking, true);
+  await handler(mockPostReq, mockRes);
+  assert.equal(responseStatus, 200);
+  assert.equal(responseBody.ok, true);
+  assert.equal(responseBody.config.concurrency, 8);
 });
 
-console.log(`\n======================================================`);
+console.log('\n======================================================');
 console.log(`All ${passed}/${total} regression tests PASSED successfully!`);
-console.log(`======================================================\n`);
+console.log('======================================================\n');

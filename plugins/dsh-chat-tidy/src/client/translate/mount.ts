@@ -62,13 +62,10 @@ export class NonDestructiveTranslationMount {
     transWrapper = doc.createElement('span');
     transWrapper.className = CLASS_TRANSLATED_BLOCK;
     transWrapper.textContent = translated;
-    transWrapper.title = '点击切换原文 / 译文';
 
     // Interactive bilingual toggle
     const interactive = options.interactive !== false;
     if (interactive) {
-      origWrapper.title = '点击切回译文';
-      origWrapper.style.cursor = 'pointer';
 
       const showOriginal = (e: MouseEvent): void => {
         e.stopPropagation();

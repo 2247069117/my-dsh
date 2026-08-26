@@ -5,19 +5,6 @@ import type { LruDiskCache } from './cache.ts';
 import { BingWebAdapter } from './adapters/bing.ts';
 import { ContentMaskingPipeline } from './pipeline/masking.ts';
 
-/**
- * Checks if text is already predominantly Chinese.
- * Calculates CJK character ratio against non-whitespace length.
- */
-export function isMostlyChinese(text: string, threshold = 0.4): boolean {
-  const clean = text.replace(/\s+/g, '');
-  if (!clean) return false;
-  const cjkMatches = clean.match(/[\u4e00-\u9fa5]/g);
-  const cjkCount = cjkMatches ? cjkMatches.length : 0;
-  if (cjkCount === 0) return false;
-  return (cjkCount / clean.length) >= threshold;
-}
-
 type CircuitStateEnum = 'closed' | 'open' | 'half-open';
 
 interface CircuitState {
@@ -67,11 +54,6 @@ export class TranslationDispatcher {
       return { original: rawText, translated: rawText, channel: 'none', cached: true };
     }
 
-    // If text is already mostly Chinese, skip translation
-    if (isMostlyChinese(text)) {
-      return { original: rawText, translated: rawText, channel: 'none', cached: true };
-    }
-
     const config = this.configManager.getConfig();
     if (!config.enabled) {
       return { original: rawText, translated: rawText, channel: 'disabled', cached: true };
@@ -97,11 +79,6 @@ export class TranslationDispatcher {
 
     // Mask code blocks, inline code, paths, urls, flags
     const { maskedText, unmask } = this.masking.mask(text);
-
-    // If masked text is already mostly Chinese, return original
-    if (isMostlyChinese(maskedText)) {
-      return { original: rawText, translated: rawText, channel: 'none', cached: true };
-    }
 
     // 3. Queue task with concurrency limit
     const taskPromise = this.enqueueTask(async () => {

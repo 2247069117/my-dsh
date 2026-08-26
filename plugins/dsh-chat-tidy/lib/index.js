@@ -9,7 +9,6 @@ var DEFAULT_CONFIG = {
   concurrency: 3,
   timeoutMs: 2e3,
   channels: [...KNOWN_CHANNELS],
-  translateThinking: false,
   targetLang: "zh-Hans"
 };
 var ConfigManager = class {
@@ -60,7 +59,6 @@ var ConfigManager = class {
       concurrency: this.config.concurrency,
       timeoutMs: this.config.timeoutMs,
       channels: [...this.config.channels],
-      translateThinking: this.config.translateThinking === true,
       targetLang: this.config.targetLang || "zh-Hans"
     };
   }
@@ -97,9 +95,6 @@ var ConfigManager = class {
     }
     if (typeof partial.enabled === "boolean") {
       next.enabled = partial.enabled;
-    }
-    if (typeof partial.translateThinking === "boolean") {
-      next.translateThinking = partial.translateThinking;
     }
     if (typeof partial.targetLang === "string" && partial.targetLang.trim()) {
       next.targetLang = partial.targetLang.trim();
@@ -406,14 +401,6 @@ var ContentMaskingPipeline = class {
 };
 
 // src/server/dispatcher.ts
-function isMostlyChinese(text, threshold = 0.4) {
-  const clean = text.replace(/\s+/g, "");
-  if (!clean) return false;
-  const cjkMatches = clean.match(/[\u4e00-\u9fa5]/g);
-  const cjkCount = cjkMatches ? cjkMatches.length : 0;
-  if (cjkCount === 0) return false;
-  return cjkCount / clean.length >= threshold;
-}
 var TranslationDispatcher = class {
   configManager;
   cache;
@@ -442,9 +429,6 @@ var TranslationDispatcher = class {
     if (!text) {
       return { original: rawText, translated: rawText, channel: "none", cached: true };
     }
-    if (isMostlyChinese(text)) {
-      return { original: rawText, translated: rawText, channel: "none", cached: true };
-    }
     const config = this.configManager.getConfig();
     if (!config.enabled) {
       return { original: rawText, translated: rawText, channel: "disabled", cached: true };
@@ -463,9 +447,6 @@ var TranslationDispatcher = class {
       }
     }
     const { maskedText, unmask } = this.masking.mask(text);
-    if (isMostlyChinese(maskedText)) {
-      return { original: rawText, translated: rawText, channel: "none", cached: true };
-    }
     const taskPromise = this.enqueueTask(async () => {
       const currentConfig = this.configManager.getConfig();
       const channels = currentConfig.channels || ["bing"];
@@ -643,7 +624,9 @@ function readBody(req) {
       const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       totalLength += buf.length;
       if (totalLength > MAX_BODY_BYTES) {
-        req.destroy();
+        if (typeof req.destroy === "function") {
+          req.destroy();
+        }
         reject(new Error("Request body exceeded maximum allowed size (1MB)"));
         return;
       }

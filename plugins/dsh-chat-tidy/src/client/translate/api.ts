@@ -47,7 +47,11 @@ export async function requestTranslateBatch(
       const data = (await res.json()) as { ok: boolean; results?: TranslateItemResult[]; error?: string };
       if (data.ok && Array.isArray(data.results) && data.results.length > 0) {
         return data.results;
+      } else if (data.error) {
+        console.warn(`[dsh-chat-tidy] 翻译接口错误: ${data.error}`);
       }
+    } else {
+      console.warn(`[dsh-chat-tidy] 翻译请求失败 (HTTP ${res.status})`);
     }
   } catch (err: any) {
     if (err?.name === 'AbortError') {

@@ -4,19 +4,16 @@ import { chatTranslateObserver } from '../translate/observer.ts';
 export interface ClientSettingsState {
   enabled: boolean;
   concurrency: number;
-  translateThinking: boolean;
 }
 
 const LS_PREFIX = 'dsh-chat-tidy:';
 export const LS_ENABLED = `${LS_PREFIX}enabled`;
 export const LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
-export const LS_TRANSLATE_THINKING = `${LS_PREFIX}translate-thinking`;
 
 class SettingsStore {
   private state: ClientSettingsState = {
     enabled: true,
     concurrency: 3,
-    translateThinking: false,
   };
 
   private listeners = new Set<() => void>();
@@ -42,16 +39,11 @@ class SettingsStore {
           this.state.concurrency = c;
         }
       }
-      const thinkRaw = localStorage.getItem(LS_TRANSLATE_THINKING);
-      if (thinkRaw !== null) {
-        this.state.translateThinking = thinkRaw === 'true';
-      }
     } catch {
       // Ignore storage access errors
     }
     try {
       chatTranslateObserver.setEnabled(this.state.enabled);
-      chatTranslateObserver.setTranslateThinking(this.state.translateThinking);
     } catch {}
   }
 
@@ -73,13 +65,6 @@ class SettingsStore {
           this.state.concurrency = c;
           changed = true;
         }
-      } else if (e.key === LS_TRANSLATE_THINKING && e.newValue !== null) {
-        const val = e.newValue === 'true';
-        if (this.state.translateThinking !== val) {
-          this.state.translateThinking = val;
-          chatTranslateObserver.setTranslateThinking(val);
-          changed = true;
-        }
       }
       if (changed) {
         this.notify();
@@ -97,19 +82,13 @@ class SettingsStore {
           typeof config.concurrency === 'number' && Number.isFinite(config.concurrency)
             ? config.concurrency
             : this.state.concurrency;
-        const newThinking =
-          typeof (config as any).translateThinking === 'boolean'
-            ? (config as any).translateThinking
-            : this.state.translateThinking;
 
         this.state = {
           ...this.state,
           enabled: newEnabled,
           concurrency: newConcurrency,
-          translateThinking: newThinking,
         };
         chatTranslateObserver.setEnabled(this.state.enabled);
-        chatTranslateObserver.setTranslateThinking(this.state.translateThinking);
         this.notify();
       }
     } catch {
@@ -163,25 +142,16 @@ class SettingsStore {
       } catch {}
     }
 
-    if (typeof partial.translateThinking === 'boolean') {
-      try {
-        localStorage.setItem(LS_TRANSLATE_THINKING, String(partial.translateThinking));
-      } catch {}
-      chatTranslateObserver.setTranslateThinking(partial.translateThinking);
-    }
-
     this.notify();
 
     // Sync to host
     const updated = await updateServerConfig({
       enabled: this.state.enabled,
       concurrency: this.state.concurrency,
-      translateThinking: this.state.translateThinking,
     });
     if (updated) {
       this.state.enabled = updated.enabled ?? this.state.enabled;
       this.state.concurrency = updated.concurrency ?? this.state.concurrency;
-      this.state.translateThinking = updated.translateThinking ?? this.state.translateThinking;
       this.notify();
     }
   }

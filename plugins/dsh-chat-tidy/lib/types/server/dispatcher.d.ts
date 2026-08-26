@@ -1,11 +1,6 @@
 import type { TranslateItemResult } from './types.ts';
 import type { ConfigManager } from './config.ts';
 import type { LruDiskCache } from './cache.ts';
-/**
- * Checks if text is already predominantly Chinese.
- * Calculates CJK character ratio against non-whitespace length.
- */
-export declare function isMostlyChinese(text: string, threshold?: number): boolean;
 export declare class TranslationDispatcher {
     private configManager;
     private cache;

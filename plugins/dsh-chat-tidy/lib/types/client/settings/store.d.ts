@@ -1,11 +1,9 @@
 export interface ClientSettingsState {
     enabled: boolean;
     concurrency: number;
-    translateThinking: boolean;
 }
 export declare const LS_ENABLED = "dsh-chat-tidy:enabled";
 export declare const LS_CONCURRENCY = "dsh-chat-tidy:concurrency";
-export declare const LS_TRANSLATE_THINKING = "dsh-chat-tidy:translate-thinking";
 declare class SettingsStore {
     private state;
     private listeners;
