@@ -1,27 +1,18 @@
 import { clientCache } from './client-cache.ts';
 import { lazyQueue } from './lazy.ts';
-import { requestTranslateBatch } from './api.ts';
 import { NonDestructiveTranslationMount } from './mount.ts';
 
 const TOOL_TITLE_SELECTOR = '[class*="summary"]';
 
-/** IO output preview text inside *failed* tool cards — "out" of error calls. */
-const TOOL_ERROR_OUT_SELECTOR = [
-  '[data-variant][data-state="error"] [class*="ioText"]',
-  '[data-variant][data-state="aborted"] [class*="ioText"]',
-  '[class*="ioText"][data-error]',
-  '[class*="terminalBody"], [class*="terminalBodyWrap"]',
-].join(', ');
+/**
+ * Current-session scroll container (the conversation layout re-renders this
+ * whole subtree when the active session changes), falling back to the chat
+ * flow. Both are emitted by the DSH web UI.
+ */
+const SESSION_ROOT_SELECTOR = '[data-conversation-scroll], [data-chat-flow]';
 
-/** Lines that carry an error semantics — the only lines worth translating. */
-const ERROR_LINE_RE =
-  /error|fail(?:ed|ure)?|cannot|unable|no such|not found|denied|fatal|command not found|exit code|exited with|aborted|timed? ?out|exception|permission|killed|enoent|eacces|unreachable|refused/i;
-
-function isErrorLine(t: string): boolean {
-  if (t.trim().length < 4) return false;
-  if (t.length > 40 && !/\s/.test(t.trim())) return false;
-  return ERROR_LINE_RE.test(t);
-}
+/** How often (ms) we re-check that the observed root is still the live one. */
+const ROOT_CHECK_INTERVAL_MS = 3000;
 
 function isToolSummarySpan(span: HTMLElement): boolean {
   if (!span || span.nodeType !== 1) return false;
@@ -63,85 +54,10 @@ function isToolSummarySpan(span: HTMLElement): boolean {
   return false;
 }
 
-function isErrorOutNode(span: HTMLElement): boolean {
-  if (span.hasAttribute('aria-hidden')) return false;
-  if (span.closest('pre, code, [class*="ioCard"] [class*="markdown"], [class*="_file_"]')) {
-    return false;
-  }
-  const cls = span.className || '';
-  if (/terminalBody/i.test(cls)) return true;
-  if (/ioText/i.test(cls)) {
-    return (
-      span.hasAttribute('data-error') ||
-      !!span.closest('[data-variant][data-state="error"], [data-variant][data-state="aborted"]')
-    );
-  }
-  return false;
-}
-
-function isTranslateableErrorText(t: string): boolean {
-  if (t.trim().length < 4) return false;
-  if (t.length > 40 && !/\s/.test(t.trim())) return false;
-  if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) {
-    return false;
-  }
-  return true;
-}
-
-const translatingErrorOuts = new WeakSet<HTMLElement>();
-let errorOutEnabled = true;
-
-async function translateErrorOut(span: HTMLElement): Promise<void> {
-  if (translatingErrorOuts.has(span)) return;
-  if (span.dataset.tidyTranslated === 'true') return;
-  const raw = span.textContent ?? '';
-  const lines = raw.split('\n');
-  const targets: Array<{ idx: number; text: string }> = [];
-  lines.forEach((ln, i) => {
-    const t = ln.trim();
-    if (isErrorLine(t) && isTranslateableErrorText(t)) {
-      targets.push({ idx: i, text: t });
-    }
-  });
-  if (targets.length === 0) {
-    return;
-  }
-  const uniqueLines = Array.from(new Set(targets.map((x) => x.text)));
-  const results = await requestTranslateBatch(uniqueLines.slice(0, 80));
-  const byText = new Map<string, string>();
-  results.forEach((r) => {
-    if (r && r.translated && r.translated !== r.original) byText.set(r.original, r.translated);
-  });
-
-  translatingErrorOuts.add(span);
-  try {
-    let changed = false;
-    for (const t of targets) {
-      const translated = byText.get(t.text);
-      if (translated) {
-        lines[t.idx] = translated;
-        changed = true;
-      }
-    }
-    const merged = lines.join('\n');
-    if (errorOutEnabled && changed && merged !== raw) {
-      span.dataset.tidyTranslated = 'true';
-      span.dataset.original = raw;
-      span.textContent = merged;
-      span.querySelectorAll('*').forEach((el) => {
-        (el as HTMLElement).dataset.tidyTranslated = 'true';
-      });
-    }
-  } catch {
-    // Silent
-  } finally {
-    translatingErrorOuts.delete(span);
-  }
-}
-
 export class ChatTranslateObserver {
   private observer: MutationObserver | null = null;
   private rootElement: HTMLElement | null = null;
+  private rootCheckTimer: number | null = null;
   private isEnabled = true;
 
   constructor() {
@@ -150,7 +66,6 @@ export class ChatTranslateObserver {
 
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
-    errorOutEnabled = enabled;
     if (enabled) {
       lazyQueue.setEnabled(true);
       this.start();
@@ -169,21 +84,41 @@ export class ChatTranslateObserver {
     }
   }
 
+  /**
+   * The active session's scroll container. Only the currently-viewed session
+   * is translated; switching sessions replaces this subtree and the observer
+   * naturally follows the new content.
+   */
+  private isVisible(el: HTMLElement): boolean {
+    if (el.hasAttribute('hidden')) return false;
+    if (el.style.display === 'none') return false;
+    try {
+      return el.getClientRects().length > 0;
+    } catch {
+      return true;
+    }
+  }
+
+  private findRoot(documentRef: Document): HTMLElement {
+    if (!documentRef.body) {
+      return documentRef.documentElement;
+    }
+    const candidates = documentRef.querySelectorAll<HTMLElement>(SESSION_ROOT_SELECTOR);
+    for (const el of candidates) {
+      if (this.isVisible(el)) {
+        return el;
+      }
+    }
+    return documentRef.body;
+  }
+
   start(documentRef: Document = document): () => void {
     if (!this.isEnabled || typeof window === 'undefined') {
       return () => {};
     }
 
     const findAndObserveRoot = () => {
-      const root =
-        documentRef.querySelector<HTMLElement>('[data-chat-flow]') ??
-        documentRef.querySelector<HTMLElement>('[data-conversation-scroll]') ??
-        documentRef.body;
-
-      if (!root) {
-        window.setTimeout(findAndObserveRoot, 200);
-        return;
-      }
+      const root = this.findRoot(documentRef);
 
       this.rootElement = root;
 
@@ -205,9 +140,32 @@ export class ChatTranslateObserver {
 
     findAndObserveRoot();
 
+    // Defense: if the observed root is detached or hidden (e.g. the user
+    // switched to another view), re-probe for the live session container.
+    this.scheduleRootCheck();
+
     return () => {
       this.disconnect();
     };
+  }
+
+  private scheduleRootCheck(): void {
+    if (this.rootCheckTimer !== null || typeof window === 'undefined') return;
+    this.rootCheckTimer = window.setInterval(() => {
+      if (this.rootElement && this.rootElement.isConnected && this.isVisible(this.rootElement)) {
+        return;
+      }
+      this.restart();
+    }, ROOT_CHECK_INTERVAL_MS);
+  }
+
+  private restart(): void {
+    if (typeof window === 'undefined') return;
+    const wasEnabled = this.isEnabled;
+    this.disconnect();
+    if (wasEnabled) {
+      this.start();
+    }
   }
 
   private handleMutations(mutations: MutationRecord[]): void {
@@ -263,32 +221,17 @@ export class ChatTranslateObserver {
         this.processSpan(span);
       }
     });
-    const errorOuts = container.querySelectorAll<HTMLElement>(TOOL_ERROR_OUT_SELECTOR);
-    errorOuts.forEach((span) => {
-      if (isErrorOutNode(span)) {
-        translateErrorOut(span);
-      }
-    });
   }
 
   private scanNode(node: HTMLElement): void {
     if (node.matches?.(TOOL_TITLE_SELECTOR) && isToolSummarySpan(node)) {
       this.processSpan(node);
     }
-    if (node.matches?.(TOOL_ERROR_OUT_SELECTOR) && isErrorOutNode(node)) {
-      translateErrorOut(node);
-    }
 
     const spans = node.querySelectorAll<HTMLElement>(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {
       if (isToolSummarySpan(span)) {
         this.processSpan(span);
-      }
-    });
-    const errorOuts = node.querySelectorAll<HTMLElement>(TOOL_ERROR_OUT_SELECTOR);
-    errorOuts.forEach((span) => {
-      if (isErrorOutNode(span)) {
-        translateErrorOut(span);
       }
     });
   }
@@ -320,6 +263,10 @@ export class ChatTranslateObserver {
   }
 
   disconnect(): void {
+    if (this.rootCheckTimer !== null) {
+      clearInterval(this.rootCheckTimer);
+      this.rootCheckTimer = null;
+    }
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;

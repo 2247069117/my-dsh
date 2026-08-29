@@ -110,3 +110,19 @@ export async function testServerChannel(channel: string): Promise<{ ok: boolean;
     return { ok: false, latencyMs: 0, error: err?.message || String(err) };
   }
 }
+
+/** Persist the translation API key into ~/.dsh/.credentials.yaml via the host. */
+export async function saveCredentials(
+  apiKey: string
+): Promise<{ ok: boolean; configured?: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/dsh-chat-tidy/credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { ok: false, error: err?.message || String(err) };
+  }
+}

@@ -175,6 +175,32 @@ export const SETTINGS_CSS = String.raw`
   color: #9ca3af;
 }
 
+.dsh-tidy-badge-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.dsh-tidy-test-result {
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.dsh-tidy-test-result.ok {
+  color: #22c55e;
+}
+
+.dsh-tidy-test-result.fail {
+  color: #ef4444;
+}
+
+.dsh-tidy-behavior-list {
+  padding-left: 18px;
+  margin: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* Priority list */
 .dsh-tidy-priority-list {
   display: flex;

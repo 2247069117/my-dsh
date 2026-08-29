@@ -1,4 +1,5 @@
 import { ConfigManager } from './server/config.ts';
+import { CredentialsReader } from './server/credentials.ts';
 import { LruDiskCache } from './server/cache.ts';
 import { TranslationDispatcher } from './server/dispatcher.ts';
 import { createHttpHandler } from './server/router.ts';
@@ -23,9 +24,10 @@ interface HostContext {
 
 /** Mount the host half; provides translation proxy and settings persistence */
 export function apply(ctx: HostContext): void {
-  const configManager = new ConfigManager();
+  const credentials = new CredentialsReader();
+  const configManager = new ConfigManager(credentials);
   const cache = new LruDiskCache(1000);
-  const dispatcher = new TranslationDispatcher(configManager, cache);
+  const dispatcher = new TranslationDispatcher(configManager, cache, credentials);
 
   // Initialize async resources
   const initPromise = Promise.all([configManager.init(), cache.init()]).catch((err) => {
@@ -34,7 +36,7 @@ export function apply(ctx: HostContext): void {
 
   const webServer = ctx.webServer || (ctx.get ? ctx.get('webServer') : null);
   if (webServer && typeof webServer.register === 'function') {
-    const rawHandler = createHttpHandler(configManager, dispatcher);
+    const rawHandler = createHttpHandler(configManager, dispatcher, credentials);
     const handler = async (req: any, res: any) => {
       await initPromise;
       return rawHandler(req, res);

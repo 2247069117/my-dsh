@@ -2,15 +2,24 @@ export interface PluginConfig {
     enabled: boolean;
     concurrency: number;
     timeoutMs: number;
-    channels: string[];
+    aiTimeoutMs: number;
+    aiEnabled: boolean;
+    bingEnabled: boolean;
+    baseUrl: string;
+    model: string;
     targetLang?: string;
 }
 export interface MaskedPluginConfig {
     enabled: boolean;
     concurrency: number;
     timeoutMs: number;
-    channels: string[];
+    aiTimeoutMs: number;
+    aiEnabled: boolean;
+    bingEnabled: boolean;
+    baseUrl: string;
+    model: string;
     targetLang: string;
+    aiConfigured: boolean;
 }
 export interface TranslateItemResult {
     original: string;

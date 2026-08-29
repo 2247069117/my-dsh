@@ -22,10 +22,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var index_exports = {};
 __export(index_exports, {
   NonDestructiveTranslationMount: () => NonDestructiveTranslationMount,
-  STYLE_MARKER: () => STYLE_MARKER,
   StreamDebounceViewportObserver: () => StreamDebounceViewportObserver,
-  TIDY_CHAT_CSS: () => TIDY_CHAT_CSS,
-  adoptStyles: () => adoptStyles,
   apply: () => apply,
   chatTranslateObserver: () => chatTranslateObserver,
   clientCache: () => clientCache,
@@ -36,203 +33,6 @@ __export(index_exports, {
   setupSettingsUi: () => setupSettingsUi
 });
 module.exports = __toCommonJS(index_exports);
-
-// src/client/styles.ts
-var STYLE_MARKER = "dsh-chat-tidy";
-var TIDY_CHAT_CSS = String.raw`
-:root {
-  --dsh-ct-font-size: 14px;
-  --dsh-ct-line-height: 22px;
-  --dsh-ct-block-gap: 11px;
-  --dsh-ct-heading-top: 20px;
-  --dsh-ct-heading-bottom: 10px;
-  --dsh-ct-list-indent: 21px;
-  --dsh-ct-user-width: 560px;
-}
-
-body [data-chat-flow] {
-  gap: 14px;
-}
-
-body [data-conversation-scroll] :where(div):has(> [data-chat-flow]) {
-  padding-block: 18px 26px;
-}
-
-body [data-chat-flow-kind='assistant-step'] > [data-slot='conversation.chat.node'] > div {
-  font-size: var(--dsh-ct-font-size);
-  line-height: var(--dsh-ct-line-height);
-}
-
-body [data-chat-flow-kind='assistant-step'] > [data-slot='conversation.chat.node'] > div > div:first-child {
-  gap: var(--dsh-ct-block-gap);
-}
-
-body [data-chat-flow-kind='assistant-step'] :where(h1, h2, h3, h4, h5, h6) {
-  margin-block: var(--dsh-ct-heading-top) var(--dsh-ct-heading-bottom);
-  font-weight: 600;
-}
-
-body [data-chat-flow-kind='assistant-step'] h1 {
-  font-size: 24px;
-  line-height: 30px;
-}
-
-body [data-chat-flow-kind='assistant-step'] h2 {
-  font-size: 20px;
-  line-height: 25px;
-}
-
-body [data-chat-flow-kind='assistant-step'] :where(h3, h4) {
-  font-size: 17px;
-  line-height: 22px;
-}
-
-body [data-chat-flow-kind='assistant-step'] :where(h5, h6) {
-  font-size: 15px;
-  line-height: 20px;
-}
-
-body [data-chat-flow-kind='assistant-step'] :where(p, li, blockquote, th, td) {
-  font-size: var(--dsh-ct-font-size);
-  line-height: var(--dsh-ct-line-height);
-}
-
-body [data-chat-flow-kind='assistant-step'] p {
-  margin-block: 0 var(--dsh-ct-block-gap);
-}
-
-body [data-chat-flow-kind='assistant-step'] :where(ul, ol) {
-  margin-block: 0 var(--dsh-ct-heading-bottom);
-  padding-inline-start: var(--dsh-ct-list-indent);
-}
-
-body [data-chat-flow-kind='assistant-step'] li:not(:first-child) {
-  margin-top: 8px;
-}
-
-body [data-chat-flow-kind='assistant-step'] li > p {
-  margin-block: 0 var(--dsh-ct-block-gap);
-}
-
-body [data-chat-flow-kind='assistant-step'] blockquote {
-  position: relative;
-  margin-block: 0 var(--dsh-ct-block-gap);
-  padding-block: 4px;
-  padding-inline-start: 18px;
-  border-inline-start: 0;
-  color: var(--dsw-alias-label-secondary);
-}
-
-/* Codex draws the quote rule as a rounded 4px bar, which a border cannot round. */
-body [data-chat-flow-kind='assistant-step'] blockquote::before {
-  content: '';
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  width: 4px;
-  border-radius: 2px;
-  background: var(--dsw-alias-border-l3);
-}
-
-body [data-chat-flow-kind='assistant-step'] :where(pre, .md-code-block) {
-  margin-block: 12px;
-}
-
-body [data-chat-flow-kind='assistant-step'] :not(pre) > code {
-  padding: 1px 6px;
-  box-decoration-break: clone;
-}
-
-body [data-chat-flow-kind='assistant-step'] hr {
-  margin-block: 28px;
-}
-
-body [data-chat-flow-kind='assistant-step'] :where(th, td) {
-  padding-block: 8px;
-  padding-inline: 12px;
-}
-
-body [data-chat-flow] [data-disclosure-row] {
-  height: 22px;
-}
-
-body [data-chat-flow] [data-disclosure-row] > span {
-  font-size: 13px;
-  line-height: 22px;
-}
-
-body [data-chat-flow-kind='user'] [data-time-hover-root] > div:first-child {
-  max-width: min(var(--dsh-ct-user-width), 78%);
-}
-
-body [data-chat-flow-kind='user'] [data-time-hover-root] > div:first-child > div:not([data-align]) {
-  padding: 9px 14px;
-  border-radius: 18px;
-  font-size: var(--dsh-ct-font-size);
-  line-height: var(--dsh-ct-line-height);
-}
-
-body [data-turn-tail] {
-  gap: 10px;
-}
-
-body [data-composer-card] {
-  gap: 10px;
-  padding-top: 8px;
-  border-radius: 18px;
-  font-size: var(--dsh-ct-font-size);
-  line-height: var(--dsh-ct-line-height);
-}
-
-/* --- Non-destructive Translation Styles --- */
-.dsh-tidy-translated-block {
-  display: inline;
-}
-
-.dsh-tidy-original-hidden {
-  display: none !important;
-}
-
-.dsh-tidy-original-shown {
-  display: inline !important;
-  cursor: pointer;
-  background: rgba(59, 130, 246, 0.08);
-  border-radius: 4px;
-  padding: 1px 4px;
-}
-
-@media (max-width: 700px) {
-  body [data-chat-flow-kind='user'] [data-time-hover-root] > div:first-child {
-    max-width: 88%;
-  }
-}
-`;
-var records = /* @__PURE__ */ new WeakMap();
-function adoptStyles(document2) {
-  const current = records.get(document2);
-  if (current !== void 0) {
-    current.references += 1;
-    return () => {
-      releaseStyles(document2);
-    };
-  }
-  const element = document2.createElement("style");
-  element.dataset.plugin = STYLE_MARKER;
-  element.textContent = TIDY_CHAT_CSS;
-  document2.head.appendChild(element);
-  records.set(document2, { element, references: 1 });
-  return () => {
-    releaseStyles(document2);
-  };
-}
-function releaseStyles(document2) {
-  const record = records.get(document2);
-  if (record === void 0) return;
-  record.references -= 1;
-  if (record.references > 0) return;
-  record.element.remove();
-  records.delete(document2);
-}
 
 // src/client/translate/client-cache.ts
 var CACHE_KEY = "dsh-chat-tidy:cache";
@@ -408,6 +208,18 @@ async function testServerChannel(channel) {
     return await res.json();
   } catch (err) {
     return { ok: false, latencyMs: 0, error: err?.message || String(err) };
+  }
+}
+async function saveCredentials(apiKey) {
+  try {
+    const res = await fetch("/api/dsh-chat-tidy/credentials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey })
+    });
+    return await res.json();
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
   }
 }
 
@@ -674,8 +486,13 @@ var LazyTranslationQueue = class {
   }
   async handleVisibleBatch(items) {
     if (!this.enabled || items.length === 0) return;
+    const sorted = [...items].sort((a, b) => {
+      if (a.element === b.element) return 0;
+      const pos = a.element.compareDocumentPosition(b.element);
+      return pos & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+    });
     const textMap = /* @__PURE__ */ new Map();
-    for (const item of items) {
+    for (const item of sorted) {
       if (!item.element.isConnected) continue;
       const cached = clientCache.get(item.text);
       if (cached) {
@@ -718,18 +535,8 @@ var lazyQueue = new LazyTranslationQueue();
 
 // src/client/translate/observer.ts
 var TOOL_TITLE_SELECTOR = '[class*="summary"]';
-var TOOL_ERROR_OUT_SELECTOR = [
-  '[data-variant][data-state="error"] [class*="ioText"]',
-  '[data-variant][data-state="aborted"] [class*="ioText"]',
-  '[class*="ioText"][data-error]',
-  '[class*="terminalBody"], [class*="terminalBodyWrap"]'
-].join(", ");
-var ERROR_LINE_RE = /error|fail(?:ed|ure)?|cannot|unable|no such|not found|denied|fatal|command not found|exit code|exited with|aborted|timed? ?out|exception|permission|killed|enoent|eacces|unreachable|refused/i;
-function isErrorLine(t) {
-  if (t.trim().length < 4) return false;
-  if (t.length > 40 && !/\s/.test(t.trim())) return false;
-  return ERROR_LINE_RE.test(t);
-}
+var SESSION_ROOT_SELECTOR = "[data-conversation-scroll], [data-chat-flow]";
+var ROOT_CHECK_INTERVAL_MS = 3e3;
 function isToolSummarySpan(span) {
   if (!span || span.nodeType !== 1) return false;
   if (span.hasAttribute("aria-hidden")) return false;
@@ -753,83 +560,16 @@ function isToolSummarySpan(span) {
   }
   return false;
 }
-function isErrorOutNode(span) {
-  if (span.hasAttribute("aria-hidden")) return false;
-  if (span.closest('pre, code, [class*="ioCard"] [class*="markdown"], [class*="_file_"]')) {
-    return false;
-  }
-  const cls = span.className || "";
-  if (/terminalBody/i.test(cls)) return true;
-  if (/ioText/i.test(cls)) {
-    return span.hasAttribute("data-error") || !!span.closest('[data-variant][data-state="error"], [data-variant][data-state="aborted"]');
-  }
-  return false;
-}
-function isTranslateableErrorText(t) {
-  if (t.trim().length < 4) return false;
-  if (t.length > 40 && !/\s/.test(t.trim())) return false;
-  if (/^[\s./\\\-_0-9a-zA-Z:'"$@#<>*~=,;()\[\]{}]+$/.test(t) && !/\s/.test(t.trim())) {
-    return false;
-  }
-  return true;
-}
-var translatingErrorOuts = /* @__PURE__ */ new WeakSet();
-var errorOutEnabled = true;
-async function translateErrorOut(span) {
-  if (translatingErrorOuts.has(span)) return;
-  if (span.dataset.tidyTranslated === "true") return;
-  const raw = span.textContent ?? "";
-  const lines = raw.split("\n");
-  const targets = [];
-  lines.forEach((ln, i) => {
-    const t = ln.trim();
-    if (isErrorLine(t) && isTranslateableErrorText(t)) {
-      targets.push({ idx: i, text: t });
-    }
-  });
-  if (targets.length === 0) {
-    return;
-  }
-  const uniqueLines = Array.from(new Set(targets.map((x) => x.text)));
-  const results = await requestTranslateBatch(uniqueLines.slice(0, 80));
-  const byText = /* @__PURE__ */ new Map();
-  results.forEach((r) => {
-    if (r && r.translated && r.translated !== r.original) byText.set(r.original, r.translated);
-  });
-  translatingErrorOuts.add(span);
-  try {
-    let changed = false;
-    for (const t of targets) {
-      const translated = byText.get(t.text);
-      if (translated) {
-        lines[t.idx] = translated;
-        changed = true;
-      }
-    }
-    const merged = lines.join("\n");
-    if (errorOutEnabled && changed && merged !== raw) {
-      span.dataset.tidyTranslated = "true";
-      span.dataset.original = raw;
-      span.textContent = merged;
-      span.querySelectorAll("*").forEach((el) => {
-        el.dataset.tidyTranslated = "true";
-      });
-    }
-  } catch {
-  } finally {
-    translatingErrorOuts.delete(span);
-  }
-}
 var ChatTranslateObserver = class {
   observer = null;
   rootElement = null;
+  rootCheckTimer = null;
   isEnabled = true;
   constructor() {
     this.handleMutations = this.handleMutations.bind(this);
   }
   setEnabled(enabled) {
     this.isEnabled = enabled;
-    errorOutEnabled = enabled;
     if (enabled) {
       lazyQueue.setEnabled(true);
       this.start();
@@ -846,17 +586,39 @@ var ChatTranslateObserver = class {
       NonDestructiveTranslationMount.unmount(span);
     }
   }
+  /**
+   * The active session's scroll container. Only the currently-viewed session
+   * is translated; switching sessions replaces this subtree and the observer
+   * naturally follows the new content.
+   */
+  isVisible(el) {
+    if (el.hasAttribute("hidden")) return false;
+    if (el.style.display === "none") return false;
+    try {
+      return el.getClientRects().length > 0;
+    } catch {
+      return true;
+    }
+  }
+  findRoot(documentRef) {
+    if (!documentRef.body) {
+      return documentRef.documentElement;
+    }
+    const candidates = documentRef.querySelectorAll(SESSION_ROOT_SELECTOR);
+    for (const el of candidates) {
+      if (this.isVisible(el)) {
+        return el;
+      }
+    }
+    return documentRef.body;
+  }
   start(documentRef = document) {
     if (!this.isEnabled || typeof window === "undefined") {
       return () => {
       };
     }
     const findAndObserveRoot = () => {
-      const root = documentRef.querySelector("[data-chat-flow]") ?? documentRef.querySelector("[data-conversation-scroll]") ?? documentRef.body;
-      if (!root) {
-        window.setTimeout(findAndObserveRoot, 200);
-        return;
-      }
+      const root = this.findRoot(documentRef);
       this.rootElement = root;
       this.scanContainer(root);
       if (!this.observer) {
@@ -871,9 +633,27 @@ var ChatTranslateObserver = class {
       }
     };
     findAndObserveRoot();
+    this.scheduleRootCheck();
     return () => {
       this.disconnect();
     };
+  }
+  scheduleRootCheck() {
+    if (this.rootCheckTimer !== null || typeof window === "undefined") return;
+    this.rootCheckTimer = window.setInterval(() => {
+      if (this.rootElement && this.rootElement.isConnected && this.isVisible(this.rootElement)) {
+        return;
+      }
+      this.restart();
+    }, ROOT_CHECK_INTERVAL_MS);
+  }
+  restart() {
+    if (typeof window === "undefined") return;
+    const wasEnabled = this.isEnabled;
+    this.disconnect();
+    if (wasEnabled) {
+      this.start();
+    }
   }
   handleMutations(mutations) {
     if (!this.isEnabled) return;
@@ -914,30 +694,15 @@ var ChatTranslateObserver = class {
         this.processSpan(span);
       }
     });
-    const errorOuts = container.querySelectorAll(TOOL_ERROR_OUT_SELECTOR);
-    errorOuts.forEach((span) => {
-      if (isErrorOutNode(span)) {
-        translateErrorOut(span);
-      }
-    });
   }
   scanNode(node) {
     if (node.matches?.(TOOL_TITLE_SELECTOR) && isToolSummarySpan(node)) {
       this.processSpan(node);
     }
-    if (node.matches?.(TOOL_ERROR_OUT_SELECTOR) && isErrorOutNode(node)) {
-      translateErrorOut(node);
-    }
     const spans = node.querySelectorAll(TOOL_TITLE_SELECTOR);
     spans.forEach((span) => {
       if (isToolSummarySpan(span)) {
         this.processSpan(span);
-      }
-    });
-    const errorOuts = node.querySelectorAll(TOOL_ERROR_OUT_SELECTOR);
-    errorOuts.forEach((span) => {
-      if (isErrorOutNode(span)) {
-        translateErrorOut(span);
       }
     });
   }
@@ -962,6 +727,10 @@ var ChatTranslateObserver = class {
     lazyQueue.observe(span, text);
   }
   disconnect() {
+    if (this.rootCheckTimer !== null) {
+      clearInterval(this.rootCheckTimer);
+      this.rootCheckTimer = null;
+    }
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
@@ -979,13 +748,26 @@ var import_react = require("react");
 var LS_PREFIX = "dsh-chat-tidy:";
 var LS_ENABLED = `${LS_PREFIX}enabled`;
 var LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
+var LS_AI_ENABLED = `${LS_PREFIX}aiEnabled`;
+var LS_BING_ENABLED = `${LS_PREFIX}bingEnabled`;
+var LS_BASE_URL = `${LS_PREFIX}baseUrl`;
+var LS_MODEL = `${LS_PREFIX}model`;
+var DEFAULT_STATE = {
+  enabled: true,
+  concurrency: 3,
+  aiEnabled: true,
+  bingEnabled: true,
+  baseUrl: "",
+  model: "",
+  aiConfigured: false
+};
 var SettingsStore = class {
-  state = {
-    enabled: true,
-    concurrency: 3
-  };
+  state = { ...DEFAULT_STATE };
   listeners = /* @__PURE__ */ new Set();
   storageListener = null;
+  pushTimer = null;
+  pushSeq = 0;
+  userTouched = false;
   constructor() {
     this.loadFromLocalStorage();
     this.initStorageListener();
@@ -1004,6 +786,22 @@ var SettingsStore = class {
         if (Number.isFinite(c) && c >= 1 && c <= 100) {
           this.state.concurrency = c;
         }
+      }
+      const aiRaw = localStorage.getItem(LS_AI_ENABLED);
+      if (aiRaw !== null) {
+        this.state.aiEnabled = aiRaw === "true";
+      }
+      const bingRaw = localStorage.getItem(LS_BING_ENABLED);
+      if (bingRaw !== null) {
+        this.state.bingEnabled = bingRaw === "true";
+      }
+      const baseUrlRaw = localStorage.getItem(LS_BASE_URL);
+      if (baseUrlRaw !== null) {
+        this.state.baseUrl = baseUrlRaw;
+      }
+      const modelRaw = localStorage.getItem(LS_MODEL);
+      if (modelRaw !== null) {
+        this.state.model = modelRaw;
       }
     } catch {
     }
@@ -1030,9 +828,28 @@ var SettingsStore = class {
           this.state.concurrency = c;
           changed = true;
         }
+      } else if (e.key === LS_AI_ENABLED && e.newValue !== null) {
+        const val = e.newValue === "true";
+        if (this.state.aiEnabled !== val) {
+          this.state.aiEnabled = val;
+          changed = true;
+        }
+      } else if (e.key === LS_BING_ENABLED && e.newValue !== null) {
+        const val = e.newValue === "true";
+        if (this.state.bingEnabled !== val) {
+          this.state.bingEnabled = val;
+          changed = true;
+        }
+      } else if (e.key === LS_BASE_URL && e.newValue !== null && this.state.baseUrl !== e.newValue) {
+        this.state.baseUrl = e.newValue;
+        changed = true;
+      } else if (e.key === LS_MODEL && e.newValue !== null && this.state.model !== e.newValue) {
+        this.state.model = e.newValue;
+        changed = true;
       }
       if (changed) {
         this.notify();
+        this.schedulePush();
       }
     };
     window.addEventListener("storage", this.storageListener);
@@ -1041,12 +858,15 @@ var SettingsStore = class {
     try {
       const config = await fetchServerConfig();
       if (config) {
-        const newEnabled = typeof config.enabled === "boolean" ? config.enabled : this.state.enabled;
-        const newConcurrency = typeof config.concurrency === "number" && Number.isFinite(config.concurrency) ? config.concurrency : this.state.concurrency;
+        const touched = this.userTouched;
         this.state = {
-          ...this.state,
-          enabled: newEnabled,
-          concurrency: newConcurrency
+          enabled: !touched && typeof config.enabled === "boolean" ? config.enabled : this.state.enabled,
+          concurrency: !touched && typeof config.concurrency === "number" && Number.isFinite(config.concurrency) ? config.concurrency : this.state.concurrency,
+          aiEnabled: !touched && typeof config.aiEnabled === "boolean" ? config.aiEnabled : this.state.aiEnabled,
+          bingEnabled: !touched && typeof config.bingEnabled === "boolean" ? config.bingEnabled : this.state.bingEnabled,
+          baseUrl: !touched && typeof config.baseUrl === "string" ? config.baseUrl : this.state.baseUrl,
+          model: !touched && typeof config.model === "string" ? config.model : this.state.model,
+          aiConfigured: typeof config.aiConfigured === "boolean" ? config.aiConfigured : this.state.aiConfigured
         };
         chatTranslateObserver.setEnabled(this.state.enabled);
         this.notify();
@@ -1071,7 +891,47 @@ var SettingsStore = class {
       }
     });
   }
+  /**
+   * Debounced server push: fast typing in the baseUrl/model/concurrency inputs
+   * collapses into a single POST (300ms trailing). A monotonic sequence number
+   * ensures an out-of-order older response never overwrites newer state.
+   */
+  schedulePush() {
+    if (this.pushTimer !== null || typeof window === "undefined") return;
+    this.pushTimer = window.setTimeout(() => {
+      this.pushTimer = null;
+      this.pushToServer();
+    }, 300);
+  }
+  async pushToServer() {
+    const seq = ++this.pushSeq;
+    const sent = {
+      enabled: this.state.enabled,
+      concurrency: this.state.concurrency,
+      aiEnabled: this.state.aiEnabled,
+      bingEnabled: this.state.bingEnabled,
+      baseUrl: this.state.baseUrl,
+      model: this.state.model
+    };
+    try {
+      const updated = await updateServerConfig(sent);
+      if (!updated || seq !== this.pushSeq) return;
+      this.state = {
+        ...this.state,
+        enabled: this.state.enabled === sent.enabled && typeof updated.enabled === "boolean" ? updated.enabled : this.state.enabled,
+        concurrency: this.state.concurrency === sent.concurrency && typeof updated.concurrency === "number" ? updated.concurrency : this.state.concurrency,
+        aiEnabled: this.state.aiEnabled === sent.aiEnabled && typeof updated.aiEnabled === "boolean" ? updated.aiEnabled : this.state.aiEnabled,
+        bingEnabled: this.state.bingEnabled === sent.bingEnabled && typeof updated.bingEnabled === "boolean" ? updated.bingEnabled : this.state.bingEnabled,
+        baseUrl: this.state.baseUrl === sent.baseUrl && typeof updated.baseUrl === "string" ? updated.baseUrl : this.state.baseUrl,
+        model: this.state.model === sent.model && typeof updated.model === "string" ? updated.model : this.state.model,
+        aiConfigured: typeof updated.aiConfigured === "boolean" ? updated.aiConfigured : this.state.aiConfigured
+      };
+      this.notify();
+    } catch {
+    }
+  }
   async update(partial) {
+    this.userTouched = true;
     let sanitizedConcurrency = this.state.concurrency;
     if (typeof partial.concurrency === "number") {
       if (Number.isFinite(partial.concurrency)) {
@@ -1096,21 +956,53 @@ var SettingsStore = class {
       } catch {
       }
     }
-    this.notify();
-    const updated = await updateServerConfig({
-      enabled: this.state.enabled,
-      concurrency: this.state.concurrency
-    });
-    if (updated) {
-      this.state.enabled = updated.enabled ?? this.state.enabled;
-      this.state.concurrency = updated.concurrency ?? this.state.concurrency;
-      this.notify();
+    if (typeof partial.aiEnabled === "boolean") {
+      try {
+        localStorage.setItem(LS_AI_ENABLED, String(partial.aiEnabled));
+      } catch {
+      }
     }
+    if (typeof partial.bingEnabled === "boolean") {
+      try {
+        localStorage.setItem(LS_BING_ENABLED, String(partial.bingEnabled));
+      } catch {
+      }
+    }
+    if (typeof partial.baseUrl === "string") {
+      try {
+        localStorage.setItem(LS_BASE_URL, partial.baseUrl);
+      } catch {
+      }
+    }
+    if (typeof partial.model === "string") {
+      try {
+        localStorage.setItem(LS_MODEL, partial.model);
+      } catch {
+      }
+    }
+    this.notify();
+    this.schedulePush();
   }
   async testChannel(channel) {
     return testServerChannel(channel);
   }
+  /** Persist the API key via the host and refresh the server-derived status. */
+  async saveApiKey(apiKey) {
+    const res = await saveCredentials(apiKey);
+    if (res.ok) {
+      await this.syncFromServer();
+    }
+    return { ok: Boolean(res.ok), error: res.error };
+  }
+  /** Re-pull the server config (e.g. after the API key changed). */
+  async refreshFromServer() {
+    await this.syncFromServer();
+  }
   dispose() {
+    if (this.pushTimer !== null && typeof window !== "undefined") {
+      clearTimeout(this.pushTimer);
+      this.pushTimer = null;
+    }
     if (this.storageListener && typeof window !== "undefined") {
       window.removeEventListener("storage", this.storageListener);
       this.storageListener = null;
@@ -1298,6 +1190,32 @@ var SETTINGS_CSS = String.raw`
   color: #9ca3af;
 }
 
+.dsh-tidy-badge-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.dsh-tidy-test-result {
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.dsh-tidy-test-result.ok {
+  color: #22c55e;
+}
+
+.dsh-tidy-test-result.fail {
+  color: #ef4444;
+}
+
+.dsh-tidy-behavior-list {
+  padding-left: 18px;
+  margin: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* Priority list */
 .dsh-tidy-priority-list {
   display: flex;
@@ -1388,64 +1306,231 @@ function ensureSettingsStyles() {
   document.head.appendChild(el);
   stylesInjected = true;
 }
+function Switch(props) {
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    "button",
+    {
+      type: "button",
+      className: "dsh-tidy-switch",
+      role: "switch",
+      "aria-checked": props.checked,
+      onClick: props.onChange,
+      "aria-label": props.label
+    }
+  );
+}
 function TidySettingsPanel() {
   ensureSettingsStyles();
   const [state, setState] = (0, import_react.useState)(() => settingsStore.getState());
+  const [testing, setTesting] = (0, import_react.useState)(null);
+  const [apiKeyInput, setApiKeyInput] = (0, import_react.useState)("");
+  const [savingKey, setSavingKey] = (0, import_react.useState)(false);
+  const [keyMsg, setKeyMsg] = (0, import_react.useState)(null);
   (0, import_react.useEffect)(() => {
     return settingsStore.subscribe(() => {
       setState(settingsStore.getState());
     });
   }, []);
-  const handleToggleEnabled = () => {
-    settingsStore.update({ enabled: !state.enabled });
+  const runTest = async (channel) => {
+    setTesting({ channel, running: true });
+    const res = await settingsStore.testChannel(channel);
+    const message = res.ok ? `\u8FDE\u63A5\u6B63\u5E38\uFF0C\u5EF6\u8FDF ${res.latencyMs}ms` : `\u5931\u8D25\uFF1A${res.error || "\u672A\u77E5\u9519\u8BEF"}`;
+    setTesting({ channel, running: false, ok: res.ok, message });
   };
-  const handleConcurrencyChange = (valStr) => {
-    const val = parseInt(valStr, 10);
-    if (!Number.isFinite(val)) return;
-    settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 100) });
+  const handleSaveKey = async () => {
+    setSavingKey(true);
+    setKeyMsg(null);
+    const res = await settingsStore.saveApiKey(apiKeyInput);
+    setSavingKey(false);
+    if (res.ok) {
+      const cleared = !apiKeyInput.trim();
+      setKeyMsg({
+        ok: true,
+        text: cleared ? "\u5DF2\u6E05\u9664 API Key\uFF08AI \u901A\u9053\u5C06\u4E0D\u53EF\u7528\uFF0CBing \u515C\u5E95\uFF09" : "\u5DF2\u4FDD\u5B58\u5230 ~/.dsh/.credentials.yaml\uFF0C\u7ACB\u5373\u751F\u6548"
+      });
+      setApiKeyInput("");
+    } else {
+      setKeyMsg({ ok: false, text: `\u4FDD\u5B58\u5931\u8D25\uFF1A${res.error || "\u672A\u77E5\u9519\u8BEF"}` });
+    }
   };
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-settings", children: [
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-title", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u5DE5\u5177\u8C03\u7528\u4E0E\u6458\u8981\u7FFB\u8BD1" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\u5DE5\u5177\u8C03\u7528\u4E0E\u601D\u8003\u6458\u8981\u7FFB\u8BD1" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
+          Switch,
           {
-            type: "button",
-            className: "dsh-tidy-switch",
-            role: "switch",
-            "aria-checked": state.enabled,
-            onClick: handleToggleEnabled,
-            "aria-label": "\u542F\u7528\u5DE5\u5177\u8C03\u7528\u4E0E\u6458\u8981\u7FFB\u8BD1"
+            checked: state.enabled,
+            onChange: () => settingsStore.update({ enabled: !state.enabled }),
+            label: "\u542F\u7528\u5DE5\u5177\u8C03\u7528\u4E0E\u6458\u8981\u7FFB\u8BD1"
           }
         )
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-desc", children: [
-        "\u91C7\u7528\u975E\u4FB5\u5165\u5F0F\u53CC\u8BED\u6E32\u67D3\uFF0C\u5C06\u5DE5\u5177\u8C03\u7528\u4E0E\u601D\u8003\u6298\u53E0\u6458\u8981\uFF08\u5982 ",
+        "\u81EA\u52A8\u5C06\u5F53\u524D\u4F1A\u8BDD\u4E2D\u5DE5\u5177\u8C03\u7528\u6807\u9898\u4E0E\u601D\u8003\u6298\u53E0\u6458\u8981\uFF08\u5982 ",
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "Locate DSH home directory structure" }),
-        "\uFF09\u81EA\u52A8\u7FFB\u8BD1\u4E3A\u4E2D\u6587\uFF0C\u70B9\u51FB\u8BD1\u6587\u53EF\u539F\u5730\u5207\u6362\u539F\u6587/\u8BD1\u6587\u3002\u4E0D\u89E6\u78B0\u771F\u5B9E DOM \u6811\u4E0E\u4E0A\u4E0B\u6587\u3002"
+        "\uFF09\u7FFB\u8BD1\u4E3A\u4E2D\u6587\uFF0C \u70B9\u51FB\u8BD1\u6587\u53EF\u539F\u5730\u5207\u6362\u539F\u6587/\u8BD1\u6587\u3002\u4EC5\u4F5C\u7528\u4E8E\u5F53\u524D\u67E5\u770B\u7684\u4F1A\u8BDD\uFF0C\u5BF9\u8BDD\u6B63\u6587\u6C38\u4E0D\u7FFB\u8BD1\u3002"
       ] })
     ] }),
-    state.enabled && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u89C6\u53E3\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u8303\u56F4 1-100\uFF0C\u63A8\u8350 3\uFF09\u3002" })
+    state.enabled && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-title", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "AI \u7FFB\u8BD1\uFF08OpenAI \u517C\u5BB9\u534F\u8BAE\uFF09" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            Switch,
+            {
+              checked: state.aiEnabled,
+              onChange: () => settingsStore.update({ aiEnabled: !state.aiEnabled }),
+              label: "\u542F\u7528 AI \u7FFB\u8BD1\u901A\u9053"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-desc", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `dsh-tidy-badge ${state.aiConfigured ? "dsh-tidy-badge-ok" : "dsh-tidy-badge-warn"}`, children: state.aiConfigured ? "\u5DF2\u914D\u7F6E" : "\u672A\u914D\u7F6E" }),
+          " ",
+          "\u672A\u914D\u7F6E\u65F6 AI \u901A\u9053\u81EA\u52A8\u8DF3\u8FC7\uFF0C\u7531 Bing \u515C\u5E95\u3002"
+        ] }),
+        state.aiEnabled && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "API Key" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-desc", children: [
+                "\u4FDD\u5B58\u81F3 ",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "~/.dsh/.credentials.yaml" }),
+                " \u7684 ",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "TRANSLATE_API_KEY" }),
+                "\uFF0C\u4FDD\u5B58\u540E\u7ACB\u5373\u751F\u6548\uFF1B\u7559\u7A7A\u4FDD\u5B58 = \u6E05\u9664"
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-input-row", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                "input",
+                {
+                  type: "password",
+                  className: "dsh-tidy-input",
+                  placeholder: state.aiConfigured ? "\u5DF2\u914D\u7F6E\uFF08\u5982\u9700\u66F4\u6362\u8BF7\u76F4\u63A5\u8F93\u5165\uFF09" : "sk-...",
+                  value: apiKeyInput,
+                  onChange: (e) => setApiKeyInput(e.target.value),
+                  style: { width: "260px" },
+                  "aria-label": "API Key"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", className: "dsh-tidy-btn", disabled: savingKey, onClick: handleSaveKey, children: savingKey ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58" })
+            ] })
+          ] }),
+          keyMsg && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `dsh-tidy-test-result ${keyMsg.ok ? "ok" : "fail"}`, children: keyMsg.text }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "Base URL" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-desc", children: [
+                "\u4EFB\u610F OpenAI \u517C\u5BB9\u670D\u52A1\u7AEF\u70B9\uFF0C\u5982 ",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "https://api.openai.com/v1" }),
+                "\u3001",
+                " ",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "https://api.deepseek.com/v1" })
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "input",
+              {
+                type: "text",
+                className: "dsh-tidy-input",
+                placeholder: "https://api.openai.com/v1",
+                value: state.baseUrl,
+                onChange: (e) => settingsStore.update({ baseUrl: e.target.value }),
+                style: { width: "260px" },
+                "aria-label": "AI Base URL"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6A21\u578B" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-desc", children: [
+                "\u5982 ",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "gpt-4o-mini" }),
+                "\u3001",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "deepseek-chat" }),
+                "\uFF1B\u7559\u7A7A\u89C6\u4E3A\u672A\u914D\u7F6E"
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "input",
+              {
+                type: "text",
+                className: "dsh-tidy-input",
+                placeholder: "gpt-4o-mini",
+                value: state.model,
+                onChange: (e) => settingsStore.update({ model: e.target.value }),
+                style: { width: "260px" },
+                "aria-label": "AI \u6A21\u578B"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "button",
+              {
+                type: "button",
+                className: "dsh-tidy-btn",
+                disabled: testing?.running,
+                onClick: () => runTest("openai"),
+                children: testing?.running ? "\u6D4B\u8BD5\u4E2D\u2026" : "\u6D4B\u8BD5 AI \u901A\u9053"
+              }
+            ),
+            testing?.channel === "openai" && !testing.running && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `dsh-tidy-test-result ${testing.ok ? "ok" : "fail"}`, children: testing.message })
+          ] })
+        ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "input",
-        {
-          type: "number",
-          className: "dsh-tidy-input",
-          min: 1,
-          max: 100,
-          step: 1,
-          value: state.concurrency,
-          onChange: (e) => handleConcurrencyChange(e.target.value),
-          style: { width: "88px" },
-          "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
-        }
-      )
-    ] }) }) })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-title", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Bing \u7F51\u9875\u7FFB\u8BD1\uFF08\u514D Key \u515C\u5E95\uFF09" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            Switch,
+            {
+              checked: state.bingEnabled,
+              onChange: () => settingsStore.update({ bingEnabled: !state.bingEnabled }),
+              label: "\u542F\u7528 Bing \u7FFB\u8BD1\u901A\u9053"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-desc", children: "\u5185\u7F6E\u514D Key \u7FFB\u8BD1\u901A\u9053\uFF0C\u65E0\u9700\u4EFB\u4F55\u914D\u7F6E\u3002AI \u672A\u914D\u7F6E\u6216\u8BF7\u6C42\u5931\u8D25\u65F6\u81EA\u52A8\u515C\u5E95\uFF1BAI \u4E0E Bing \u540C\u65F6\u5173\u95ED\u5219\u4E0D\u7FFB\u8BD1\u3002" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-card", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u901A\u9053\u884C\u4E3A" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", { className: "dsh-tidy-desc dsh-tidy-behavior-list", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "AI \u5F00\u542F\u4E14\u5DF2\u914D\u7F6E \u2192 AI \u4F18\u5148\u7FFB\u8BD1\uFF0C\u5931\u8D25\u81EA\u52A8\u964D\u7EA7 Bing" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "AI \u5F00\u542F\u4F46\u672A\u914D\u7F6E + Bing \u5F00\u542F \u2192 \u7531 Bing \u7FFB\u8BD1" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "AI \u5F00\u542F\u4F46\u672A\u914D\u7F6E + Bing \u5173\u95ED \u2192 \u4E0D\u7FFB\u8BD1" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "AI \u5173\u95ED + Bing \u5F00\u542F \u2192 \u76F4\u63A5\u4F7F\u7528 Bing" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "AI \u5173\u95ED + Bing \u5173\u95ED \u2192 \u4E0D\u7FFB\u8BD1" })
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-card", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-tidy-row-info", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-title", children: "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-tidy-row-desc", children: "\u63A7\u5236\u89C6\u53E3\u6EDA\u52A8\u4E0E\u591A\u5DE5\u5177\u5361\u7247\u65F6\u7684\u6700\u5927\u5E76\u884C\u8BF7\u6C42\u6570\uFF08\u8303\u56F4 1-100\uFF0C\u63A8\u8350 3\uFF09\u3002" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "input",
+          {
+            type: "number",
+            className: "dsh-tidy-input",
+            min: 1,
+            max: 100,
+            step: 1,
+            value: state.concurrency,
+            onChange: (e) => {
+              const val = parseInt(e.target.value, 10);
+              if (!Number.isFinite(val)) return;
+              settingsStore.update({ concurrency: Math.min(Math.max(val, 1), 100) });
+            },
+            style: { width: "88px" },
+            "aria-label": "\u6700\u5927\u7FFB\u8BD1\u5E76\u53D1\u6570"
+          }
+        )
+      ] }) })
+    ] })
   ] });
 }
 function setupSettingsUi(ctx) {
@@ -1459,7 +1544,7 @@ function setupSettingsUi(ctx) {
           name: "settings.section",
           id: "dsh-chat-tidy",
           order: 5,
-          label: () => "\u804A\u5929\u6392\u7248"
+          label: () => "\u804A\u5929\u7FFB\u8BD1"
         },
         TidySettingsPanel
       );
@@ -1473,7 +1558,6 @@ function setupSettingsUi(ctx) {
 var name = "dsh-chat-tidy";
 var inject = ["slots"];
 function apply(ctx) {
-  ctx.effect(() => adoptStyles(document), "dsh-chat-tidy: stylesheet");
   ctx.effect(() => chatTranslateObserver.start(document), "dsh-chat-tidy: title translate observer");
   ctx.effect(() => setupSettingsUi(ctx), "dsh-chat-tidy: settings section");
 }

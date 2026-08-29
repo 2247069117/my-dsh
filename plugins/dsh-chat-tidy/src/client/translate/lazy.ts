@@ -45,9 +45,17 @@ class LazyTranslationQueue {
   private async handleVisibleBatch(items: TranslateTask[]): Promise<void> {
     if (!this.enabled || items.length === 0) return;
 
+    // Document order: translations appear in reading order (top-to-bottom),
+    // never out-of-order even when IntersectionObserver fires entries randomly.
+    const sorted = [...items].sort((a, b) => {
+      if (a.element === b.element) return 0;
+      const pos = a.element.compareDocumentPosition(b.element);
+      return pos & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+    });
+
     // Group elements by text to deduplicate API requests
     const textMap = new Map<string, Array<{ element: HTMLElement; isThink?: boolean }>>();
-    for (const item of items) {
+    for (const item of sorted) {
       if (!item.element.isConnected) continue;
 
       const cached = clientCache.get(item.text);

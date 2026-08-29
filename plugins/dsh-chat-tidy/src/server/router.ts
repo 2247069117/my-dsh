@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { ConfigManager } from './config.ts';
 import type { TranslationDispatcher } from './dispatcher.ts';
+import type { CredentialsReader } from './credentials.ts';
 
 const MAX_BODY_BYTES = 1024 * 1024; // 1MB body limit to prevent DoS
 
@@ -38,7 +39,8 @@ function readBody(req: IncomingMessage): Promise<string> {
 
 export function createHttpHandler(
   configManager: ConfigManager,
-  dispatcher: TranslationDispatcher
+  dispatcher: TranslationDispatcher,
+  credentials?: CredentialsReader
 ) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url || '/', 'http://localhost');
@@ -49,7 +51,13 @@ export function createHttpHandler(
     try {
       if (endpoint === 'translate' && req.method === 'POST') {
         const raw = await readBody(req);
-        const parsed = JSON.parse(raw || '{}');
+        let parsed: any;
+        try {
+          parsed = JSON.parse(raw || '{}');
+        } catch {
+          sendJson(res, 400, { ok: false, error: 'Invalid JSON body' });
+          return;
+        }
         const rawTexts: unknown = parsed.texts !== undefined ? parsed.texts : parsed.text;
 
         let texts: string[] = [];
@@ -78,7 +86,13 @@ export function createHttpHandler(
         }
         if (req.method === 'POST') {
           const raw = await readBody(req);
-          const updates = JSON.parse(raw || '{}');
+          let updates: any;
+          try {
+            updates = JSON.parse(raw || '{}');
+          } catch {
+            sendJson(res, 400, { ok: false, error: 'Invalid JSON body' });
+            return;
+          }
           if (typeof updates !== 'object' || updates === null || Array.isArray(updates)) {
             sendJson(res, 400, { ok: false, error: 'Invalid config payload' });
             return;
@@ -89,9 +103,38 @@ export function createHttpHandler(
         }
       }
 
+      if (endpoint === 'credentials' && req.method === 'POST') {
+        if (!credentials) {
+          sendJson(res, 500, { ok: false, error: 'Credentials reader unavailable' });
+          return;
+        }
+        const raw = await readBody(req);
+        let parsed: any;
+        try {
+          parsed = JSON.parse(raw || '{}');
+        } catch {
+          sendJson(res, 400, { ok: false, error: 'Invalid JSON body' });
+          return;
+        }
+        const apiKey = typeof parsed.apiKey === 'string' ? parsed.apiKey : '';
+        try {
+          await credentials.setApiKey(apiKey);
+          sendJson(res, 200, { ok: true, configured: Boolean(credentials.getApiKey()) });
+        } catch (err: any) {
+          sendJson(res, 500, { ok: false, error: err?.message || String(err) });
+        }
+        return;
+      }
+
       if (endpoint === 'test-channel' && req.method === 'POST') {
         const raw = await readBody(req);
-        const parsed = JSON.parse(raw || '{}');
+        let parsed: any;
+        try {
+          parsed = JSON.parse(raw || '{}');
+        } catch {
+          sendJson(res, 400, { ok: false, error: 'Invalid JSON body' });
+          return;
+        }
         const channelId = typeof parsed.channel === 'string' ? parsed.channel : '';
         const result = await dispatcher.testChannel(channelId);
         sendJson(res, 200, result);

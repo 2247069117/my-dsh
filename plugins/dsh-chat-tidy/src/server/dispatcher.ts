@@ -2,7 +2,9 @@ import type { ITranslationAdapter, PluginConfig, TranslateItemResult } from './t
 import type { ConfigManager } from './config.ts';
 import { MAX_CONCURRENCY } from './config.ts';
 import type { LruDiskCache } from './cache.ts';
+import type { CredentialsReader } from './credentials.ts';
 import { BingWebAdapter } from './adapters/bing.ts';
+import { OpenAiCompatibleAdapter } from './adapters/openai.ts';
 import { ContentMaskingPipeline } from './pipeline/masking.ts';
 
 type CircuitStateEnum = 'closed' | 'open' | 'half-open';
@@ -11,11 +13,13 @@ interface CircuitState {
   state: CircuitStateEnum;
   failureCount: number;
   openUntil: number;
+  probeInFlight: boolean; // single-flight guard for half-open probes
 }
 
 export class TranslationDispatcher {
   private configManager: ConfigManager;
   private cache: LruDiskCache;
+  private credentials: CredentialsReader;
   private masking = new ContentMaskingPipeline();
   private adapters = new Map<string, ITranslationAdapter>();
   private circuitStates = new Map<string, CircuitState>();
@@ -23,9 +27,14 @@ export class TranslationDispatcher {
   private activeCount = 0;
   private queue: Array<() => void> = [];
 
-  constructor(configManager: ConfigManager, cache: LruDiskCache) {
+  constructor(configManager: ConfigManager, cache: LruDiskCache, credentials?: CredentialsReader) {
     this.configManager = configManager;
     this.cache = cache;
+    this.credentials = credentials ?? (configManager as any).credentials ?? { getApiKey: () => '' };
+
+    // AI channel first (primary), Bing second (fallback) — map iteration order
+    // follows registration order, so computeChannels() yields ['openai', 'bing'].
+    this.registerAdapter(new OpenAiCompatibleAdapter(this.credentials));
     this.registerAdapter(new BingWebAdapter());
 
     // Listen to config changes to wake up queue on concurrency increase
@@ -36,6 +45,40 @@ export class TranslationDispatcher {
 
   private registerAdapter(adapter: ITranslationAdapter): void {
     this.adapters.set(adapter.id, adapter);
+  }
+
+  /**
+   * Decide which channels are active for the current config, in priority order.
+   *
+   * Truth table (user contract):
+   *  - AI on + configured + Bing on        -> [openai, bing]  (AI first, Bing fallback)
+   *  - AI on + NOT configured + Bing on    -> [bing]
+   *  - AI on + NOT configured + Bing off   -> []              (no translation)
+   *  - AI off + Bing on                    -> [bing]
+   *  - AI off + Bing off                   -> []              (no translation)
+   */
+  private computeChannels(config: PluginConfig): string[] {
+    const channels: string[] = [];
+    for (const [id, adapter] of this.adapters) {
+      if (id === 'openai') {
+        if (
+          config.aiEnabled &&
+          config.baseUrl?.trim() &&
+          config.model?.trim() &&
+          this.credentials.getApiKey()
+        ) {
+          channels.push(id);
+        }
+        continue;
+      }
+      if (id === 'bing') {
+        if (config.bingEnabled) channels.push(id);
+        continue;
+      }
+      // Custom/test adapters honor their own availability.
+      if (adapter.isAvailable(config)) channels.push(id);
+    }
+    return channels;
   }
 
   async translateBatch(
@@ -83,7 +126,7 @@ export class TranslationDispatcher {
     // 3. Queue task with concurrency limit
     const taskPromise = this.enqueueTask(async () => {
       const currentConfig = this.configManager.getConfig();
-      const channels = currentConfig.channels || ['bing'];
+      const channels = this.computeChannels(currentConfig);
 
       for (const chId of channels) {
         const adapter = this.adapters.get(chId);
@@ -92,7 +135,9 @@ export class TranslationDispatcher {
         }
 
         try {
-          const timeout = currentConfig.timeoutMs || 2000;
+          const timeout = chId === 'openai'
+            ? currentConfig.aiTimeoutMs || 30000
+            : currentConfig.timeoutMs || 2000;
           const abortCtrl = new AbortController();
           const timer = setTimeout(() => abortCtrl.abort(), timeout);
 
@@ -115,6 +160,13 @@ export class TranslationDispatcher {
               cached: false,
             };
           }
+          // Empty result counts as a failure: it releases a half-open probe
+          // flag (which would otherwise leak and permanently bypass the
+          // channel) and feeds the circuit-breaker failure counter.
+          this.recordFailure(chId);
+          console.warn(
+            `[dsh-chat-tidy] channel ${chId} returned an empty translation | text: ${text.slice(0, 60)}`
+          );
         } catch (err: any) {
           this.recordFailure(chId);
           console.warn(
@@ -147,14 +199,15 @@ export class TranslationDispatcher {
       return { ok: false, latencyMs: 0, error: `Channel ${channelId} not found` };
     }
     if (!adapter.isAvailable(config)) {
-      return { ok: false, latencyMs: 0, error: `Channel ${channelId} API key is not configured` };
+      return { ok: false, latencyMs: 0, error: `Channel ${channelId} is not configured or disabled` };
     }
 
     const testText = 'List files in current directory';
     const start = Date.now();
     try {
+      const timeout = channelId === 'openai' ? Math.min(config.aiTimeoutMs || 30000, 30000) : 4000;
       const abortCtrl = new AbortController();
-      const timer = setTimeout(() => abortCtrl.abort(), 4000);
+      const timer = setTimeout(() => abortCtrl.abort(), timeout);
       let res = '';
       try {
         res = await adapter.translate(testText, abortCtrl.signal, config);
@@ -220,15 +273,19 @@ export class TranslationDispatcher {
 
     if (state.state === 'open') {
       if (Date.now() >= state.openUntil) {
-        // Timeout elapsed -> transition to half-open to allow probe trial
+        // Timeout elapsed -> transition to half-open; the first caller becomes
+        // the single in-flight probe.
         state.state = 'half-open';
+        state.probeInFlight = true;
         return false;
       }
       return true;
     }
 
     if (state.state === 'half-open') {
-      // Allow the probe call through
+      // Single-flight: exactly one probe may run at a time, all others wait.
+      if (state.probeInFlight) return true;
+      state.probeInFlight = true;
       return false;
     }
 
@@ -241,13 +298,14 @@ export class TranslationDispatcher {
       state.state = 'closed';
       state.failureCount = 0;
       state.openUntil = 0;
+      state.probeInFlight = false;
     }
   }
 
   private recordFailure(channelId: string): void {
     let state = this.circuitStates.get(channelId);
     if (!state) {
-      state = { state: 'closed', failureCount: 0, openUntil: 0 };
+      state = { state: 'closed', failureCount: 0, openUntil: 0, probeInFlight: false };
       this.circuitStates.set(channelId, state);
     }
 
@@ -256,6 +314,7 @@ export class TranslationDispatcher {
       state.state = 'open';
       state.failureCount = 3;
       state.openUntil = Date.now() + 30000;
+      state.probeInFlight = false;
       return;
     }
 

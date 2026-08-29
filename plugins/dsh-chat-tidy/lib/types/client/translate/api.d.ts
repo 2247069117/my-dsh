@@ -16,3 +16,9 @@ export declare function testServerChannel(channel: string): Promise<{
     latencyMs: number;
     error?: string;
 }>;
+/** Persist the translation API key into ~/.dsh/.credentials.yaml via the host. */
+export declare function saveCredentials(apiKey: string): Promise<{
+    ok: boolean;
+    configured?: boolean;
+    error?: string;
+}>;

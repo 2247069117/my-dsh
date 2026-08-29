@@ -10,9 +10,14 @@
 
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
 import { JSDOM } from 'jsdom';
+
+// Isolate all file-backed state (config/cache/credentials) into a temp dir so
+// the suite never reads or overwrites the real ~/.dsh files.
+const TMP_HOME = await fs.mkdtemp(path.join(os.tmpdir(), 'dsh-chat-tidy-test-'));
+process.env.DSH_HOME = TMP_HOME;
 
 import { ContentMaskingPipeline } from '../src/server/pipeline/masking.ts';
 import { TranslationDispatcher } from '../src/server/dispatcher.ts';
@@ -148,7 +153,8 @@ await testAsync('In-flight deduplication merges identical concurrent requests', 
     },
   };
   dispatcher.adapters.set('mock-dedup', mockAdapter);
-  await config.updateConfig({ channels: ['mock-dedup'], concurrency: 5 });
+  // Disable real channels so only the injected mock is active
+  await config.updateConfig({ aiEnabled: false, bingEnabled: false, concurrency: 5 });
 
   const promises = [
     dispatcher.translateOne('Identical task text'),
@@ -185,7 +191,7 @@ await testAsync('Circuit Breaker trips to OPEN after 3 failures and resets on re
     },
   };
   dispatcher.adapters.set('unstable', unstableAdapter);
-  await config.updateConfig({ channels: ['unstable'], concurrency: 1 });
+  await config.updateConfig({ aiEnabled: false, bingEnabled: false, concurrency: 1 });
 
   // 3 consecutive failures
   const r1 = await dispatcher.translateOne('Fail 1');

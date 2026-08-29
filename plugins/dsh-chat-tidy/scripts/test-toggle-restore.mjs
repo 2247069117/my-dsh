@@ -50,3 +50,7 @@ console.log('3) 400ms 后（应保持英文，未被反噬重翻）:', summary()
 exports.settingsStore.update({ enabled: true });
 await new Promise(r => setTimeout(r, 600));
 console.log('4) 重新开启后 summary:', summary()?.textContent, '| tidyTranslated:', summary()?.getAttribute('data-tidy-translated'));
+
+// 清理：断开 observer（含 root 探测定时器），避免进程挂起
+exports.chatTranslateObserver.disconnect();
+process.exit(0); // jsdom 的 IntersectionObserver 内部调度器会保持事件循环活跃
