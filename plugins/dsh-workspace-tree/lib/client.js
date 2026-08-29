@@ -335,9 +335,12 @@ window.__ModuleLoader__.load({
      * subagent 子会话判定：归宿主 subagent 路由管理（随父会话展示），
      * 宿主禁止将其 attach 到工作区（adopt 必然抛 subagent-ownership 错误），
      * 故不参与树的任何渲染投影，也不进入自动收编/空白草稿回收。
+     * 唯一判据是 origin === "subagent"——**不能看 parentId**：fork 出来的普通会话
+     * （origin 为空）同样带 parentSessionId（宿主 fork 会写 meta.parentSession），
+     * 用 parentId 判断会把 fork 会话误当作 subagent 而全部隐藏。
      */
     function isSubagentRow(row) {
-      return !!row && (row.origin === "subagent" || row.parentId !== undefined);
+      return !!row && row.origin === "subagent";
     }
 
     /**
