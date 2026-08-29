@@ -1,16 +1,18 @@
 /**
- * dsh-workspace-tree — node half (v3.4 级联删除与孤儿清理强化版)。
+ * dsh-workspace-tree — node half (v3.6 projcache 元数据强一致清理版)。
  *
  * 核心功能：
  *  - GET  /debug               工作区注册表投影（诊断用）
  *  - POST /mkdir               安全创建子目录 { parent, name } → { path }
  *  - POST /open-ide            在外部 IDE 中打开指定目录 { path, ide, customCommand? }
- *  - POST /session/deleteDirect 直接永久删除会话及其实体文件与关联子孙 Subagents { sessionId }
+ *  - POST /session/deleteDirect 直接永久删除会话及其实体文件、关联子孙 Subagents 与 projcache 缓存 { sessionId }
  *  - POST /archive/unarchive   恢复单条会话 { sessionId }
  *  - POST /archive/unarchiveAll 批量恢复 { workspaceId? } (null=未分组, omit=全部)
- *  - POST /archive/delete      永久删除单条归档会话及其实体文件与关联子孙 Subagents { sessionId }
- *  - POST /archive/deleteAll   永久删除批量归档会话及其实体文件与关联子孙 Subagents { workspaceId? }
- *  - POST /archive/cleanOrphans 一键扫描并清理无父会话的孤儿 Subagents
+ *  - POST /archive/delete      永久删除单条归档会话及其实体文件、关联子孙 Subagents 与 projcache 缓存 { sessionId }
+ *  - POST /archive/deleteAll   永久删除批量归档会话及其实体文件、关联子孙 Subagents 与 projcache 缓存 { workspaceId? }
+ *  - POST /archive/cleanOrphans 一键扫描并清理孤儿 Subagents 与孤儿 projcache 缓存
+ *  - POST /archive/cleanProjcache 一键扫描并清理孤儿 projcache 投影元数据缓存
+ *  - POST /archive/pruneStale   清理 host 会话列表中已不存在的「幽灵归档」ID 及孤儿 projcache 缓存
  */
 import { mkdir, open, readdir, rm, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
@@ -115,10 +117,13 @@ async function handleMkdir(req, res) {
     return sendJson(res, 200, { ok: false, error: "文件夹名包含非法字符或路径遍历片段" });
   }
 
-  const parent = resolve(parentRaw);
-  if (!isAbsolute(parent)) {
+  // 必须对原始输入校验绝对路径：resolve() 总是返回绝对路径（相对输入会被静默解析到
+  // 服务器进程 cwd 下），resolve 之后再检查是无效的死代码。
+  if (!isAbsolute(parentRaw)) {
     return sendJson(res, 200, { ok: false, error: "parent 必须为绝对路径" });
   }
+
+  const parent = resolve(parentRaw);
 
   try {
     const parentStat = await stat(parent);
@@ -129,12 +134,8 @@ async function handleMkdir(req, res) {
     return sendJson(res, 200, { ok: false, error: `parent 目录不存在: ${String(err.message || err)}` });
   }
 
+  // nameRaw 已排除 "/"、"\\"、"."、".."，resolve 结果必为 parent 的直接子目录
   const target = resolve(parent, nameRaw);
-  // 确保 target 确实位于 parent 内部，防路径逃逸
-  if (!target.startsWith(parent) || target === parent) {
-    return sendJson(res, 200, { ok: false, error: "目标路径非法" });
-  }
-
   await mkdir(target, { recursive: true });
   sendJson(res, 200, { ok: true, path: target });
 }
@@ -331,10 +332,11 @@ async function handleOpenIde(req, res) {
   if (!targetPathRaw) {
     return sendJson(res, 200, { ok: false, error: "path 必填" });
   }
-  const targetPath = resolve(targetPathRaw);
-  if (!isAbsolute(targetPath)) {
+  // 对原始输入校验绝对路径（resolve 后再检查恒为 true，是死代码）
+  if (!isAbsolute(targetPathRaw)) {
     return sendJson(res, 200, { ok: false, error: "path 必须为绝对路径" });
   }
+  const targetPath = resolve(targetPathRaw);
   try {
     const s = await stat(targetPath);
     if (!s.isDirectory() && !s.isFile()) {
@@ -508,10 +510,8 @@ async function scanSessionTopology() {
   function isOrphan(item) {
     if (item.header.origin !== "subagent") return false;
     const pid = item.header.parentSession;
-    if (!pid || !validParentSet.has(pid)) return true;
-    const parent = sessionMap.get(pid);
-    if (!parent) return true;
-    return false;
+    // validParentSet 即 sessionMap 的键集，父会话缺失 ⇔ 父会话不存在
+    return !pid || !validParentSet.has(pid);
   }
 
   for (const item of sessionMap.values()) {
@@ -520,7 +520,7 @@ async function scanSessionTopology() {
     }
   }
 
-  return { sessionMap, childrenMap, orphanList };
+  return { childrenMap, orphanList };
 }
 
 /**
@@ -546,13 +546,14 @@ function collectDescendantSessionIds(targetSessionId, childrenMap) {
 }
 
 /**
- * 安全物理删除单条会话目录（带严密路径越界与层级防护）。
+ * 安全物理删除单条会话目录（带严密路径越界与层级防护）及关联 projcache 元数据缓存。
  */
 async function removeSessionPhysicalDir(sessionId) {
   if (!sessionId || typeof sessionId !== "string") return false;
   const sid = sessionId.trim();
   const encodedId = encodeSegment(sid);
-  if (!encodedId || encodedId === "." || encodedId === "..") return false;
+  // encodeSegment 已将 "." / ".." 编码为 ~002E / ~002E~002E，只需判空
+  if (!encodedId) return false;
 
   const sessionsRoot = resolve(join(dshHome(), "sessions"));
   let removedAny = false;
@@ -577,39 +578,35 @@ async function removeSessionPhysicalDir(sessionId) {
       } catch {}
     }
   } catch {}
+
+  // 同步物理清理 ~/.dsh/storages/session_projcache/sessions/<id>.json 独立缓存文件
+  try {
+    const projcacheSessionsDir = resolve(join(dshHome(), "storages", "session_projcache", "sessions"));
+    const candidateFiles = [
+      resolve(projcacheSessionsDir, `${sid}.json`),
+      resolve(projcacheSessionsDir, `${encodedId}.json`)
+    ];
+    for (const cf of candidateFiles) {
+      if (cf.startsWith(projcacheSessionsDir + sep)) {
+        try {
+          await rm(cf, { force: true });
+        } catch {}
+      }
+    }
+  } catch {}
+
   return removedAny;
 }
 
 /**
- * 级联物理删除核心引擎：
- * 1. 扫描拓扑，收集 targetSessionId 及其所有的派生子孙 Subagent ID；
- * 2. 活跃会话防护：若包含当前进程会话则强阻断；
- * 3. 在工作区事务中同步剔除所有涉及的会话 ID；
- * 4. 物理删除所有涉及的会话目录；
- * 5. 联动清理内存中的会话实例。
+ * 从工作区注册表、全局归档列表以及 session_projcache 存储域中单事务剔除指定会话 ID（各删除引擎共用）。
  */
-async function deleteSessionCascade(ctx, targetSessionId) {
-  if (!targetSessionId || typeof targetSessionId !== "string") {
-    throw new Error("sessionId 必填且必须为字符串");
-  }
-  const sid = targetSessionId.trim();
-
-  // 1. 扫描拓扑并收集子孙会话
-  const { childrenMap } = await scanSessionTopology();
-  const allToDelete = collectDescendantSessionIds(sid, childrenMap);
-
-  // 2. 活跃会话保护
-  const activeSessionId = process.env.DSH_SESSION_ID;
-  if (activeSessionId && allToDelete.includes(activeSessionId)) {
-    throw new Error("无法删除当前正在运行的活跃会话");
-  }
-
-  // 3. 在工作区事务中剔除
+async function stripSessionIdsFromRegistry(ctx, sessionIds) {
+  const stripSet = new Set(sessionIds.map(String));
   await mutateWorkspaceState(ctx, async (state, table, g) => {
-    const deleteSet = new Set(allToDelete);
     for (const [wid, rec] of table.entries()) {
       const curIds = rec.sessionIds || [];
-      const nextIds = curIds.filter((id) => !deleteSet.has(String(id)));
+      const nextIds = curIds.filter((id) => !stripSet.has(String(id)));
       if (nextIds.length !== curIds.length) {
         await table.update(wid, (cur) => ({
           ...cur,
@@ -619,50 +616,91 @@ async function deleteSessionCascade(ctx, targetSessionId) {
       }
     }
     const archived = (state.archivedSessionIds || []).map(String);
-    const nextArchived = archived.filter((id) => !deleteSet.has(id));
+    const nextArchived = archived.filter((id) => !stripSet.has(id));
     if (nextArchived.length !== archived.length) {
-      const next = { ...state, archivedSessionIds: nextArchived };
-      try { await g.set(next); } catch {}
+      try { await g.set({ ...state, archivedSessionIds: nextArchived }); } catch {}
     }
   });
 
-  // 4. 物理删除磁盘文件
-  for (const delId of allToDelete) {
-    await removeSessionPhysicalDir(delId);
-  }
-
-  // 5. 联动清理内存活跃实例
+  // 同步从 session_projcache 存储域的 sessions 内存表与写链中删除
   try {
-    const sessions = ctx.get("sessions");
-    if (sessions && typeof sessions.delete === "function") {
-      for (const delId of allToDelete) {
-        sessions.delete(delId);
+    const projDomain = ctx.storageDomain?.get?.("session_projcache");
+    if (projDomain) {
+      const table = projDomain.table("sessions");
+      if (table && typeof table.delete === "function") {
+        for (const sid of sessionIds) {
+          try {
+            await table.delete(String(sid).trim());
+          } catch {}
+        }
       }
     }
   } catch {}
+}
+
+/**
+ * 批量物理删除会话目录，并联动清理内存中的会话实例。
+ */
+async function removeSessionsPhysically(ctx, sessionIds) {
+  for (const sid of sessionIds) {
+    await removeSessionPhysicalDir(sid);
+  }
+  try {
+    const sessions = ctx.get("sessions");
+    if (sessions && typeof sessions.delete === "function") {
+      for (const sid of sessionIds) sessions.delete(sid);
+    }
+  } catch {}
+}
+
+/**
+ * 级联物理删除核心引擎：
+ * 1. 扫描拓扑，收集 targetSessionId 及其所有的派生子孙 Subagent ID；
+ * 2. 活跃会话防护：若包含当前进程会话则强阻断；
+ * 3. 单事务剔除注册表/归档 + 物理删除 + 内存清理。
+ */
+async function deleteSessionCascade(ctx, targetSessionId) {
+  if (!targetSessionId || typeof targetSessionId !== "string") {
+    throw new Error("sessionId 必填且必须为字符串");
+  }
+  const sid = targetSessionId.trim();
+
+  const { childrenMap } = await scanSessionTopology();
+  const allToDelete = collectDescendantSessionIds(sid, childrenMap);
+
+  const activeSessionId = process.env.DSH_SESSION_ID;
+  if (activeSessionId && allToDelete.includes(activeSessionId)) {
+    throw new Error("无法删除当前正在运行的活跃会话");
+  }
+
+  await stripSessionIdsFromRegistry(ctx, allToDelete);
+  await removeSessionsPhysically(ctx, allToDelete);
 
   return allToDelete;
 }
 
 /**
- * 批量级联物理删除一组会话。
+ * 批量级联物理删除一组会话：只扫描一次拓扑，逐目标收集子孙闭包
+ * （含活跃会话的目标整组跳过，与单删语义一致），随后单事务统一剔除并批量落盘删除。
  */
 async function deleteSessionListCascade(ctx, sessionIds) {
-  const deletedSet = new Set();
-  for (const sid of sessionIds) {
-    if (deletedSet.has(String(sid))) continue;
-    try {
-      const cascadeIds = await deleteSessionCascade(ctx, String(sid));
-      for (const cid of cascadeIds) deletedSet.add(cid);
-    } catch (err) {
-      // 若遇到当前活跃会话阻断，跳过并继续其余
-      if (String(err.message || "").includes("无法删除当前正在运行的活跃会话")) {
-        continue;
-      }
-      throw err;
-    }
+  const targets = [...new Set((sessionIds || []).map((s) => String(s).trim()).filter(Boolean))];
+  if (targets.length === 0) return [];
+
+  const { childrenMap } = await scanSessionTopology();
+  const activeSessionId = process.env.DSH_SESSION_ID;
+  const allToDelete = new Set();
+  for (const target of targets) {
+    const cascade = collectDescendantSessionIds(target, childrenMap);
+    if (activeSessionId && cascade.includes(activeSessionId)) continue;
+    for (const id of cascade) allToDelete.add(id);
   }
-  return [...deletedSet];
+  if (allToDelete.size === 0) return [];
+
+  const ids = [...allToDelete];
+  await stripSessionIdsFromRegistry(ctx, ids);
+  await removeSessionsPhysically(ctx, ids);
+  return ids;
 }
 
 /**
@@ -679,40 +717,74 @@ async function cleanOrphanSubagents(ctx) {
   const orphanIds = validOrphans.map((o) => o.id);
   const freedBytes = validOrphans.reduce((sum, o) => sum + (o.sizeBytes || 0), 0);
 
-  // 清理工作区和归档中的潜在残留
-  await mutateWorkspaceState(ctx, async (state, table, g) => {
-    const orphanSet = new Set(orphanIds);
-    for (const [wid, rec] of table.entries()) {
-      const curIds = rec.sessionIds || [];
-      const nextIds = curIds.filter((id) => !orphanSet.has(String(id)));
-      if (nextIds.length !== curIds.length) {
-        await table.update(wid, (cur) => ({
-          ...cur,
-          sessionIds: nextIds,
-          updatedAt: new Date().toISOString()
-        }));
-      }
-    }
-    const archived = (state.archivedSessionIds || []).map(String);
-    const nextArchived = archived.filter((id) => !orphanSet.has(id));
-    if (nextArchived.length !== archived.length) {
-      const next = { ...state, archivedSessionIds: nextArchived };
-      try { await g.set(next); } catch {}
-    }
-  });
+  await stripSessionIdsFromRegistry(ctx, orphanIds);
+  await removeSessionsPhysically(ctx, orphanIds);
 
-  // 物理删除磁盘目录
-  for (const oid of orphanIds) {
-    await removeSessionPhysicalDir(oid);
+  return { cleanedCount: orphanIds.length, cleanedIds: orphanIds, freedBytes };
+}
+
+/**
+ * 孤儿 projcache 投影元数据清理引擎：
+ * 扫描 ~/.dsh/storages/session_projcache/sessions/ 目录，
+ * 清理底层 sessions 物理目录已不存在（且非当前活跃会话）的残留 .json 文件与存储域记录。
+ */
+async function cleanOrphanProjcache(ctx) {
+  const projcacheSessionsDir = resolve(join(dshHome(), "storages", "session_projcache", "sessions"));
+  let entries = [];
+  try {
+    entries = await readdir(projcacheSessionsDir, { withFileTypes: true });
+  } catch {
+    return { cleanedCount: 0, cleanedIds: [], freedBytes: 0 };
   }
 
-  // 清理内存
+  const sessionsRoot = resolve(join(dshHome(), "sessions"));
+  const activeSessionId = process.env.DSH_SESSION_ID;
+
+  // 收集磁盘上真实存在的物理会话目录集合（同时包含原始名称与 URL 安全编码名称）
+  const existingSessionDirs = new Set();
   try {
-    const sessions = ctx.get("sessions");
-    if (sessions && typeof sessions.delete === "function") {
-      for (const oid of orphanIds) sessions.delete(oid);
+    const scopes = await readdir(sessionsRoot, { withFileTypes: true });
+    for (const scope of scopes) {
+      if (!scope.isDirectory()) continue;
+      const projectPath = join(sessionsRoot, scope.name);
+      try {
+        const sDirs = await readdir(projectPath, { withFileTypes: true });
+        for (const s of sDirs) {
+          if (s.isDirectory()) {
+            existingSessionDirs.add(s.name);
+          }
+        }
+      } catch {}
     }
   } catch {}
+
+  const orphanIds = [];
+  let freedBytes = 0;
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    const sid = entry.name.slice(0, -5);
+    const encodedId = encodeSegment(sid);
+
+    // 当前活跃会话严格保护
+    if (activeSessionId && (sid === activeSessionId || encodedId === activeSessionId)) continue;
+
+    // 检查磁盘上是否存在对应的物理会话目录
+    const existsPhysically = existingSessionDirs.has(sid) || existingSessionDirs.has(encodedId);
+    if (!existsPhysically) {
+      const filePath = join(projcacheSessionsDir, entry.name);
+      try {
+        const st = await stat(filePath);
+        freedBytes += st.size || 0;
+        await rm(filePath, { force: true });
+        orphanIds.push(sid);
+      } catch {}
+    }
+  }
+
+  if (orphanIds.length > 0) {
+    await stripSessionIdsFromRegistry(ctx, orphanIds);
+  }
 
   return { cleanedCount: orphanIds.length, cleanedIds: orphanIds, freedBytes };
 }
@@ -773,8 +845,11 @@ async function handleUnarchiveAll(ctx, req, res) {
   sendJson(res, 200, { ok: true, restored });
 }
 
-/** 永久删除单条归档会话（级联物理删除关联所有 Subagents）。 */
-async function handleDelete(ctx, req, res) {
+/**
+ * 单条会话级联物理删除（关联所有 Subagents）。
+ * /archive/delete（归档会话删除）与 /session/deleteDirect（普通会话直达删除）共用。
+ */
+async function handleDeleteSession(ctx, req, res) {
   const raw = await parseJsonBody(req);
   const sessionId = typeof raw.sessionId === "string" ? raw.sessionId.trim() : "";
   if (!sessionId) return sendJson(res, 200, { ok: false, error: "sessionId 必填" });
@@ -820,28 +895,73 @@ async function handleDeleteAll(ctx, req, res) {
   }
 }
 
-/** 普通会话直达物理删除（无需先移入归档，级联清理所有子孙 Subagents）。 */
-async function handleDeleteDirect(ctx, req, res) {
-  const raw = await parseJsonBody(req);
-  const sessionId = typeof raw.sessionId === "string" ? raw.sessionId.trim() : "";
-  if (!sessionId) return sendJson(res, 200, { ok: false, error: "sessionId 必填" });
-
+/** 一键扫描并清理孤儿 Subagents 及孤儿 projcache 缓存。 */
+async function handleCleanOrphans(ctx, req, res) {
   try {
-    const deleted = await deleteSessionCascade(ctx, sessionId);
-    sendJson(res, 200, { ok: true, deleted });
+    const orphanSubagents = await cleanOrphanSubagents(ctx);
+    const orphanProjcache = await cleanOrphanProjcache(ctx);
+    sendJson(res, 200, {
+      ok: true,
+      cleanedCount: orphanSubagents.cleanedCount + orphanProjcache.cleanedCount,
+      cleanedIds: [...orphanSubagents.cleanedIds, ...orphanProjcache.cleanedIds],
+      freedBytes: orphanSubagents.freedBytes + orphanProjcache.freedBytes,
+      orphanSubagents,
+      orphanProjcache
+    });
   } catch (err) {
     sendJson(res, 200, { ok: false, error: err.message || String(err) });
   }
 }
 
-/** 一键扫描并清理孤儿 Subagents。 */
-async function handleCleanOrphans(ctx, req, res) {
+/** 一键扫描并清理孤儿 projcache 投影元数据缓存。 */
+async function handleCleanProjcache(ctx, req, res) {
   try {
-    const result = await cleanOrphanSubagents(ctx);
+    const result = await cleanOrphanProjcache(ctx);
     sendJson(res, 200, { ok: true, ...result });
   } catch (err) {
     sendJson(res, 200, { ok: false, error: err.message || String(err) });
   }
+}
+
+/**
+ * 清理失效归档（幽灵归档）：
+ * 会话日志已被物理删除（如历史级联删除、DSH 升级）后，其 ID 仍残留在全局归档列表里，
+ * 但 host 会话列表已不再返回它们，任何 UI 都无法再展示/打开。
+ * 从权威 host 会话列表（sessionController.list）取存活 ID 集，剔除归档列表中的失效项，
+ * 并同步清理残留的孤儿 projcache 缓存。
+ * body.aliveIds 仅作 fallback（sessionController 不可用时）。
+ */
+async function handlePruneStaleArchives(ctx, req, res) {
+  // 无条件消费请求体（未读取的 body 会阻碍连接复用），aliveIds 仅作 fallback 用
+  const raw = await parseJsonBody(req);
+  let alive = null;
+  try {
+    const sc = ctx.get("sessionController");
+    if (sc && typeof sc.list === "function") {
+      const items = await sc.list();
+      alive = new Set((items || []).map((it) => String((it && (it.sessionId || it.id)) || "")));
+      if (alive.size === 0) alive = null;
+    }
+  } catch { /* fallback below */ }
+  if (!alive) {
+    if (Array.isArray(raw.aliveIds)) {
+      alive = new Set(raw.aliveIds.map(String).filter(Boolean));
+    }
+  }
+  if (!alive || alive.size === 0) {
+    return sendJson(res, 200, { ok: false, error: "无法读取 host 会话列表" });
+  }
+  let pruned = [];
+  await mutateWorkspaceState(ctx, async (state, table, g) => {
+    const archived = (state.archivedSessionIds || []).map(String);
+    const stale = archived.filter((id) => !alive.has(id));
+    if (stale.length === 0) return;
+    pruned = stale;
+    const next = archived.filter((id) => alive.has(id));
+    await g.set({ ...state, archivedSessionIds: next });
+  });
+  const orphanProjcache = await cleanOrphanProjcache(ctx);
+  sendJson(res, 200, { ok: true, pruned, orphanProjcache });
 }
 
 function apply(ctx) {
@@ -858,15 +978,17 @@ function apply(ctx) {
         if (head === "open-ide" && req.method === "POST") return await handleOpenIde(req, res);
         if (head === "session" && req.method === "POST") {
           const sub = rest[1];
-          if (sub === "deleteDirect") return await handleDeleteDirect(ctx, req, res);
+          if (sub === "deleteDirect") return await handleDeleteSession(ctx, req, res);
         }
         if (head === "archive" && req.method === "POST") {
           const sub = rest[1];
           if (sub === "unarchive") return await handleUnarchive(ctx, req, res);
           if (sub === "unarchiveAll") return await handleUnarchiveAll(ctx, req, res);
-          if (sub === "delete") return await handleDelete(ctx, req, res);
+          if (sub === "delete") return await handleDeleteSession(ctx, req, res);
           if (sub === "deleteAll") return await handleDeleteAll(ctx, req, res);
           if (sub === "cleanOrphans") return await handleCleanOrphans(ctx, req, res);
+          if (sub === "cleanProjcache") return await handleCleanProjcache(ctx, req, res);
+          if (sub === "pruneStale") return await handlePruneStaleArchives(ctx, req, res);
         }
         sendJson(res, 404, { ok: false, error: "not found" });
       } catch (error) {
