@@ -892,6 +892,66 @@ async function fetchChannelDetails(channelId, userId, sessionCookie, targetModel
   }
   return null;
 }
+async function fetchPriceFluctuation(userId, sessionCookie, accessToken) {
+  const token = (accessToken || sessionCookie || "").trim();
+  const uid = (userId || "").trim();
+  if (!uid && !token) {
+    return { pendingCount: 0, unseenCount: 0, totalCount: 0, authError: false };
+  }
+  const headers = buildWebHeaders(uid || void 0, token || void 0);
+  const url = "https://a6api.com/api/marketplace/price-notices";
+  try {
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(8e3) });
+    if (res.status === 401 || res.status === 403) {
+      console.warn("[dsh-a6api] fetchPriceFluctuation auth failed", res.status);
+      return { pendingCount: 0, unseenCount: 0, totalCount: 0, authError: true };
+    }
+    if (!res.ok) {
+      console.warn("[dsh-a6api] fetchPriceFluctuation HTTP", res.status);
+      return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+    }
+    const json = await res.json().catch(() => null);
+    if (!json) return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+    if (json.success === false) return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+    let arr = [];
+    if (Array.isArray(json)) arr = json;
+    else if (Array.isArray(json.data)) arr = json.data;
+    else if (Array.isArray(json.data?.notices)) arr = json.data.notices;
+    else if (Array.isArray(json.data?.items)) arr = json.data.items;
+    else if (Array.isArray(json.notices)) arr = json.notices;
+    else if (Array.isArray(json.items)) arr = json.items;
+    const pickWithPresent = (keys) => {
+      for (const k of keys) {
+        const v = json?.data?.[k] ?? json?.[k];
+        if (v !== void 0 && v !== null) {
+          const n = Number(v);
+          if (!Number.isNaN(n)) return { value: n, present: true };
+        }
+      }
+      return { value: 0, present: false };
+    };
+    const pendingPick = pickWithPresent(["pendingCount", "pending_count", "pending", "openCount"]);
+    const unseenPick = pickWithPresent(["unseenCount", "unseen_count", "unseen", "has_unseen_count"]);
+    let pending = pendingPick.value;
+    let unseen = unseenPick.value;
+    const total = arr.length;
+    if (!pendingPick.present && arr.length > 0) {
+      const counted = arr.filter((n) => {
+        const s = String(n.state || n.status || "").toLowerCase();
+        return s === "open" || s === "pending" || n.pending === true;
+      }).length;
+      const hasState = arr.some((n) => n.state !== void 0 || n.status !== void 0);
+      if (hasState) pending = counted;
+    }
+    if (!unseenPick.present && arr.length > 0) {
+      unseen = arr.filter((n) => n.has_unseen === true || n.hasUnseen === true || n.unseen === true || n.is_unread === true).length;
+    }
+    return { pendingCount: pending, unseenCount: unseen, totalCount: total, notices: arr };
+  } catch (err) {
+    console.warn("[dsh-a6api] fetchPriceFluctuation error", err);
+    return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+  }
+}
 
 // src/server/probe.ts
 var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -1493,6 +1553,17 @@ function apply(ctx) {
               await syncToDshSettings(baseURL, modelIds);
               const dshConfiguredModels = await getDshConfiguredModels();
               return sendJson(res, 200, { ok: true, dshConfiguredModels });
+            }
+            if (pathname === "/price-fluctuation" && (req.method === "GET" || req.method === "HEAD")) {
+              const config = await readPluginConfig();
+              const token = config.accessToken || config.sessionCookie || "";
+              if (!token || !config.userId) {
+                return sendJson(res, 200, { ok: true, data: { pendingCount: 0, unseenCount: 0, totalCount: 0, hasAuth: false, authError: false, updatedAt: Date.now() } });
+              }
+              const result = await fetchPriceFluctuation(config.userId, token, token);
+              const { notices, ...counts } = result;
+              const hasAuth = !counts.authError;
+              return sendJson(res, 200, { ok: true, data: { pendingCount: counts.pendingCount, unseenCount: counts.unseenCount, totalCount: counts.totalCount, hasAuth, authError: Boolean(counts.authError), updatedAt: Date.now() } });
             }
             return sendJson(res, 404, { ok: false, error: "Not found" });
           } catch (err) {

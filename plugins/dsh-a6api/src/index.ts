@@ -1,4 +1,4 @@
-import { fetchBalance, fetchTokenModels, fetchRecentLogs } from './server/a6api-client.js';
+import { fetchBalance, fetchTokenModels, fetchRecentLogs, fetchPriceFluctuation } from './server/a6api-client.js';
 import { getKnownMerchantsFromLogs, probeSingleModel } from './server/probe.js';
 import { resolveModelMeta } from './server/catalog.js';
 import {
@@ -287,6 +287,20 @@ export function apply(ctx: any): void {
 
               const dshConfiguredModels = await getDshConfiguredModels();
               return sendJson(res, 200, { ok: true, dshConfiguredModels });
+            }
+
+            // GET /price-fluctuation — 轻量价格波动条数（待处理 n），仅回传计数
+            if (pathname === '/price-fluctuation' && (req.method === 'GET' || req.method === 'HEAD')) {
+              const config = await readPluginConfig();
+              const token = config.accessToken || config.sessionCookie || '';
+              if (!token || !config.userId) {
+                return sendJson(res, 200, { ok: true, data: { pendingCount: 0, unseenCount: 0, totalCount: 0, hasAuth: false, authError: false, updatedAt: Date.now() } });
+              }
+              const result = await fetchPriceFluctuation(config.userId, token, token);
+              const { notices, ...counts } = result as any;
+              // 401/403 时 authError=true，客户端可区分“未配置”与“失效”
+              const hasAuth = !counts.authError;
+              return sendJson(res, 200, { ok: true, data: { pendingCount: counts.pendingCount, unseenCount: counts.unseenCount, totalCount: counts.totalCount, hasAuth, authError: Boolean(counts.authError), updatedAt: Date.now() } });
             }
 
             return sendJson(res, 404, { ok: false, error: 'Not found' });

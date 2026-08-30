@@ -4,6 +4,7 @@ import type {
   BalanceInfo,
   ModelCardData,
   ApiRoutingLogItem,
+  PriceFluctuationState,
 } from '../types.js';
 
 export interface StoreState {
@@ -15,6 +16,7 @@ export interface StoreState {
   recentLogs: ApiRoutingLogItem[];
   probingModelNames: Set<string>;
   error: string | null;
+  priceFluctuation: PriceFluctuationState;
 }
 
 type Listener = () => void;
@@ -34,10 +36,12 @@ class A6ApiStore {
     recentLogs: [],
     probingModelNames: new Set(),
     error: null,
+    priceFluctuation: { pendingCount: 0, unseenCount: 0, totalCount: 0, updatedAt: null } as any,
   };
 
   private listeners: Set<Listener> = new Set();
   private autoRefreshTimer: any = null;
+  private pricePollTimer: any = null;
 
   constructor() {
     this.startAutoRefresh();
@@ -79,6 +83,13 @@ class A6ApiStore {
             this.state.recentLogs = data.recentLogs;
           }
           this.state.error = null;
+          // 若已配 token，顺带刷新价格波动（防重复：10s 内已拉过则跳过）
+          if (this.state.config?.hasToken) {
+            const last = (this.state.priceFluctuation as any)?.updatedAt;
+            if (!last || Date.now() - last > 10000) {
+              this.fetchPriceFluctuation().catch(() => {});
+            }
+          }
         }
       }
     } catch (err: any) {
@@ -119,6 +130,40 @@ class A6ApiStore {
           this.state.recentLogs = json.recentLogs;
         }
         this.notify();
+      }
+    } catch {}
+  }
+
+  public async fetchPriceFluctuation(): Promise<void> {
+    try {
+      const res = await fetch('/api/dsh-a6api/price-fluctuation');
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.data) {
+          const d = json.data;
+          const hasAuth = d.hasAuth !== false && !d.authError;
+          // 服务端已区分“未配置/失效”与“有待处理 0”，客户端尊重 hasAuth
+          if (!hasAuth) {
+            // 失效或未配置时，显示 -- 而非 0（由 UI 层判断），但仍更新时间避免频繁重试
+            const next = { pendingCount: 0, unseenCount: 0, totalCount: 0, updatedAt: Date.now(), hasAuth: false, authError: Boolean(d.authError) } as any;
+            if (JSON.stringify(next) !== JSON.stringify(this.state.priceFluctuation)) {
+              this.state.priceFluctuation = next;
+              this.notify();
+            }
+            return;
+          }
+          const pending = Number(d.pendingCount ?? 0);
+          const unseen = Number(d.unseenCount ?? 0);
+          const total = Number(d.totalCount ?? 0);
+          const next = { pendingCount: pending, unseenCount: unseen, totalCount: total, updatedAt: Date.now(), hasAuth: true, authError: false } as any;
+          if (pending !== (this.state.priceFluctuation as any).pendingCount || unseen !== (this.state.priceFluctuation as any).unseenCount || (this.state.priceFluctuation as any).hasAuth === false || (this.state.priceFluctuation as any).updatedAt === null) {
+            this.state.priceFluctuation = next;
+            this.notify();
+          } else if ((this.state.priceFluctuation as any).updatedAt === null) {
+            this.state.priceFluctuation = next;
+            this.notify();
+          }
+        }
       }
     } catch {}
   }
@@ -255,6 +300,26 @@ class A6ApiStore {
     this.autoRefreshTimer = setInterval(() => {
       this.refreshBalance().catch(() => {});
     }, 60000);
+    // 价格波动轻量轮询 60s（与余额同频，便于及时变红）
+    if (this.pricePollTimer) clearInterval(this.pricePollTimer);
+    this.pricePollTimer = setInterval(() => {
+      if (this.state.config?.hasToken) {
+        this.fetchPriceFluctuation().catch(() => {});
+      }
+    }, 60 * 1000);
+  }
+
+  public stopAutoRefresh() {
+    if (this.autoRefreshTimer) { clearInterval(this.autoRefreshTimer); this.autoRefreshTimer = null; }
+    if (this.pricePollTimer) { clearInterval(this.pricePollTimer); this.pricePollTimer = null; }
+  }
+
+  public initPricePolling() {
+    if (this.pricePollTimer) return;
+    this.startAutoRefresh();
+    if (this.state.config?.hasToken) {
+      this.fetchPriceFluctuation().catch(() => {});
+    }
   }
 }
 

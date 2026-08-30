@@ -168,3 +168,12 @@ export interface A6ApiStateResponse {
   dshConfiguredModels: string[];
   recentLogs?: ApiRoutingLogItem[];
 }
+// 价格波动胶囊（轻量监听）
+export interface PriceFluctuationState {
+  pendingCount: number;
+  unseenCount: number;
+  totalCount: number;
+  updatedAt: number | null;
+  hasAuth?: boolean;
+  authError?: boolean;
+}

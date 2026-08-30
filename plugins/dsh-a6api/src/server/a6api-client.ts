@@ -475,3 +475,80 @@ export async function fetchChannelDetails(
 
   return null;
 }
+/** 轻量拉取价格波动条数（仅 pending/unseen） */
+export async function fetchPriceFluctuation(
+  userId?: string,
+  sessionCookie?: string,
+  accessToken?: string,
+): Promise<{ pendingCount: number; unseenCount: number; totalCount: number; notices?: any[]; authError?: boolean }> {
+  const token = (accessToken || sessionCookie || '').trim();
+  const uid = (userId || '').trim();
+  if (!uid && !token) {
+    return { pendingCount: 0, unseenCount: 0, totalCount: 0, authError: false };
+  }
+  const headers = buildWebHeaders(uid || undefined, token || undefined);
+  const url = 'https://a6api.com/api/marketplace/price-notices';
+  try {
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
+    if (res.status === 401 || res.status === 403) {
+      console.warn('[dsh-a6api] fetchPriceFluctuation auth failed', res.status);
+      return { pendingCount: 0, unseenCount: 0, totalCount: 0, authError: true };
+    }
+    if (!res.ok) {
+      console.warn('[dsh-a6api] fetchPriceFluctuation HTTP', res.status);
+      return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+    }
+    const json: any = await res.json().catch(() => null);
+    if (!json) return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+    if (json.success === false) return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+
+    // 兼容多种返回形态
+    let arr: any[] = [];
+    if (Array.isArray(json)) arr = json;
+    else if (Array.isArray(json.data)) arr = json.data;
+    else if (Array.isArray(json.data?.notices)) arr = json.data.notices;
+    else if (Array.isArray(json.data?.items)) arr = json.data.items;
+    else if (Array.isArray(json.notices)) arr = json.notices;
+    else if (Array.isArray(json.items)) arr = json.items;
+
+    // 区分“字段缺失” vs “显式为 0”——仅缺失时才兜底
+    const pickWithPresent = (keys: string[]): { value: number; present: boolean } => {
+      for (const k of keys) {
+        const v = json?.data?.[k] ?? json?.[k];
+        if (v !== undefined && v !== null) {
+          const n = Number(v);
+          if (!Number.isNaN(n)) return { value: n, present: true };
+        }
+      }
+      return { value: 0, present: false };
+    };
+    const pendingPick = pickWithPresent(['pendingCount', 'pending_count', 'pending', 'openCount']);
+    const unseenPick = pickWithPresent(['unseenCount', 'unseen_count', 'unseen', 'has_unseen_count']);
+    let pending = pendingPick.value;
+    let unseen = unseenPick.value;
+    const total = arr.length;
+
+    // 仅在计数键缺失时才从数组兜底，避免覆盖 API 显式 0
+    if (!pendingPick.present && arr.length > 0) {
+      const counted = arr.filter((n: any) => {
+        const s = String(n.state || n.status || '').toLowerCase();
+        return s === 'open' || s === 'pending' || n.pending === true;
+      }).length;
+      // 仅当数组有可识别的 state 时才用 counted，否则保持 0（不猜测）
+      const hasState = arr.some((n: any) => n.state !== undefined || n.status !== undefined);
+      if (hasState) pending = counted;
+      // 若无 state 字段且 pending 缺失，保持 0，不再退化为 total
+    }
+    if (!unseenPick.present && arr.length > 0) {
+      unseen = arr.filter((n: any) => n.has_unseen === true || n.hasUnseen === true || n.unseen === true || n.is_unread === true).length;
+    }
+
+    // 调试日志已移除（避免未脱敏透传）；如需本地调试可临时开启 DEBUG 环境变量
+    // if (process.env.DEBUG) console.log('[dsh-a6api] price fluctuation sample', arr[0]);
+
+    return { pendingCount: pending, unseenCount: unseen, totalCount: total, notices: arr };
+  } catch (err) {
+    console.warn('[dsh-a6api] fetchPriceFluctuation error', err);
+    return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+  }
+}

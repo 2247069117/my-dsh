@@ -45,10 +45,12 @@ var A6ApiStore = class {
     dshConfiguredModels: [],
     recentLogs: [],
     probingModelNames: /* @__PURE__ */ new Set(),
-    error: null
+    error: null,
+    priceFluctuation: { pendingCount: 0, unseenCount: 0, totalCount: 0, updatedAt: null }
   };
   listeners = /* @__PURE__ */ new Set();
   autoRefreshTimer = null;
+  pricePollTimer = null;
   constructor() {
     this.startAutoRefresh();
   }
@@ -85,6 +87,13 @@ var A6ApiStore = class {
             this.state.recentLogs = data.recentLogs;
           }
           this.state.error = null;
+          if (this.state.config?.hasToken) {
+            const last = this.state.priceFluctuation?.updatedAt;
+            if (!last || Date.now() - last > 1e4) {
+              this.fetchPriceFluctuation().catch(() => {
+              });
+            }
+          }
         }
       }
     } catch (err) {
@@ -123,6 +132,38 @@ var A6ApiStore = class {
           this.state.recentLogs = json.recentLogs;
         }
         this.notify();
+      }
+    } catch {
+    }
+  }
+  async fetchPriceFluctuation() {
+    try {
+      const res = await fetch("/api/dsh-a6api/price-fluctuation");
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.data) {
+          const d = json.data;
+          const hasAuth = d.hasAuth !== false && !d.authError;
+          if (!hasAuth) {
+            const next2 = { pendingCount: 0, unseenCount: 0, totalCount: 0, updatedAt: Date.now(), hasAuth: false, authError: Boolean(d.authError) };
+            if (JSON.stringify(next2) !== JSON.stringify(this.state.priceFluctuation)) {
+              this.state.priceFluctuation = next2;
+              this.notify();
+            }
+            return;
+          }
+          const pending = Number(d.pendingCount ?? 0);
+          const unseen = Number(d.unseenCount ?? 0);
+          const total = Number(d.totalCount ?? 0);
+          const next = { pendingCount: pending, unseenCount: unseen, totalCount: total, updatedAt: Date.now(), hasAuth: true, authError: false };
+          if (pending !== this.state.priceFluctuation.pendingCount || unseen !== this.state.priceFluctuation.unseenCount || this.state.priceFluctuation.hasAuth === false || this.state.priceFluctuation.updatedAt === null) {
+            this.state.priceFluctuation = next;
+            this.notify();
+          } else if (this.state.priceFluctuation.updatedAt === null) {
+            this.state.priceFluctuation = next;
+            this.notify();
+          }
+        }
       }
     } catch {
     }
@@ -243,6 +284,31 @@ var A6ApiStore = class {
       this.refreshBalance().catch(() => {
       });
     }, 6e4);
+    if (this.pricePollTimer) clearInterval(this.pricePollTimer);
+    this.pricePollTimer = setInterval(() => {
+      if (this.state.config?.hasToken) {
+        this.fetchPriceFluctuation().catch(() => {
+        });
+      }
+    }, 60 * 1e3);
+  }
+  stopAutoRefresh() {
+    if (this.autoRefreshTimer) {
+      clearInterval(this.autoRefreshTimer);
+      this.autoRefreshTimer = null;
+    }
+    if (this.pricePollTimer) {
+      clearInterval(this.pricePollTimer);
+      this.pricePollTimer = null;
+    }
+  }
+  initPricePolling() {
+    if (this.pricePollTimer) return;
+    this.startAutoRefresh();
+    if (this.state.config?.hasToken) {
+      this.fetchPriceFluctuation().catch(() => {
+      });
+    }
   }
 };
 var store = new A6ApiStore();
@@ -920,21 +986,61 @@ var A6ApiSettingsPanel = () => {
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "dsh-a6-container", children: [
     /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "dsh-a6-main-header", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "dsh-a6-header-text", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { className: "dsh-a6-main-title", children: "A6API \u805A\u5408\u7AD9" }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { className: "dsh-a6-main-title", children: "A6api" }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "dsh-a6-main-subtitle", children: "\u805A\u5408\u5168\u7403\u4E3B\u6D41\u4E0E\u9AD8\u6027\u4EF7\u6BD4\u6A21\u578B\uFF0C\u5B9E\u65F6\u76D1\u63A7\u5546\u6237\u6307\u6807\u3001\u4EF7\u683C\u500D\u7387\u4E0E\u8D26\u6237\u8D44\u4EA7\u3002" })
       ] }),
-      state.balance?.hasAccountAuth && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-        "div",
-        {
-          className: "dsh-a6-header-balance-badge",
-          onClick: () => setActiveTab("account"),
-          title: "\u70B9\u51FB\u5207\u6362\u81F3\u300C\u8D26\u6237\u8D44\u4EA7\u300D\u9875\u9762",
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "dsh-a6-hb-label", children: "\u8D26\u6237\u4F59\u989D:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "dsh-a6-hb-amount", children: state.balance.accountBalanceFormatted })
-          ]
-        }
-      )
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "dsh-a6-header-badges", children: [
+        state.balance?.hasAccountAuth && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+          "div",
+          {
+            className: "dsh-a6-header-balance-badge",
+            onClick: () => setActiveTab("account"),
+            title: "\u70B9\u51FB\u5207\u6362\u81F3\u300C\u8D26\u6237\u8D44\u4EA7\u300D\u9875\u9762",
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "dsh-a6-hb-label", children: "\u8D26\u6237\u4F59\u989D:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "dsh-a6-hb-amount", children: state.balance.accountBalanceFormatted })
+            ]
+          }
+        ),
+        (() => {
+          const n = state.priceFluctuation?.pendingCount ?? 0;
+          const pf = state.priceFluctuation;
+          const hasAuth = pf?.hasAuth !== false && !pf?.authError && Boolean(state.config?.hasToken);
+          const isAuthError = Boolean(pf?.authError);
+          const isZero = n === 0;
+          const isDisabled = !hasAuth || isZero;
+          const cls = isDisabled ? !hasAuth ? "dsh-a6-price-pill disabled" : "dsh-a6-price-pill is-zero is-disabled-zero" : "dsh-a6-price-pill has-change";
+          const title = !hasAuth ? isAuthError ? "\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C\u5DF2\u5931\u6548\uFF0C\u8BF7\u524D\u5F80\u57FA\u7840\u914D\u7F6E\u66F4\u65B0" : "\u672A\u914D\u7F6E\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C\uFF0C\u65E0\u6CD5\u83B7\u53D6\u4EF7\u683C\u53D8\u52A8" : isZero ? "\u6682\u65E0\u4EF7\u683C\u53D8\u52A8" : `\u6709 ${n} \u6761\u4EF7\u683C\u53D8\u52A8\u5F85\u5904\u7406\uFF0C\u70B9\u51FB\u524D\u5F80\u5B98\u7F51\u5904\u7406`;
+          const onClick = () => {
+            if (isDisabled) return;
+            window.open("https://a6api.com/console/token", "_blank", "noopener");
+          };
+          const onKeyDown = (e) => {
+            if (isDisabled) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onClick();
+            }
+          };
+          return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+            "div",
+            {
+              className: cls,
+              onClick: isDisabled ? void 0 : onClick,
+              onKeyDown,
+              tabIndex: isDisabled ? -1 : 0,
+              title,
+              role: "button",
+              "aria-disabled": isDisabled,
+              style: isDisabled ? { cursor: "not-allowed" } : void 0,
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "dsh-a6-price-pill-label", children: "\u4EF7\u683C\u6CE2\u52A8\uFF1A" }),
+                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "dsh-a6-price-pill-count", children: !hasAuth ? "--" : n })
+              ]
+            }
+          );
+        })()
+      ] })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "dsh-a6-nav-tabs", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
@@ -1148,6 +1254,13 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
   transition: all 0.15s;
 }
 
+.dsh-a6-header-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .dsh-a6-header-balance-badge:hover {
   border-color: #10b981;
   background: rgba(16, 185, 129, 0.04);
@@ -1156,6 +1269,91 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
 .dsh-a6-hb-label {
   font-size: 12px;
   color: var(--dsw-alias-label-secondary, #64748b);
+}
+
+.dsh-a6-price-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--dsw-alias-border-l2, #e2e8f0);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s;
+  user-select: none;
+  /* \u4E0E\u8D26\u6237\u4F59\u989D\u80F6\u56CA\u7B49\u9AD8\uFF1A\u7EE7\u627F\u540C\u6837\u5185\u8FB9\u8DDD\u4E0E\u884C\u9AD8\uFF0C\u907F\u514D\u89C6\u89C9\u5927\u5C0F\u5DEE\u5F02 */
+  min-height: 28px;
+  box-sizing: border-box;
+}
+
+.dsh-a6-price-pill.is-zero {
+  background: var(--dsw-alias-bg-layer-2, #ffffff);
+  border-color: var(--dsw-alias-border-l2, #e2e8f0);
+  color: var(--dsw-alias-label-secondary, #64748b);
+}
+
+.dsh-a6-price-pill.is-zero:hover {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.dsh-a6-price-pill.is-zero.is-disabled-zero:hover {
+  border-color: var(--dsw-alias-border-l2, #e2e8f0);
+  background: var(--dsw-alias-bg-layer-2, #ffffff);
+}
+
+.dsh-a6-price-pill.has-change {
+  background: var(--dsw-alias-bg-layer-2, #ffffff);
+  border-color: var(--dsw-alias-border-l2, #e2e8f0);
+  color: var(--dsw-alias-label-secondary, #64748b);
+}
+
+.dsh-a6-price-pill.has-change:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.dsh-a6-price-pill.is-disabled-zero {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.dsh-a6-price-pill.disabled {
+  background: var(--dsw-alias-bg-layer-1, rgba(0,0,0,0.04));
+  border-color: var(--dsw-alias-border-l3, #cbd5e1);
+  color: var(--dsw-alias-label-tertiary, #94a3b8);
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.dsh-a6-price-pill-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-secondary, #64748b);
+}
+
+.dsh-a6-price-pill-count {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 8px;
+  text-align: center;
+  line-height: 1;
+}
+
+.dsh-a6-price-pill.is-zero .dsh-a6-price-pill-count {
+  color: #10b981;
+}
+
+.dsh-a6-price-pill.has-change .dsh-a6-price-pill-count {
+  color: #ef4444;
+}
+
+.dsh-a6-price-pill.disabled .dsh-a6-price-pill-count {
+  color: var(--dsw-alias-label-tertiary, #94a3b8);
 }
 
 .dsh-a6-hb-amount {
@@ -2513,6 +2711,15 @@ function apply(ctx) {
   injectStyles();
   if (typeof window === "undefined") return;
   try {
+    setTimeout(() => {
+      try {
+        store.initPricePolling();
+      } catch {
+      }
+    }, 1500);
+  } catch {
+  }
+  try {
     const slots = ctx?.slots || (ctx?.get ? ctx.get("slots") : null);
     if (!slots || typeof slots.inject !== "function") return;
     slots.inject("settings.section", () => {
@@ -2520,8 +2727,8 @@ function apply(ctx) {
         {
           name: "settings.section",
           id: "dsh-a6api",
-          order: 4,
-          label: () => "A6API \u805A\u5408\u7AD9"
+          order: 11,
+          label: () => "A6api"
         },
         A6ApiSettingsPanel
       );

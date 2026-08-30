@@ -54,6 +54,13 @@
   transition: all 0.15s;
 }
 
+.dsh-a6-header-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .dsh-a6-header-balance-badge:hover {
   border-color: #10b981;
   background: rgba(16, 185, 129, 0.04);
@@ -62,6 +69,91 @@
 .dsh-a6-hb-label {
   font-size: 12px;
   color: var(--dsw-alias-label-secondary, #64748b);
+}
+
+.dsh-a6-price-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--dsw-alias-border-l2, #e2e8f0);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s;
+  user-select: none;
+  /* 与账户余额胶囊等高：继承同样内边距与行高，避免视觉大小差异 */
+  min-height: 28px;
+  box-sizing: border-box;
+}
+
+.dsh-a6-price-pill.is-zero {
+  background: var(--dsw-alias-bg-layer-2, #ffffff);
+  border-color: var(--dsw-alias-border-l2, #e2e8f0);
+  color: var(--dsw-alias-label-secondary, #64748b);
+}
+
+.dsh-a6-price-pill.is-zero:hover {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.dsh-a6-price-pill.is-zero.is-disabled-zero:hover {
+  border-color: var(--dsw-alias-border-l2, #e2e8f0);
+  background: var(--dsw-alias-bg-layer-2, #ffffff);
+}
+
+.dsh-a6-price-pill.has-change {
+  background: var(--dsw-alias-bg-layer-2, #ffffff);
+  border-color: var(--dsw-alias-border-l2, #e2e8f0);
+  color: var(--dsw-alias-label-secondary, #64748b);
+}
+
+.dsh-a6-price-pill.has-change:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.dsh-a6-price-pill.is-disabled-zero {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.dsh-a6-price-pill.disabled {
+  background: var(--dsw-alias-bg-layer-1, rgba(0,0,0,0.04));
+  border-color: var(--dsw-alias-border-l3, #cbd5e1);
+  color: var(--dsw-alias-label-tertiary, #94a3b8);
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.dsh-a6-price-pill-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-secondary, #64748b);
+}
+
+.dsh-a6-price-pill-count {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 8px;
+  text-align: center;
+  line-height: 1;
+}
+
+.dsh-a6-price-pill.is-zero .dsh-a6-price-pill-count {
+  color: #10b981;
+}
+
+.dsh-a6-price-pill.has-change .dsh-a6-price-pill-count {
+  color: #ef4444;
+}
+
+.dsh-a6-price-pill.disabled .dsh-a6-price-pill-count {
+  color: var(--dsw-alias-label-tertiary, #94a3b8);
 }
 
 .dsh-a6-hb-amount {

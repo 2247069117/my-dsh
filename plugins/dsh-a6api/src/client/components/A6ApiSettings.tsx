@@ -69,22 +69,60 @@ export const A6ApiSettingsPanel: React.FC = () => {
       {/* 1. Header Title & Description */}
       <div className="dsh-a6-main-header">
         <div className="dsh-a6-header-text">
-          <h2 className="dsh-a6-main-title">A6API 聚合站</h2>
+          <h2 className="dsh-a6-main-title">A6api</h2>
           <p className="dsh-a6-main-subtitle">
             聚合全球主流与高性价比模型，实时监控商户指标、价格倍率与账户资产。
           </p>
         </div>
 
-        {state.balance?.hasAccountAuth && (
-          <div
-            className="dsh-a6-header-balance-badge"
-            onClick={() => setActiveTab('account')}
-            title="点击切换至「账户资产」页面"
-          >
-            <span className="dsh-a6-hb-label">账户余额:</span>
-            <span className="dsh-a6-hb-amount">{state.balance.accountBalanceFormatted}</span>
-          </div>
-        )}
+        <div className="dsh-a6-header-badges">
+          {state.balance?.hasAccountAuth && (
+            <div
+              className="dsh-a6-header-balance-badge"
+              onClick={() => setActiveTab('account')}
+              title="点击切换至「账户资产」页面"
+            >
+              <span className="dsh-a6-hb-label">账户余额:</span>
+              <span className="dsh-a6-hb-amount">{state.balance.accountBalanceFormatted}</span>
+            </div>
+          )}
+          {(() => {
+            const n = state.priceFluctuation?.pendingCount ?? 0;
+            const pf: any = state.priceFluctuation;
+            const hasAuth = pf?.hasAuth !== false && !pf?.authError && Boolean(state.config?.hasToken);
+            const isAuthError = Boolean(pf?.authError);
+            const isZero = n === 0;
+            const isDisabled = !hasAuth || isZero;
+            const cls = isDisabled ? ( !hasAuth ? 'dsh-a6-price-pill disabled' : 'dsh-a6-price-pill is-zero is-disabled-zero') : 'dsh-a6-price-pill has-change';
+            const title = !hasAuth ? (isAuthError ? '系统访问令牌已失效，请前往基础配置更新' : '未配置系统访问令牌，无法获取价格变动') : isZero ? '暂无价格变动' : `有 ${n} 条价格变动待处理，点击前往官网处理`;
+            const onClick = () => {
+              if (isDisabled) return;
+              window.open('https://a6api.com/console/token', '_blank', 'noopener');
+            };
+            const onKeyDown = (e: React.KeyboardEvent) => {
+              if (isDisabled) return;
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            };
+            return (
+              <div
+                className={cls}
+                onClick={isDisabled ? undefined : onClick}
+                onKeyDown={onKeyDown}
+                tabIndex={isDisabled ? -1 : 0}
+                title={title}
+                role="button"
+                aria-disabled={isDisabled}
+                style={isDisabled ? { cursor: 'not-allowed' } : undefined}
+              >
+                <span className="dsh-a6-price-pill-label">价格波动：</span>
+                <span className="dsh-a6-price-pill-count">{!hasAuth ? '--' : n}</span>
+              </div>
+            );
+          })()}
+        </div>
       </div>
 
       {/* 2. Top Navigation Tabs */}

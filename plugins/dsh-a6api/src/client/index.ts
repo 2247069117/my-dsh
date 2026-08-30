@@ -1,5 +1,6 @@
 import { A6ApiSettingsPanel } from './components/A6ApiSettings.js';
 import mainCss from './styles/main.css';
+import { store } from './store.js';
 
 export const name = '@lynn123411/dsh-a6api';
 export const inject = ['slots'];
@@ -18,6 +19,13 @@ function injectStyles() {
 export function apply(ctx: any): void {
   injectStyles();
   if (typeof window === 'undefined') return;
+  // 启动价格波动轻量轮询（后台 60s，与余额同频）
+  try {
+    setTimeout(() => {
+      try { store.initPricePolling(); } catch {}
+    }, 1500);
+  } catch {}
+
 
   try {
     const slots = ctx?.slots || (ctx?.get ? ctx.get('slots') : null);
@@ -28,8 +36,8 @@ export function apply(ctx: any): void {
         {
           name: 'settings.section',
           id: 'dsh-a6api',
-          order: 4,
-          label: () => 'A6API 聚合站',
+          order: 11,
+          label: () => 'A6api',
         },
         A6ApiSettingsPanel,
       );
