@@ -916,8 +916,8 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
         messages: [{ role: "user", content: "1" }],
         max_tokens: 1
       }),
-      // 推理模型(如 grok-4.6)实测单次响应可达 40s+,15s 超时会被频繁掐断导致探测失败
-      signal: AbortSignal.timeout(9e4)
+      // 推理模型(如 grok-4.6)实测单次响应可达 40-90s+,阈值过短会被频繁掐断导致探测失败
+      signal: AbortSignal.timeout(18e4)
     });
     if (res.ok) {
       requestOk = true;
@@ -926,7 +926,12 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
       requestError = `HTTP ${res.status}: ${errText.slice(0, 150)}`;
     }
   } catch (err) {
-    requestError = err?.message || String(err);
+    const raw = err?.message || String(err);
+    if (raw.includes("aborted due to timeout") || err?.name === "TimeoutError") {
+      requestError = "\u63A2\u6D4B\u8D85\u65F6(\u9608\u503C180\u79D2) \u2014 \u63A8\u7406\u6A21\u578B\u54CD\u5E94\u8F83\u6162,\u5DF2\u4FDD\u7559\u4E0A\u6B21\u5546\u6237\u6570\u636E,\u8BF7\u7A0D\u540E\u91CD\u8BD5";
+    } else {
+      requestError = raw;
+    }
   }
   const durationMs = Date.now() - startTime;
   if (userId || accessToken) {

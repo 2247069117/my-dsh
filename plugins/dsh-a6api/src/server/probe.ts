@@ -44,8 +44,8 @@ export async function probeSingleModel(
         messages: [{ role: 'user', content: '1' }],
         max_tokens: 1,
       }),
-      // 推理模型(如 grok-4.6)实测单次响应可达 40s+,15s 超时会被频繁掐断导致探测失败
-      signal: AbortSignal.timeout(90000),
+      // 推理模型(如 grok-4.6)实测单次响应可达 40-90s+,阈值过短会被频繁掐断导致探测失败
+      signal: AbortSignal.timeout(180000),
     });
 
     if (res.ok) {
@@ -55,7 +55,13 @@ export async function probeSingleModel(
       requestError = `HTTP ${res.status}: ${errText.slice(0, 150)}`;
     }
   } catch (err: any) {
-    requestError = err?.message || String(err);
+    const raw = err?.message || String(err);
+    // 超时错误英文原文对用户不友好,转为中文提示
+    if (raw.includes('aborted due to timeout') || err?.name === 'TimeoutError') {
+      requestError = '探测超时(阈值180秒) — 推理模型响应较慢,已保留上次商户数据,请稍后重试';
+    } else {
+      requestError = raw;
+    }
   }
 
   const durationMs = Date.now() - startTime;
