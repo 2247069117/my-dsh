@@ -167,7 +167,7 @@ var A6ApiStore = class {
               ...m,
               probeStatus: json?.result?.success ? "success" : "idle",
               probeLatencyMs: json?.result?.durationMs,
-              probeError: void 0,
+              probeError: json?.result?.success ? "\u63A2\u6D4B\u6210\u529F,\u4F46\u672A\u6355\u83B7\u5546\u6237\u4FE1\u606F(\u9700\u914D\u7F6E\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C)" : void 0,
               lastProbedAt: Date.now()
             } : m
           );
@@ -200,8 +200,9 @@ var A6ApiStore = class {
   }
   async probeAll() {
     const allNames = this.state.models.map((m) => m.model_name);
-    for (const name2 of allNames) {
-      await this.probeModel(name2);
+    const CONCURRENCY = 3;
+    for (let i = 0; i < allNames.length; i += CONCURRENCY) {
+      await Promise.all(allNames.slice(i, i + CONCURRENCY).map((n) => this.probeModel(n)));
     }
   }
   async toggleDshModel(modelName) {
@@ -338,7 +339,15 @@ var MerchantCard = ({ model }) => {
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "dsh-a6-price-btm", title: "\u7F13\u5B58\u5199 (1M)", children: merchant.cache_write_price_cny })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-a6-ratio-pill", title: "\u5B9E\u65F6\u500D\u7387\u6BD4\u5B98\u65B9\u4EF7", children: ratioText })
-      ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-a6-bar-pricing unprobed", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-a6-unprobed-hint", children: isProbing ? "\u5546\u5BB6\u63A2\u6D4B\u4E2D..." : "\u5C1A\u672A\u63A2\u6D4B\u5546\u5BB6" }) }),
+      ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-a6-bar-pricing unprobed", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "div",
+        {
+          className: `dsh-a6-unprobed-hint ${model.probeError ? "error" : ""}`,
+          "data-tooltip": model.probeError || void 0,
+          "data-tooltip-pos": "down",
+          children: isProbing ? "\u5546\u5BB6\u63A2\u6D4B\u4E2D..." : model.probeError ? "\u63A2\u6D4B\u5931\u8D25" : "\u5C1A\u672A\u63A2\u6D4B\u5546\u5BB6"
+        }
+      ) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-a6-bar-uptime", children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-a6-uptime-row", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "dsh-a6-uptime-label", children: "\u5B9E\u65F6" }),
@@ -1391,6 +1400,11 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
 .dsh-a6-bar-pricing.unprobed {
   color: var(--dsw-alias-label-tertiary, #94a3b8);
   font-size: 12px;
+}
+
+.dsh-a6-unprobed-hint.error {
+  color: #dc2626;
+  font-weight: 600;
 }
 
 .dsh-a6-price-col {

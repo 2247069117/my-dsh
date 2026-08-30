@@ -311,6 +311,11 @@
   font-size: 12px;
 }
 
+.dsh-a6-unprobed-hint.error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 .dsh-a6-price-col {
   display: flex;
   flex-direction: column;

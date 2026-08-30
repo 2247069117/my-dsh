@@ -916,7 +916,8 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
         messages: [{ role: "user", content: "1" }],
         max_tokens: 1
       }),
-      signal: AbortSignal.timeout(15e3)
+      // 推理模型(如 grok-4.6)实测单次响应可达 40s+,15s 超时会被频繁掐断导致探测失败
+      signal: AbortSignal.timeout(9e4)
     });
     if (res.ok) {
       requestOk = true;
@@ -929,7 +930,7 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
   }
   const durationMs = Date.now() - startTime;
   if (requestOk && (userId || accessToken)) {
-    await sleep(700);
+    await sleep(1200);
     try {
       const logs = await fetchRecentLogs(userId, accessToken, 15);
       const minTimestamp = Math.floor(startTime / 1e3) - 10;

@@ -44,7 +44,8 @@ export async function probeSingleModel(
         messages: [{ role: 'user', content: '1' }],
         max_tokens: 1,
       }),
-      signal: AbortSignal.timeout(15000),
+      // 推理模型(如 grok-4.6)实测单次响应可达 40s+,15s 超时会被频繁掐断导致探测失败
+      signal: AbortSignal.timeout(90000),
     });
 
     if (res.ok) {
@@ -61,8 +62,8 @@ export async function probeSingleModel(
 
   // Query logs if the request was successful and user auth is configured
   if (requestOk && (userId || accessToken)) {
-    // Wait slightly for gateway log writing
-    await sleep(700);
+    // Wait slightly for gateway log writing (慢模型请求期间日志已落盘,快模型需要等待)
+    await sleep(1200);
     try {
       const logs = await fetchRecentLogs(userId, accessToken, 15);
       const minTimestamp = Math.floor(startTime / 1000) - 10;

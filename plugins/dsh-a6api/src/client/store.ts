@@ -169,7 +169,9 @@ class A6ApiStore {
                   ...m,
                   probeStatus: json?.result?.success ? ('success' as const) : ('idle' as const),
                   probeLatencyMs: json?.result?.durationMs,
-                  probeError: undefined,
+                  probeError: json?.result?.success
+                    ? '探测成功,但未捕获商户信息(需配置系统访问令牌)'
+                    : undefined,
                   lastProbedAt: Date.now(),
                 }
               : m,
@@ -207,8 +209,10 @@ class A6ApiStore {
 
   public async probeAll(): Promise<void> {
     const allNames = this.state.models.map((m) => m.model_name);
-    for (const name of allNames) {
-      await this.probeModel(name);
+    // 推理模型单次探测可达 40s+,按 3 并发批次探测,避免全量串行等待过久
+    const CONCURRENCY = 3;
+    for (let i = 0; i < allNames.length; i += CONCURRENCY) {
+      await Promise.all(allNames.slice(i, i + CONCURRENCY).map((n) => this.probeModel(n)));
     }
   }
 

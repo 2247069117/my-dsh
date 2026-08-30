@@ -145,8 +145,12 @@ export const MerchantCard: React.FC<{
           </div>
         ) : (
           <div className="dsh-a6-bar-pricing unprobed">
-            <div className="dsh-a6-unprobed-hint">
-              {isProbing ? '商家探测中...' : '尚未探测商家'}
+            <div
+              className={`dsh-a6-unprobed-hint ${model.probeError ? 'error' : ''}`}
+              data-tooltip={model.probeError || undefined}
+              data-tooltip-pos="down"
+            >
+              {isProbing ? '商家探测中...' : model.probeError ? '探测失败' : '尚未探测商家'}
             </div>
           </div>
         )}
