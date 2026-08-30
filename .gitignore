@@ -4,6 +4,7 @@ skills-lock.json
 **/.DS_Store
 AGENTS.md
 .agent-teams/
+tmp/
 
 # secrets & local credentials
 .env
