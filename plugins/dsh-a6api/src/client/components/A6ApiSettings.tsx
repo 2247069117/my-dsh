@@ -217,7 +217,7 @@ export const A6ApiSettingsPanel: React.FC = () => {
                   <span>
                     尚未探测任何模型商户线路，点击模型卡片上的「探测商家」或上方「一键全量探测」即可开始。
                   </span>
-                ) : !state.config.apiKey ? (
+                ) : !state.config.hasApiKey ? (
                   <span>
                     请前往「基础配置」页面填入您的 A6API 令牌 (API Key) 并保存，即可自动加载可用模型列表。
                   </span>

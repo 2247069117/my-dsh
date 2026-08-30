@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { store } from '../store.js';
 import type { A6ApiConfig } from '../../types.js';
 
+/** 与服务端 maskConfig 一致的脱敏占位符：代表「已配置，但密钥只存于本机」 */
+const MASK = '••••••••';
+
 export const ConfigPanel: React.FC<{
   config: A6ApiConfig;
   dshConfiguredModels: string[];
@@ -10,6 +13,8 @@ export const ConfigPanel: React.FC<{
   const [accessToken, setAccessToken] = useState(
     config.accessToken || config.sessionCookie || '',
   );
+  const [clearKey, setClearKey] = useState(false);
+  const [clearToken, setClearToken] = useState(false);
   const [selectedNode, setSelectedNode] = useState(
     config.baseURL || 'https://api.a6api.com',
   );
@@ -24,9 +29,15 @@ export const ConfigPanel: React.FC<{
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // 值为占位符即表示「已保存密钥」，此时输入框留空展示，保存时不回传占位符
+  const apiKeySet = apiKey === MASK;
+  const tokenSet = accessToken === MASK;
+
   useEffect(() => {
     setApiKey(config.apiKey || '');
     setAccessToken(config.accessToken || config.sessionCookie || '');
+    setClearKey(false);
+    setClearToken(false);
     setSelectedNode(config.baseURL || 'https://api.a6api.com');
     setCustomNode(config.customBaseURL || '');
     setIsCustom(
@@ -37,10 +48,12 @@ export const ConfigPanel: React.FC<{
   const handleSave = async () => {
     setSaving(true);
     const finalBaseUrl = isCustom ? customNode.trim() || 'https://api.a6api.com' : selectedNode;
+    // 未修改（占位符态）→ 不发送该字段，服务端保留原值；点击「清除」→ 发送空串删除
+    const newApiKey = apiKeySet ? (clearKey ? '' : undefined) : apiKey.trim();
+    const newToken = tokenSet ? (clearToken ? '' : undefined) : accessToken.trim();
     const ok = await store.saveConfig({
-      apiKey: apiKey.trim(),
-      accessToken: accessToken.trim(),
-      sessionCookie: accessToken.trim(),
+      ...(newApiKey !== undefined ? { apiKey: newApiKey } : {}),
+      ...(newToken !== undefined ? { accessToken: newToken, sessionCookie: newToken } : {}),
       baseURL: finalBaseUrl,
       customBaseURL: customNode.trim(),
     });
@@ -118,25 +131,41 @@ export const ConfigPanel: React.FC<{
           <div className="dsh-a6-field">
             <div className="dsh-a6-field-header">
               <label className="dsh-a6-label">A6API 令牌 (API Key)</label>
-              <button
-                type="button"
-                className="dsh-a6-btn-text"
-                onClick={() => setShowKey(!showKey)}
-              >
-                {showKey ? '隐藏' : '显示'}
-              </button>
+              <div className="dsh-a6-field-header-actions">
+                {apiKeySet && (
+                  <button
+                    type="button"
+                    className="dsh-a6-btn-text"
+                    onClick={() => {
+                      setClearKey(true);
+                      setApiKey('');
+                    }}
+                  >
+                    清除
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="dsh-a6-btn-text"
+                  onClick={() => setShowKey(!showKey)}
+                >
+                  {showKey ? '隐藏' : '显示'}
+                </button>
+              </div>
             </div>
             <div className="dsh-a6-input-wrapper">
               <input
                 type={showKey ? 'text' : 'password'}
                 className="dsh-a6-input"
-                placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
-                value={apiKey}
+                placeholder={apiKeySet ? '已保存 · 输入新 Key 可替换' : 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'}
+                value={apiKeySet ? '' : apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
               />
             </div>
             <span className="dsh-a6-field-hint">
-              用于向 A6API 发起模型对话请求与拉取白名单模型。
+              {apiKeySet
+                ? '已配置 API Key（仅保存在本机 ~/.dsh/.credentials.yaml，不回传界面）。'
+                : '用于向 A6API 发起模型对话请求与拉取白名单模型。'}
             </span>
           </div>
 
@@ -144,26 +173,46 @@ export const ConfigPanel: React.FC<{
           <div className="dsh-a6-field">
             <div className="dsh-a6-field-header">
               <label className="dsh-a6-label">系统访问令牌 (Access Token)</label>
-              <button
-                type="button"
-                className="dsh-a6-btn-text"
-                onClick={() => setShowToken(!showToken)}
-              >
-                {showToken ? '隐藏' : '显示'}
-              </button>
+              <div className="dsh-a6-field-header-actions">
+                {tokenSet && (
+                  <button
+                    type="button"
+                    className="dsh-a6-btn-text"
+                    onClick={() => {
+                      setClearToken(true);
+                      setAccessToken('');
+                    }}
+                  >
+                    清除
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="dsh-a6-btn-text"
+                  onClick={() => setShowToken(!showToken)}
+                >
+                  {showToken ? '隐藏' : '显示'}
+                </button>
+              </div>
             </div>
             <div className="dsh-a6-input-wrapper">
               <input
                 type={showToken ? 'text' : 'password'}
                 className="dsh-a6-input"
-                placeholder="在控制台安全设置中复制，例如 eyJhbGciOi..."
-                value={accessToken}
+                placeholder={
+                  tokenSet
+                    ? '已保存 · 输入新令牌可替换'
+                    : '在控制台安全设置中复制，例如 eyJhbGciOi...'
+                }
+                value={tokenSet ? '' : accessToken}
                 onChange={(e) => setAccessToken(e.target.value)}
               />
             </div>
             <div className="dsh-a6-field-footer">
               <span className="dsh-a6-field-hint">
-                用于免失效同步账户真实余额与商户指标。
+                {tokenSet
+                  ? '已配置系统访问令牌（仅保存在本机，不回传界面）。'
+                  : '用于免失效同步账户真实余额与商户指标。'}
               </span>
               <button
                 type="button"

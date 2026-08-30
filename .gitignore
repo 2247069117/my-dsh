@@ -4,3 +4,16 @@ skills-lock.json
 **/.DS_Store
 AGENTS.md
 .agent-teams/
+
+# secrets & local credentials
+.env
+.env.*
+!.env.example
+.credentials.yaml
+**/.credentials.yaml
+secrets.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+dsh-a6api-config.json

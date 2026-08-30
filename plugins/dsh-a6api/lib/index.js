@@ -1019,6 +1019,13 @@ import * as fsp from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 var A6API_CRED_REF = "A6API_API_KEY";
+async function atomicWriteFile(filePath, content, mode = 384) {
+  const dir = path.dirname(filePath);
+  await fsp.mkdir(dir, { recursive: true });
+  const tmpPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
+  await fsp.writeFile(tmpPath, content, { mode });
+  await fsp.rename(tmpPath, filePath);
+}
 function dshHome() {
   return process.env.DSH_HOME || path.join(os.homedir(), ".dsh");
 }
@@ -1070,8 +1077,8 @@ async function readPluginConfig() {
 }
 async function savePluginConfig(config) {
   const filePath = configFile();
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
-  await fsp.writeFile(filePath, JSON.stringify(config, null, 2), "utf8");
+  const { apiKey: _apiKey, ...safeConfig } = config;
+  await atomicWriteFile(filePath, JSON.stringify(safeConfig, null, 2));
   if (config.apiKey && config.apiKey.trim()) {
     await writeCredentialKey(A6API_CRED_REF, config.apiKey.trim());
   }
@@ -1144,8 +1151,7 @@ async function writeCredentialKey(refKey, value) {
       lines.push("refs:", `  ${refKey}: ${JSON.stringify(value)}`);
     }
   }
-  await fsp.mkdir(path.dirname(cFile), { recursive: true });
-  await fsp.writeFile(cFile, lines.join("\n"), "utf8");
+  await atomicWriteFile(cFile, lines.join("\n"), 384);
 }
 async function syncToDshSettings(baseURL, modelIds) {
   const sFile = settingsFile();
@@ -1238,8 +1244,7 @@ async function syncToDshSettings(baseURL, modelIds) {
   } else {
     lines.push(`llm-pi-ai:`, `  providers:`, ...a6apiBlockLines);
   }
-  await fsp.mkdir(path.dirname(sFile), { recursive: true });
-  await fsp.writeFile(sFile, lines.join("\n"), "utf8");
+  await atomicWriteFile(sFile, lines.join("\n"), 420);
 }
 async function getDshConfiguredModels() {
   try {
@@ -1279,13 +1284,23 @@ async function getDshConfiguredModels() {
 var name = "@lynn123411/dsh-a6api";
 var inject = ["webServer"];
 var PREFIX = "/api/dsh-a6api";
+var MASK = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
+function maskConfig(c) {
+  return {
+    ...c,
+    apiKey: c.apiKey ? MASK : "",
+    accessToken: c.accessToken || c.sessionCookie ? MASK : "",
+    sessionCookie: "",
+    userId: c.userId ? MASK : "",
+    hasApiKey: Boolean(c.apiKey),
+    hasToken: Boolean(c.accessToken || c.sessionCookie)
+  };
+}
 function sendJson(res, status, body) {
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-cache",
-    "access-control-allow-origin": "*",
-    "access-control-allow-headers": "*",
-    "access-control-allow-methods": "GET, POST, OPTIONS"
+    "cache-control": "no-cache"
+    // 不设 access-control-allow-origin：仅允许同源调用，阻断跨站读取与 CSRF 预检
   });
   res.end(JSON.stringify(body));
 }
@@ -1324,11 +1339,7 @@ function apply(ctx) {
           const url = new URL(req.url || "/", "http://localhost");
           const pathname = url.pathname.replace(PREFIX, "") || "/";
           if (req.method === "OPTIONS") {
-            res.writeHead(204, {
-              "access-control-allow-origin": "*",
-              "access-control-allow-headers": "*",
-              "access-control-allow-methods": "GET, POST, OPTIONS"
-            });
+            res.writeHead(204);
             return res.end();
           }
           try {
@@ -1386,7 +1397,7 @@ function apply(ctx) {
               });
               const recentLogs = await fetchRecentLogs(config.userId, token, 20);
               const response = {
-                config,
+                config: maskConfig(config),
                 balance,
                 models,
                 dshConfiguredModels,
@@ -1397,10 +1408,11 @@ function apply(ctx) {
             if (pathname === "/config" && req.method === "POST") {
               const body = await parseJsonBody(req);
               const current = await readPluginConfig();
-              const rawToken = body.accessToken !== void 0 ? body.accessToken : body.sessionCookie !== void 0 ? body.sessionCookie : current.accessToken || current.sessionCookie || "";
+              const rawToken = body.accessToken !== void 0 && body.accessToken !== MASK ? body.accessToken : body.sessionCookie !== void 0 && body.sessionCookie !== MASK ? body.sessionCookie : current.accessToken || current.sessionCookie || "";
+              const newApiKey = body.apiKey !== void 0 && body.apiKey !== MASK ? body.apiKey : current.apiKey;
               const updated = {
                 baseURL: body.baseURL !== void 0 ? body.baseURL : current.baseURL,
-                apiKey: body.apiKey !== void 0 ? body.apiKey : current.apiKey,
+                apiKey: newApiKey,
                 accessToken: rawToken,
                 sessionCookie: rawToken,
                 userId: body.userId !== void 0 ? body.userId : current.userId,
@@ -1415,7 +1427,7 @@ function apply(ctx) {
               if (updated.activeModels.length > 0) {
                 await syncToDshSettings(updated.baseURL, updated.activeModels);
               }
-              return sendJson(res, 200, { ok: true, config: updated, balance });
+              return sendJson(res, 200, { ok: true, config: maskConfig(updated), balance });
             }
             if (pathname === "/balance" && (req.method === "GET" || req.method === "HEAD")) {
               const config = await readPluginConfig();

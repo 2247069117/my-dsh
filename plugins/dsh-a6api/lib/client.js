@@ -600,11 +600,14 @@ var AccountPanel = ({ balance, config, recentLogs = [], onNavigateToConfig }) =>
 // src/client/components/ConfigPanel.tsx
 var import_react3 = require("react");
 var import_jsx_runtime3 = require("react/jsx-runtime");
+var MASK = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
 var ConfigPanel = ({ config, dshConfiguredModels }) => {
   const [apiKey, setApiKey] = (0, import_react3.useState)(config.apiKey || "");
   const [accessToken, setAccessToken] = (0, import_react3.useState)(
     config.accessToken || config.sessionCookie || ""
   );
+  const [clearKey, setClearKey] = (0, import_react3.useState)(false);
+  const [clearToken, setClearToken] = (0, import_react3.useState)(false);
   const [selectedNode, setSelectedNode] = (0, import_react3.useState)(
     config.baseURL || "https://api.a6api.com"
   );
@@ -617,9 +620,13 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
   const [showHelp, setShowHelp] = (0, import_react3.useState)(false);
   const [saving, setSaving] = (0, import_react3.useState)(false);
   const [saveSuccess, setSaveSuccess] = (0, import_react3.useState)(false);
+  const apiKeySet = apiKey === MASK;
+  const tokenSet = accessToken === MASK;
   (0, import_react3.useEffect)(() => {
     setApiKey(config.apiKey || "");
     setAccessToken(config.accessToken || config.sessionCookie || "");
+    setClearKey(false);
+    setClearToken(false);
     setSelectedNode(config.baseURL || "https://api.a6api.com");
     setCustomNode(config.customBaseURL || "");
     setIsCustom(
@@ -629,10 +636,11 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
   const handleSave = async () => {
     setSaving(true);
     const finalBaseUrl = isCustom ? customNode.trim() || "https://api.a6api.com" : selectedNode;
+    const newApiKey = apiKeySet ? clearKey ? "" : void 0 : apiKey.trim();
+    const newToken = tokenSet ? clearToken ? "" : void 0 : accessToken.trim();
     const ok = await store.saveConfig({
-      apiKey: apiKey.trim(),
-      accessToken: accessToken.trim(),
-      sessionCookie: accessToken.trim(),
+      ...newApiKey !== void 0 ? { apiKey: newApiKey } : {},
+      ...newToken !== void 0 ? { accessToken: newToken, sessionCookie: newToken } : {},
       baseURL: finalBaseUrl,
       customBaseURL: customNode.trim()
     });
@@ -704,53 +712,81 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-field", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-field-header", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { className: "dsh-a6-label", children: "A6API \u4EE4\u724C (API Key)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "button",
-              {
-                type: "button",
-                className: "dsh-a6-btn-text",
-                onClick: () => setShowKey(!showKey),
-                children: showKey ? "\u9690\u85CF" : "\u663E\u793A"
-              }
-            )
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-field-header-actions", children: [
+              apiKeySet && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "button",
+                {
+                  type: "button",
+                  className: "dsh-a6-btn-text",
+                  onClick: () => {
+                    setClearKey(true);
+                    setApiKey("");
+                  },
+                  children: "\u6E05\u9664"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "button",
+                {
+                  type: "button",
+                  className: "dsh-a6-btn-text",
+                  onClick: () => setShowKey(!showKey),
+                  children: showKey ? "\u9690\u85CF" : "\u663E\u793A"
+                }
+              )
+            ] })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dsh-a6-input-wrapper", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "input",
             {
               type: showKey ? "text" : "password",
               className: "dsh-a6-input",
-              placeholder: "sk-xxxxxxxxxxxxxxxxxxxxxxxx",
-              value: apiKey,
+              placeholder: apiKeySet ? "\u5DF2\u4FDD\u5B58 \xB7 \u8F93\u5165\u65B0 Key \u53EF\u66FF\u6362" : "sk-xxxxxxxxxxxxxxxxxxxxxxxx",
+              value: apiKeySet ? "" : apiKey,
               onChange: (e) => setApiKey(e.target.value)
             }
           ) }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dsh-a6-field-hint", children: "\u7528\u4E8E\u5411 A6API \u53D1\u8D77\u6A21\u578B\u5BF9\u8BDD\u8BF7\u6C42\u4E0E\u62C9\u53D6\u767D\u540D\u5355\u6A21\u578B\u3002" })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dsh-a6-field-hint", children: apiKeySet ? "\u5DF2\u914D\u7F6E API Key\uFF08\u4EC5\u4FDD\u5B58\u5728\u672C\u673A ~/.dsh/.credentials.yaml\uFF0C\u4E0D\u56DE\u4F20\u754C\u9762\uFF09\u3002" : "\u7528\u4E8E\u5411 A6API \u53D1\u8D77\u6A21\u578B\u5BF9\u8BDD\u8BF7\u6C42\u4E0E\u62C9\u53D6\u767D\u540D\u5355\u6A21\u578B\u3002" })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-field", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-field-header", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { className: "dsh-a6-label", children: "\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C (Access Token)" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "button",
-              {
-                type: "button",
-                className: "dsh-a6-btn-text",
-                onClick: () => setShowToken(!showToken),
-                children: showToken ? "\u9690\u85CF" : "\u663E\u793A"
-              }
-            )
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-field-header-actions", children: [
+              tokenSet && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "button",
+                {
+                  type: "button",
+                  className: "dsh-a6-btn-text",
+                  onClick: () => {
+                    setClearToken(true);
+                    setAccessToken("");
+                  },
+                  children: "\u6E05\u9664"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "button",
+                {
+                  type: "button",
+                  className: "dsh-a6-btn-text",
+                  onClick: () => setShowToken(!showToken),
+                  children: showToken ? "\u9690\u85CF" : "\u663E\u793A"
+                }
+              )
+            ] })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dsh-a6-input-wrapper", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "input",
             {
               type: showToken ? "text" : "password",
               className: "dsh-a6-input",
-              placeholder: "\u5728\u63A7\u5236\u53F0\u5B89\u5168\u8BBE\u7F6E\u4E2D\u590D\u5236\uFF0C\u4F8B\u5982 eyJhbGciOi...",
-              value: accessToken,
+              placeholder: tokenSet ? "\u5DF2\u4FDD\u5B58 \xB7 \u8F93\u5165\u65B0\u4EE4\u724C\u53EF\u66FF\u6362" : "\u5728\u63A7\u5236\u53F0\u5B89\u5168\u8BBE\u7F6E\u4E2D\u590D\u5236\uFF0C\u4F8B\u5982 eyJhbGciOi...",
+              value: tokenSet ? "" : accessToken,
               onChange: (e) => setAccessToken(e.target.value)
             }
           ) }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-field-footer", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dsh-a6-field-hint", children: "\u7528\u4E8E\u514D\u5931\u6548\u540C\u6B65\u8D26\u6237\u771F\u5B9E\u4F59\u989D\u4E0E\u5546\u6237\u6307\u6807\u3002" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dsh-a6-field-hint", children: tokenSet ? "\u5DF2\u914D\u7F6E\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C\uFF08\u4EC5\u4FDD\u5B58\u5728\u672C\u673A\uFF0C\u4E0D\u56DE\u4F20\u754C\u9762\uFF09\u3002" : "\u7528\u4E8E\u514D\u5931\u6548\u540C\u6B65\u8D26\u6237\u771F\u5B9E\u4F59\u989D\u4E0E\u5546\u6237\u6307\u6807\u3002" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
               "button",
               {
@@ -1022,7 +1058,7 @@ var A6ApiSettingsPanel = () => {
         "\u672A\u641C\u7D22\u5230\u5339\u914D\u300C",
         searchQuery,
         "\u300D\u7684\u6A21\u578B"
-      ] }) : filterMode === "enabled" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "\u5F53\u524D\u5C1A\u672A\u5728 DSH \u4E2D\u542F\u7528\u4EFB\u4F55 A6API \u6A21\u578B\uFF0C\u70B9\u51FB\u6A21\u578B\u5361\u7247\u53F3\u4FA7\u300C\u6DFB\u52A0\u5230 DSH\u300D\u5373\u53EF\u542F\u7528\u3002" }) : filterMode === "probed" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "\u5C1A\u672A\u63A2\u6D4B\u4EFB\u4F55\u6A21\u578B\u5546\u6237\u7EBF\u8DEF\uFF0C\u70B9\u51FB\u6A21\u578B\u5361\u7247\u4E0A\u7684\u300C\u63A2\u6D4B\u5546\u5BB6\u300D\u6216\u4E0A\u65B9\u300C\u4E00\u952E\u5168\u91CF\u63A2\u6D4B\u300D\u5373\u53EF\u5F00\u59CB\u3002" }) : !state.config.apiKey ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "\u8BF7\u524D\u5F80\u300C\u57FA\u7840\u914D\u7F6E\u300D\u9875\u9762\u586B\u5165\u60A8\u7684 A6API \u4EE4\u724C (API Key) \u5E76\u4FDD\u5B58\uFF0C\u5373\u53EF\u81EA\u52A8\u52A0\u8F7D\u53EF\u7528\u6A21\u578B\u5217\u8868\u3002" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "\u5F53\u524D\u4EE4\u724C\u6682\u65E0\u53EF\u7528\u6A21\u578B\uFF0C\u8BF7\u68C0\u67E5 A6API \u63A7\u5236\u53F0\u4E2D\u7684\u4EE4\u724C\u9650\u5236\u8BBE\u7F6E\u3002" }) }) })
+      ] }) : filterMode === "enabled" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "\u5F53\u524D\u5C1A\u672A\u5728 DSH \u4E2D\u542F\u7528\u4EFB\u4F55 A6API \u6A21\u578B\uFF0C\u70B9\u51FB\u6A21\u578B\u5361\u7247\u53F3\u4FA7\u300C\u6DFB\u52A0\u5230 DSH\u300D\u5373\u53EF\u542F\u7528\u3002" }) : filterMode === "probed" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "\u5C1A\u672A\u63A2\u6D4B\u4EFB\u4F55\u6A21\u578B\u5546\u6237\u7EBF\u8DEF\uFF0C\u70B9\u51FB\u6A21\u578B\u5361\u7247\u4E0A\u7684\u300C\u63A2\u6D4B\u5546\u5BB6\u300D\u6216\u4E0A\u65B9\u300C\u4E00\u952E\u5168\u91CF\u63A2\u6D4B\u300D\u5373\u53EF\u5F00\u59CB\u3002" }) : !state.config.hasApiKey ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "\u8BF7\u524D\u5F80\u300C\u57FA\u7840\u914D\u7F6E\u300D\u9875\u9762\u586B\u5165\u60A8\u7684 A6API \u4EE4\u724C (API Key) \u5E76\u4FDD\u5B58\uFF0C\u5373\u53EF\u81EA\u52A8\u52A0\u8F7D\u53EF\u7528\u6A21\u578B\u5217\u8868\u3002" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: "\u5F53\u524D\u4EE4\u724C\u6682\u65E0\u53EF\u7528\u6A21\u578B\uFF0C\u8BF7\u68C0\u67E5 A6API \u63A7\u5236\u53F0\u4E2D\u7684\u4EE4\u724C\u9650\u5236\u8BBE\u7F6E\u3002" }) }) })
     ] }),
     activeTab === "account" && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "dsh-a6-tab-page account-page", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
       AccountPanel,
@@ -2049,6 +2085,12 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.dsh-a6-field-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .dsh-a6-label {

@@ -1005,6 +1005,12 @@
   align-items: center;
 }
 
+.dsh-a6-field-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .dsh-a6-label {
   font-size: 12px;
   font-weight: 600;

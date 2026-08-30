@@ -24,13 +24,27 @@ export { readPluginConfig, savePluginConfig, syncToDshSettings } from './server/
 
 const PREFIX = '/api/dsh-a6api';
 
+/** 客户端脱敏占位符：服务端绝不回传真实密钥 */
+const MASK = '••••••••';
+
+/** 脱敏配置：API Key / 系统访问令牌 / userId 仅以占位符形式下发，真实值只存在于服务端 */
+function maskConfig(c: A6ApiConfig): A6ApiConfig {
+  return {
+    ...c,
+    apiKey: c.apiKey ? MASK : '',
+    accessToken: c.accessToken || c.sessionCookie ? MASK : '',
+    sessionCookie: '',
+    userId: c.userId ? MASK : '',
+    hasApiKey: Boolean(c.apiKey),
+    hasToken: Boolean(c.accessToken || c.sessionCookie),
+  };
+}
+
 function sendJson(res: any, status: number, body: any) {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-cache',
-    'access-control-allow-origin': '*',
-    'access-control-allow-headers': '*',
-    'access-control-allow-methods': 'GET, POST, OPTIONS',
+    // 不设 access-control-allow-origin：仅允许同源调用，阻断跨站读取与 CSRF 预检
   });
   res.end(JSON.stringify(body));
 }
@@ -75,13 +89,9 @@ export function apply(ctx: any): void {
           const url = new URL(req.url || '/', 'http://localhost');
           const pathname = url.pathname.replace(PREFIX, '') || '/';
 
-          // CORS preflight
+          // CORS preflight：同源策略下无需放行跨源（移除 ACAO 后跨源预检天然失败）
           if (req.method === 'OPTIONS') {
-            res.writeHead(204, {
-              'access-control-allow-origin': '*',
-              'access-control-allow-headers': '*',
-              'access-control-allow-methods': 'GET, POST, OPTIONS',
-            });
+            res.writeHead(204);
             return res.end();
           }
 
@@ -154,7 +164,7 @@ export function apply(ctx: any): void {
               const recentLogs = await fetchRecentLogs(config.userId, token, 20);
 
               const response: A6ApiStateResponse = {
-                config,
+                config: maskConfig(config),
                 balance,
                 models,
                 dshConfiguredModels,
@@ -167,11 +177,18 @@ export function apply(ctx: any): void {
             if (pathname === '/config' && req.method === 'POST') {
               const body = await parseJsonBody(req);
               const current = await readPluginConfig();
-              const rawToken = body.accessToken !== undefined ? body.accessToken : (body.sessionCookie !== undefined ? body.sessionCookie : (current.accessToken || current.sessionCookie || ''));
-              
+              const rawToken =
+                body.accessToken !== undefined && body.accessToken !== MASK
+                  ? body.accessToken
+                  : body.sessionCookie !== undefined && body.sessionCookie !== MASK
+                    ? body.sessionCookie
+                    : (current.accessToken || current.sessionCookie || '');
+              const newApiKey =
+                body.apiKey !== undefined && body.apiKey !== MASK ? body.apiKey : current.apiKey;
+
               const updated: A6ApiConfig = {
                 baseURL: body.baseURL !== undefined ? body.baseURL : current.baseURL,
-                apiKey: body.apiKey !== undefined ? body.apiKey : current.apiKey,
+                apiKey: newApiKey,
                 accessToken: rawToken,
                 sessionCookie: rawToken,
                 userId: body.userId !== undefined ? body.userId : current.userId,
@@ -191,7 +208,7 @@ export function apply(ctx: any): void {
               if (updated.activeModels.length > 0) {
                 await syncToDshSettings(updated.baseURL, updated.activeModels);
               }
-              return sendJson(res, 200, { ok: true, config: updated, balance });
+              return sendJson(res, 200, { ok: true, config: maskConfig(updated), balance });
             }
 
             // GET /balance

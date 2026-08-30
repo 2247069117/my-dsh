@@ -7,6 +7,15 @@ import type { A6ApiConfig } from '../types.js';
 
 export const A6API_CRED_REF = 'A6API_API_KEY';
 
+/** 原子写入：先写临时文件（0600/0644）再 rename，避免崩溃截断与权限位泄露 */
+async function atomicWriteFile(filePath: string, content: string, mode = 0o600): Promise<void> {
+  const dir = path.dirname(filePath);
+  await fsp.mkdir(dir, { recursive: true });
+  const tmpPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
+  await fsp.writeFile(tmpPath, content, { mode });
+  await fsp.rename(tmpPath, filePath);
+}
+
 function dshHome(): string {
   return process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
 }
@@ -64,11 +73,11 @@ export async function readPluginConfig(): Promise<A6ApiConfig> {
   }
 }
 
-/** Save plugin dedicated config */
+/** Save plugin dedicated config（密钥单一真相源在 ~/.dsh/.credentials.yaml，配置 JSON 不再冗余明文） */
 export async function savePluginConfig(config: A6ApiConfig): Promise<void> {
   const filePath = configFile();
-  await fsp.mkdir(path.dirname(filePath), { recursive: true });
-  await fsp.writeFile(filePath, JSON.stringify(config, null, 2), 'utf8');
+  const { apiKey: _apiKey, ...safeConfig } = config;
+  await atomicWriteFile(filePath, JSON.stringify(safeConfig, null, 2));
 
   // Also sync credential
   if (config.apiKey && config.apiKey.trim()) {
@@ -150,8 +159,7 @@ export async function writeCredentialKey(refKey: string, value: string): Promise
     }
   }
 
-  await fsp.mkdir(path.dirname(cFile), { recursive: true });
-  await fsp.writeFile(cFile, lines.join('\n'), 'utf8');
+  await atomicWriteFile(cFile, lines.join('\n'), 0o600);
 }
 
 /** Sync active models to DSH settings.yaml under llm-pi-ai.providers.a6api */
@@ -264,8 +272,7 @@ export async function syncToDshSettings(baseURL: string, modelIds: string[]): Pr
     lines.push(`llm-pi-ai:`, `  providers:`, ...a6apiBlockLines);
   }
 
-  await fsp.mkdir(path.dirname(sFile), { recursive: true });
-  await fsp.writeFile(sFile, lines.join('\n'), 'utf8');
+  await atomicWriteFile(sFile, lines.join('\n'), 0o644);
 }
 
 /** Get currently configured model IDs in DSH settings for a6api */

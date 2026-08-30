@@ -3,3 +3,16 @@ lib/types/
 lib/*.map
 .DS_Store
 *.log
+
+# secrets & local credentials
+.env
+.env.*
+!.env.example
+.credentials.yaml
+**/.credentials.yaml
+secrets.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+dsh-a6api-config.json

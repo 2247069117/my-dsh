@@ -8,6 +8,10 @@ export interface A6ApiConfig {
   customBaseURL?: string;
   /** backward compatibility */
   sessionCookie?: string;
+  /** 服务端脱敏下发：是否已配置 API Key（真实密钥绝不回传客户端） */
+  hasApiKey?: boolean;
+  /** 服务端脱敏下发：是否已配置系统访问令牌 */
+  hasToken?: boolean;
 }
 
 export interface A6ApiModelMeta {
