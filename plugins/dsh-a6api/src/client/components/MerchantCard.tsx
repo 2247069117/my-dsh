@@ -232,7 +232,7 @@ export const MerchantCard: React.FC<{
             onClick={handleToggleDsh}
             data-tooltip={model.inDsh ? '已加入 DSH 模型选择器 (点击移除)' : '添加至 DSH 模型选择器'}
           >
-            {model.inDsh ? '已在 DSH' : '添加到 DSH'}
+            {model.inDsh ? '移除模型' : '添加模型'}
           </button>
 
           <button

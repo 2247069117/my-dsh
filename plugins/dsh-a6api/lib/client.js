@@ -410,7 +410,7 @@ var MerchantCard = ({ model }) => {
             className: `dsh-a6-btn dsh-a6-btn-sm ${model.inDsh ? "dsh-a6-btn-in-dsh" : "dsh-a6-btn-primary"}`,
             onClick: handleToggleDsh,
             "data-tooltip": model.inDsh ? "\u5DF2\u52A0\u5165 DSH \u6A21\u578B\u9009\u62E9\u5668 (\u70B9\u51FB\u79FB\u9664)" : "\u6DFB\u52A0\u81F3 DSH \u6A21\u578B\u9009\u62E9\u5668",
-            children: model.inDsh ? "\u5DF2\u5728 DSH" : "\u6DFB\u52A0\u5230 DSH"
+            children: model.inDsh ? "\u79FB\u9664\u6A21\u578B" : "\u6DFB\u52A0\u6A21\u578B"
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
