@@ -1,4 +1,4 @@
-import { fetchBalance, fetchTokenModels, fetchRecentLogs, fetchPriceFluctuation } from './server/a6api-client.js';
+import { fetchBalance, fetchTokenModels, fetchRecentLogs, fetchPriceFluctuation, formatRelativeTime } from './server/a6api-client.js';
 import { getKnownMerchantsFromLogs, probeSingleModel } from './server/probe.js';
 import { resolveModelMeta } from './server/catalog.js';
 import {
@@ -134,17 +134,41 @@ export function apply(ctx: any): void {
                 ];
               }
 
-              // Match known merchant cards from recent logs if not yet in cache
+              // 一次拉取日志(接口实测上限 100 条),同一份数据用于: ①商户卡片预填充 ②路由快照时效映射 ③Account 页最近明细
+              const allLogs = await fetchRecentLogs(config.userId, token, 100);
+              // 防御性排序：依赖“最新在前”，若网关排序变更仍能正确取首条
+              allLogs.sort((a, b) => (Number(b.created_at) || 0) - (Number(a.created_at) || 0));
+
+              // Match known merchant cards from recent logs if not yet in cache (with 10s total timeout to avoid /state hang)
               if (config.userId || token) {
                 const missing = modelIds.filter((m) => {
                   const entry = merchantCardCache.get(m.toLowerCase());
                   return !entry || Date.now() - entry.at >= MERCHANT_CARD_TTL_MS;
                 });
                 if (missing.length > 0) {
-                  const found = await getKnownMerchantsFromLogs(config.userId, token, missing);
+                  let found: Record<string, MerchantChannelInfo> = {};
+                  try {
+                    found = await Promise.race([
+                      getKnownMerchantsFromLogs(config.userId, token, missing, allLogs),
+                      new Promise<Record<string, MerchantChannelInfo>>((resolve) => setTimeout(() => resolve({}), 10000)),
+                    ]);
+                  } catch {
+                    found = {};
+                  }
                   for (const [mName, card] of Object.entries(found)) {
                     merchantCardCache.set(mName.toLowerCase(), { card, at: Date.now() });
                   }
+                }
+              }
+
+              // 路由快照时效: 每个模型最新一条「带 channel 的调用日志」时间 —— 与预填充卡片商户数据同一条规则(取最新命中商户路由的请求)
+              const lastRoutedMap = new Map<string, number>();
+              for (const log of allLogs) {
+                const mName = log.model_name;
+                const chId = Number(log.channel);
+                const ts = Number(log.created_at) || 0;
+                if (mName && chId > 0 && ts > 0 && !lastRoutedMap.has(mName.toLowerCase())) {
+                  lastRoutedMap.set(mName.toLowerCase(), ts);
                 }
               }
 
@@ -156,6 +180,7 @@ export function apply(ctx: any): void {
                   cacheEntry && Date.now() - cacheEntry.at < MERCHANT_CARD_TTL_MS
                     ? cacheEntry.card
                     : undefined;
+                const routedAt = lastRoutedMap.get(mId.toLowerCase());
                 return {
                   model_name: mId,
                   brand: meta.brand,
@@ -166,11 +191,13 @@ export function apply(ctx: any): void {
                   inDsh: dshSet.has(mId),
                   merchant: cachedCard,
                   probeStatus: cachedCard ? 'success' : 'idle',
+                  lastRoutedAt: routedAt,
+                  lastRoutedText: routedAt ? formatRelativeTime(routedAt) : undefined,
                 };
               });
 
-              // Also fetch recent routing logs for Account tab
-              const recentLogs = await fetchRecentLogs(config.userId, token, 20);
+              // Account 页明细保持原有窗口 (20 条)
+              const recentLogs = allLogs.slice(0, 20);
 
               const response: A6ApiStateResponse = {
                 config: maskConfig(config),

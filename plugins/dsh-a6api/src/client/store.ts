@@ -7,6 +7,14 @@ import type {
   PriceFluctuationState,
 } from '../types.js';
 
+function formatRelativeNow(tsSec: number): string {
+  const diff = Math.floor(Date.now() / 1000) - tsSec;
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+  return `${Math.floor(diff / 86400)} 天前`;
+}
+
 export interface StoreState {
   loading: boolean;
   config: A6ApiConfig;
@@ -193,6 +201,9 @@ class A6ApiStore {
                   probeLatencyMs: json.result.durationMs,
                   probeError: undefined,
                   lastProbedAt: Date.now(),
+                  // 探测请求本身会写路由日志,乐观更新路由快照时效,下次 /state 以日志为准
+                  lastRoutedAt: Math.floor(Date.now() / 1000),
+                  lastRoutedText: formatRelativeNow(Math.floor(Date.now() / 1000)),
                 }
               : m,
           );

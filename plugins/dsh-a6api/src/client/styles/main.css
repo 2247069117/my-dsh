@@ -594,17 +594,49 @@
   color: #059669;
 }
 
-/* Right Actions Group */
+/* Right Actions Group — 默认靠右，窄屏时占满行宽两端对齐 */
 .dsh-a6-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+@media (max-width: 900px) {
+  .dsh-a6-bar-actions {
+    flex: 1 1 100%;
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+}
+
+.dsh-a6-time-ago {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary, #94a3b8);
+}
+
+/* 两行时间戳垂直叠放 (全网最近 / 个人最近) — 左对齐 */
+.dsh-a6-time-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex-shrink: 0;
+  text-align: left;
+}
+
+/* 右侧三按钮组 */
+.dsh-a6-bar-actions-btns {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.dsh-a6-time-ago {
-  font-size: 11px;
-  color: var(--dsw-alias-label-tertiary, #94a3b8);
+.dsh-a6-route-snapshot.never {
+  color: var(--dsw-alias-label-quaternary, #cbd5e1);
 }
 
 .dsh-a6-btn-in-dsh {
@@ -1364,19 +1396,24 @@
   bottom: calc(100% + 7px);
   left: 50%;
   transform: translateX(-50%);
-  padding: 5px 9px;
-  background: rgba(15, 23, 42, 0.94);
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.96);
   color: #f8fafc;
   font-size: 11px;
   font-weight: 400;
-  line-height: 1.35;
-  white-space: nowrap;
-  border-radius: 5px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  line-height: 1.4;
+  white-space: normal;
+  max-width: min(320px, 85vw);
+  width: max-content;
+  text-align: left;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.04s ease-out, visibility 0.04s ease-out;
+  transition: opacity 0.08s ease-out, visibility 0.08s ease-out;
   z-index: 99999;
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
@@ -1482,13 +1519,22 @@
   border-color: transparent transparent rgba(15, 23, 42, 0.94) transparent;
 }
 
-/* Card actions tooltip default alignment */
+/* Card actions tooltip: keep centered (avoid left:0 right-edge overflow) */
 .dsh-a6-bar-actions [data-tooltip]:not([data-tooltip-pos])::after {
-  left: 0;
-  transform: none;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
 }
 
 .dsh-a6-bar-actions [data-tooltip]:not([data-tooltip-pos])::before {
-  left: 16px;
-  transform: none;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
+}
+
+/* When JS portal tooltip is active, hide pseudo to avoid double rendering */
+body.dsh-a6api-tooltip-active [data-tooltip]::after,
+body.dsh-a6api-tooltip-active [data-tooltip]::before {
+  opacity: 0 !important;
+  visibility: hidden !important;
 }

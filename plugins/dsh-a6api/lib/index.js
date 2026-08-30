@@ -1032,13 +1032,14 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
     error: requestOk ? void 0 : requestError
   };
 }
-async function getKnownMerchantsFromLogs(userId, accessToken, modelNames = []) {
+async function getKnownMerchantsFromLogs(userId, accessToken, modelNames = [], logs) {
   if (!userId && !accessToken || modelNames.length === 0) return {};
   const result = {};
   try {
-    const logs = await fetchRecentLogs(userId, accessToken, 50);
+    const items = logs !== void 0 ? logs : await fetchRecentLogs(userId, accessToken, 50);
+    const sorted = items.slice().sort((a, b) => (Number(b.created_at) || 0) - (Number(a.created_at) || 0));
     const modelToLog = /* @__PURE__ */ new Map();
-    for (const log of logs) {
+    for (const log of sorted) {
       const mName = log.model_name;
       const chId = Number(log.channel);
       if (mName && chId && !modelToLog.has(mName.toLowerCase())) {
@@ -1437,16 +1438,35 @@ function apply(ctx) {
                   ])
                 ];
               }
+              const allLogs = await fetchRecentLogs(config.userId, token, 100);
+              allLogs.sort((a, b) => (Number(b.created_at) || 0) - (Number(a.created_at) || 0));
               if (config.userId || token) {
                 const missing = modelIds.filter((m) => {
                   const entry = merchantCardCache.get(m.toLowerCase());
                   return !entry || Date.now() - entry.at >= MERCHANT_CARD_TTL_MS;
                 });
                 if (missing.length > 0) {
-                  const found = await getKnownMerchantsFromLogs(config.userId, token, missing);
+                  let found = {};
+                  try {
+                    found = await Promise.race([
+                      getKnownMerchantsFromLogs(config.userId, token, missing, allLogs),
+                      new Promise((resolve) => setTimeout(() => resolve({}), 1e4))
+                    ]);
+                  } catch {
+                    found = {};
+                  }
                   for (const [mName, card] of Object.entries(found)) {
                     merchantCardCache.set(mName.toLowerCase(), { card, at: Date.now() });
                   }
+                }
+              }
+              const lastRoutedMap = /* @__PURE__ */ new Map();
+              for (const log of allLogs) {
+                const mName = log.model_name;
+                const chId = Number(log.channel);
+                const ts = Number(log.created_at) || 0;
+                if (mName && chId > 0 && ts > 0 && !lastRoutedMap.has(mName.toLowerCase())) {
+                  lastRoutedMap.set(mName.toLowerCase(), ts);
                 }
               }
               const dshSet = new Set(dshConfiguredModels);
@@ -1454,6 +1474,7 @@ function apply(ctx) {
                 const meta = resolveModelMeta(mId);
                 const cacheEntry = merchantCardCache.get(mId.toLowerCase());
                 const cachedCard = cacheEntry && Date.now() - cacheEntry.at < MERCHANT_CARD_TTL_MS ? cacheEntry.card : void 0;
+                const routedAt = lastRoutedMap.get(mId.toLowerCase());
                 return {
                   model_name: mId,
                   brand: meta.brand,
@@ -1463,10 +1484,12 @@ function apply(ctx) {
                   hasReasoning: Boolean(meta.reasoningEfforts || meta.thinkingFormat),
                   inDsh: dshSet.has(mId),
                   merchant: cachedCard,
-                  probeStatus: cachedCard ? "success" : "idle"
+                  probeStatus: cachedCard ? "success" : "idle",
+                  lastRoutedAt: routedAt,
+                  lastRoutedText: routedAt ? formatRelativeTime(routedAt) : void 0
                 };
               });
-              const recentLogs = await fetchRecentLogs(config.userId, token, 20);
+              const recentLogs = allLogs.slice(0, 20);
               const response = {
                 config: maskConfig(config),
                 balance,

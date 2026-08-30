@@ -1,5 +1,5 @@
 import { cleanBaseUrl, fetchChannelDetails, fetchRecentLogs } from './a6api-client.js';
-import type { MerchantChannelInfo } from '../types.js';
+import type { ApiRoutingLogItem, MerchantChannelInfo } from '../types.js';
 
 export interface ProbeResult {
   modelName: string;
@@ -117,15 +117,18 @@ export async function getKnownMerchantsFromLogs(
   userId?: string,
   accessToken?: string,
   modelNames: string[] = [],
+  logs?: ApiRoutingLogItem[],
 ): Promise<Record<string, MerchantChannelInfo>> {
   if ((!userId && !accessToken) || modelNames.length === 0) return {};
 
   const result: Record<string, MerchantChannelInfo> = {};
   try {
-    const logs = await fetchRecentLogs(userId, accessToken, 50);
+    const items = logs !== undefined ? logs : await fetchRecentLogs(userId, accessToken, 50);
+    // 防御性排序：与 /state 的 lastRoutedMap 保持一致
+    const sorted = items.slice().sort((a: any, b: any) => (Number(b.created_at) || 0) - (Number(a.created_at) || 0));
     const modelToLog = new Map<string, any>();
 
-    for (const log of logs) {
+    for (const log of sorted) {
       const mName = log.model_name;
       const chId = Number(log.channel);
       if (mName && chId && !modelToLog.has(mName.toLowerCase())) {

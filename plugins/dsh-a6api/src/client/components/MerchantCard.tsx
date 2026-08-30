@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { store } from '../store.js';
 import type { ModelCardData } from '../../types.js';
 
+// 秒级时间戳 → 绝对时间文案 (MM-DD HH:mm:ss，跨年时带年)
+const formatAbsolute = (tsSec: number) => {
+  const d = new Date(tsSec * 1000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  const nowY = new Date().getFullYear();
+  const y = d.getFullYear();
+  const md = `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  return y !== nowY ? `${y}-${md}` : md;
+};
+
 export const MerchantCard: React.FC<{
   model: ModelCardData;
 }> = ({ model }) => {
@@ -209,41 +219,55 @@ export const MerchantCard: React.FC<{
 
         {/* Col 6: Right Action & Status Group */}
         <div className="dsh-a6-bar-actions" onClick={(e) => e.stopPropagation()}>
-          <span
-            className="dsh-a6-time-ago"
-            data-tooltip="该商户路线全网最近一次成功响应时间"
-          >
-            {merchant?.last_success_text || '刚刚'}
-          </span>
+          <div className="dsh-a6-time-stack">
+            <span
+              className="dsh-a6-time-ago"
+              data-tooltip="该商户路线全网最近一次成功响应时间"
+            >
+              全网最近：{merchant?.last_success_text || '刚刚'}
+            </span>
+            <span
+              className={`dsh-a6-time-ago dsh-a6-route-snapshot${model.lastRoutedAt ? '' : ' never'}`}
+              data-tooltip={
+                model.lastRoutedAt
+                  ? `个人最后一次请求该模型的时间（商家路由情况的截止时效）${formatAbsolute(model.lastRoutedAt)}`
+                  : '日志中暂无该模型的路由记录'
+              }
+            >
+              个人最近：{model.lastRoutedText || '从未路由'}
+            </span>
+          </div>
 
-          <button
-            type="button"
-            className="dsh-a6-btn dsh-a6-btn-secondary dsh-a6-btn-sm"
-            onClick={handleProbe}
-            disabled={isProbing}
-            data-tooltip="向该模型发送一次请求以探测并捕获其实际命中的商户 ID、价格及健康度指标（消耗少量Token）"
-          >
-            {isProbing ? '探测中...' : '探测商家'}
-          </button>
+          <div className="dsh-a6-bar-actions-btns">
+            <button
+              type="button"
+              className="dsh-a6-btn dsh-a6-btn-secondary dsh-a6-btn-sm"
+              onClick={handleProbe}
+              disabled={isProbing}
+              data-tooltip="向该模型发送一次请求以探测并捕获其实际命中的商户 ID、价格及健康度指标（消耗少量Token）"
+            >
+              {isProbing ? '探测中...' : '探测商家'}
+            </button>
 
-          <button
-            type="button"
-            className={`dsh-a6-btn dsh-a6-btn-sm ${model.inDsh ? 'dsh-a6-btn-in-dsh' : 'dsh-a6-btn-primary'}`}
-            onClick={handleToggleDsh}
-            data-tooltip={model.inDsh ? '已加入 DSH 模型选择器 (点击移除)' : '添加至 DSH 模型选择器'}
-          >
-            {model.inDsh ? '移除模型' : '添加模型'}
-          </button>
+            <button
+              type="button"
+              className={`dsh-a6-btn dsh-a6-btn-sm ${model.inDsh ? 'dsh-a6-btn-in-dsh' : 'dsh-a6-btn-primary'}`}
+              onClick={handleToggleDsh}
+              data-tooltip={model.inDsh ? '已加入 DSH 模型选择器 (点击移除)' : '添加至 DSH 模型选择器'}
+            >
+              {model.inDsh ? '移除模型' : '添加模型'}
+            </button>
 
-          <button
-            type="button"
-            className={`dsh-a6-expand-toggle-btn ${expanded ? 'open' : ''}`}
-            onClick={() => setExpanded(!expanded)}
-            data-tooltip={expanded ? '收起价格详情' : '展开官方基准价与商户实时价对比表'}
-            data-tooltip-pos="left"
-          >
-            {expanded ? '收起' : '详情'}
-          </button>
+            <button
+              type="button"
+              className={`dsh-a6-expand-toggle-btn ${expanded ? 'open' : ''}`}
+              onClick={() => setExpanded(!expanded)}
+              data-tooltip={expanded ? '收起价格详情' : '展开官方基准价与商户实时价对比表'}
+              data-tooltip-pos="left"
+            >
+              {expanded ? '收起' : '详情'}
+            </button>
+          </div>
         </div>
       </div>
 

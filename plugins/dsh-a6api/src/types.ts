@@ -127,6 +127,10 @@ export interface ModelCardData {
   probeError?: string;
   probeLatencyMs?: number;
   lastProbedAt?: number;
+  /** 路由快照时效：该模型最新一条「带 channel 的调用日志」时间（秒），即卡片商户数据来源请求的时刻 */
+  lastRoutedAt?: number;
+  /** 服务端算好的相对时间文案（如「3 小时前」），无记录时客户端显示「从未路由」 */
+  lastRoutedText?: string;
 }
 
 export interface BalanceInfo {

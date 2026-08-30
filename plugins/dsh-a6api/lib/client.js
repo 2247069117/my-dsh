@@ -31,6 +31,13 @@ module.exports = __toCommonJS(index_exports);
 var import_react4 = require("react");
 
 // src/client/store.ts
+function formatRelativeNow(tsSec) {
+  const diff = Math.floor(Date.now() / 1e3) - tsSec;
+  if (diff < 60) return "\u521A\u521A";
+  if (diff < 3600) return `${Math.floor(diff / 60)} \u5206\u949F\u524D`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} \u5C0F\u65F6\u524D`;
+  return `${Math.floor(diff / 86400)} \u5929\u524D`;
+}
 var A6ApiStore = class {
   state = {
     loading: true,
@@ -190,7 +197,10 @@ var A6ApiStore = class {
               probeStatus: "success",
               probeLatencyMs: json.result.durationMs,
               probeError: void 0,
-              lastProbedAt: Date.now()
+              lastProbedAt: Date.now(),
+              // 探测请求本身会写路由日志,乐观更新路由快照时效,下次 /state 以日志为准
+              lastRoutedAt: Math.floor(Date.now() / 1e3),
+              lastRoutedText: formatRelativeNow(Math.floor(Date.now() / 1e3))
             } : m
           );
         } else if (json?.result?.error) {
@@ -316,6 +326,14 @@ var store = new A6ApiStore();
 // src/client/components/MerchantCard.tsx
 var import_react = require("react");
 var import_jsx_runtime = require("react/jsx-runtime");
+var formatAbsolute = (tsSec) => {
+  const d = new Date(tsSec * 1e3);
+  const p = (n) => String(n).padStart(2, "0");
+  const nowY = (/* @__PURE__ */ new Date()).getFullYear();
+  const y = d.getFullYear();
+  const md = `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  return y !== nowY ? `${y}-${md}` : md;
+};
 var MerchantCard = ({ model }) => {
   const [expanded, setExpanded] = (0, import_react.useState)(false);
   const isProbing = model.probeStatus === "probing";
@@ -450,46 +468,64 @@ var MerchantCard = ({ model }) => {
       ] }) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-a6-bar-tags", children: (merchant?.labels || ["\u7A33\u5B9A", "\u4F4E\u4EF7", "\u9AD8\u901F", "\u9AD8\u8D28"]).map((lbl, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `dsh-a6-smart-pill ${getTagClass(lbl)}`, children: lbl }, idx)) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-a6-bar-actions", onClick: (e) => e.stopPropagation(), children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "span",
-          {
-            className: "dsh-a6-time-ago",
-            "data-tooltip": "\u8BE5\u5546\u6237\u8DEF\u7EBF\u5168\u7F51\u6700\u8FD1\u4E00\u6B21\u6210\u529F\u54CD\u5E94\u65F6\u95F4",
-            children: merchant?.last_success_text || "\u521A\u521A"
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            type: "button",
-            className: "dsh-a6-btn dsh-a6-btn-secondary dsh-a6-btn-sm",
-            onClick: handleProbe,
-            disabled: isProbing,
-            "data-tooltip": "\u5411\u8BE5\u6A21\u578B\u53D1\u9001\u4E00\u6B21\u8BF7\u6C42\u4EE5\u63A2\u6D4B\u5E76\u6355\u83B7\u5176\u5B9E\u9645\u547D\u4E2D\u7684\u5546\u6237 ID\u3001\u4EF7\u683C\u53CA\u5065\u5EB7\u5EA6\u6307\u6807\uFF08\u6D88\u8017\u5C11\u91CFToken\uFF09",
-            children: isProbing ? "\u63A2\u6D4B\u4E2D..." : "\u63A2\u6D4B\u5546\u5BB6"
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            type: "button",
-            className: `dsh-a6-btn dsh-a6-btn-sm ${model.inDsh ? "dsh-a6-btn-in-dsh" : "dsh-a6-btn-primary"}`,
-            onClick: handleToggleDsh,
-            "data-tooltip": model.inDsh ? "\u5DF2\u52A0\u5165 DSH \u6A21\u578B\u9009\u62E9\u5668 (\u70B9\u51FB\u79FB\u9664)" : "\u6DFB\u52A0\u81F3 DSH \u6A21\u578B\u9009\u62E9\u5668",
-            children: model.inDsh ? "\u79FB\u9664\u6A21\u578B" : "\u6DFB\u52A0\u6A21\u578B"
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            type: "button",
-            className: `dsh-a6-expand-toggle-btn ${expanded ? "open" : ""}`,
-            onClick: () => setExpanded(!expanded),
-            "data-tooltip": expanded ? "\u6536\u8D77\u4EF7\u683C\u8BE6\u60C5" : "\u5C55\u5F00\u5B98\u65B9\u57FA\u51C6\u4EF7\u4E0E\u5546\u6237\u5B9E\u65F6\u4EF7\u5BF9\u6BD4\u8868",
-            "data-tooltip-pos": "left",
-            children: expanded ? "\u6536\u8D77" : "\u8BE6\u60C5"
-          }
-        )
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-a6-time-stack", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "span",
+            {
+              className: "dsh-a6-time-ago",
+              "data-tooltip": "\u8BE5\u5546\u6237\u8DEF\u7EBF\u5168\u7F51\u6700\u8FD1\u4E00\u6B21\u6210\u529F\u54CD\u5E94\u65F6\u95F4",
+              children: [
+                "\u5168\u7F51\u6700\u8FD1\uFF1A",
+                merchant?.last_success_text || "\u521A\u521A"
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "span",
+            {
+              className: `dsh-a6-time-ago dsh-a6-route-snapshot${model.lastRoutedAt ? "" : " never"}`,
+              "data-tooltip": model.lastRoutedAt ? `\u4E2A\u4EBA\u6700\u540E\u4E00\u6B21\u8BF7\u6C42\u8BE5\u6A21\u578B\u7684\u65F6\u95F4\uFF08\u5546\u5BB6\u8DEF\u7531\u60C5\u51B5\u7684\u622A\u6B62\u65F6\u6548\uFF09${formatAbsolute(model.lastRoutedAt)}` : "\u65E5\u5FD7\u4E2D\u6682\u65E0\u8BE5\u6A21\u578B\u7684\u8DEF\u7531\u8BB0\u5F55",
+              children: [
+                "\u4E2A\u4EBA\u6700\u8FD1\uFF1A",
+                model.lastRoutedText || "\u4ECE\u672A\u8DEF\u7531"
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-a6-bar-actions-btns", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              className: "dsh-a6-btn dsh-a6-btn-secondary dsh-a6-btn-sm",
+              onClick: handleProbe,
+              disabled: isProbing,
+              "data-tooltip": "\u5411\u8BE5\u6A21\u578B\u53D1\u9001\u4E00\u6B21\u8BF7\u6C42\u4EE5\u63A2\u6D4B\u5E76\u6355\u83B7\u5176\u5B9E\u9645\u547D\u4E2D\u7684\u5546\u6237 ID\u3001\u4EF7\u683C\u53CA\u5065\u5EB7\u5EA6\u6307\u6807\uFF08\u6D88\u8017\u5C11\u91CFToken\uFF09",
+              children: isProbing ? "\u63A2\u6D4B\u4E2D..." : "\u63A2\u6D4B\u5546\u5BB6"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              className: `dsh-a6-btn dsh-a6-btn-sm ${model.inDsh ? "dsh-a6-btn-in-dsh" : "dsh-a6-btn-primary"}`,
+              onClick: handleToggleDsh,
+              "data-tooltip": model.inDsh ? "\u5DF2\u52A0\u5165 DSH \u6A21\u578B\u9009\u62E9\u5668 (\u70B9\u51FB\u79FB\u9664)" : "\u6DFB\u52A0\u81F3 DSH \u6A21\u578B\u9009\u62E9\u5668",
+              children: model.inDsh ? "\u79FB\u9664\u6A21\u578B" : "\u6DFB\u52A0\u6A21\u578B"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              type: "button",
+              className: `dsh-a6-expand-toggle-btn ${expanded ? "open" : ""}`,
+              onClick: () => setExpanded(!expanded),
+              "data-tooltip": expanded ? "\u6536\u8D77\u4EF7\u683C\u8BE6\u60C5" : "\u5C55\u5F00\u5B98\u65B9\u57FA\u51C6\u4EF7\u4E0E\u5546\u6237\u5B9E\u65F6\u4EF7\u5BF9\u6BD4\u8868",
+              "data-tooltip-pos": "left",
+              children: expanded ? "\u6536\u8D77" : "\u8BE6\u60C5"
+            }
+          )
+        ] })
       ] })
     ] }),
     expanded && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dsh-a6-detail-container", children: [
@@ -1794,17 +1830,49 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
   color: #059669;
 }
 
-/* Right Actions Group */
+/* Right Actions Group \u2014 \u9ED8\u8BA4\u9760\u53F3\uFF0C\u7A84\u5C4F\u65F6\u5360\u6EE1\u884C\u5BBD\u4E24\u7AEF\u5BF9\u9F50 */
 .dsh-a6-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+@media (max-width: 900px) {
+  .dsh-a6-bar-actions {
+    flex: 1 1 100%;
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+}
+
+.dsh-a6-time-ago {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary, #94a3b8);
+}
+
+/* \u4E24\u884C\u65F6\u95F4\u6233\u5782\u76F4\u53E0\u653E (\u5168\u7F51\u6700\u8FD1 / \u4E2A\u4EBA\u6700\u8FD1) \u2014 \u5DE6\u5BF9\u9F50 */
+.dsh-a6-time-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex-shrink: 0;
+  text-align: left;
+}
+
+/* \u53F3\u4FA7\u4E09\u6309\u94AE\u7EC4 */
+.dsh-a6-bar-actions-btns {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.dsh-a6-time-ago {
-  font-size: 11px;
-  color: var(--dsw-alias-label-tertiary, #94a3b8);
+.dsh-a6-route-snapshot.never {
+  color: var(--dsw-alias-label-quaternary, #cbd5e1);
 }
 
 .dsh-a6-btn-in-dsh {
@@ -2564,19 +2632,24 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
   bottom: calc(100% + 7px);
   left: 50%;
   transform: translateX(-50%);
-  padding: 5px 9px;
-  background: rgba(15, 23, 42, 0.94);
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.96);
   color: #f8fafc;
   font-size: 11px;
   font-weight: 400;
-  line-height: 1.35;
-  white-space: nowrap;
-  border-radius: 5px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  line-height: 1.4;
+  white-space: normal;
+  max-width: min(320px, 85vw);
+  width: max-content;
+  text-align: left;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.04s ease-out, visibility 0.04s ease-out;
+  transition: opacity 0.08s ease-out, visibility 0.08s ease-out;
   z-index: 99999;
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
@@ -2682,15 +2755,24 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
   border-color: transparent transparent rgba(15, 23, 42, 0.94) transparent;
 }
 
-/* Card actions tooltip default alignment */
+/* Card actions tooltip: keep centered (avoid left:0 right-edge overflow) */
 .dsh-a6-bar-actions [data-tooltip]:not([data-tooltip-pos])::after {
-  left: 0;
-  transform: none;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
 }
 
 .dsh-a6-bar-actions [data-tooltip]:not([data-tooltip-pos])::before {
-  left: 16px;
-  transform: none;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
+}
+
+/* When JS portal tooltip is active, hide pseudo to avoid double rendering */
+body.dsh-a6api-tooltip-active [data-tooltip]::after,
+body.dsh-a6api-tooltip-active [data-tooltip]::before {
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 `;
 
@@ -2707,8 +2789,194 @@ function injectStyles() {
     document.head.appendChild(style);
   }
 }
+function setupGlobalTooltip() {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+  if (window.__dsh_a6api_tooltip_setup) return () => {
+  };
+  window.__dsh_a6api_tooltip_setup = true;
+  const portalId = "dsh-a6api-tooltip";
+  const arrowId = "dsh-a6api-tooltip-arrow";
+  let portal = document.getElementById(portalId);
+  let arrow = document.getElementById(arrowId);
+  if (!portal) {
+    portal = document.createElement("div");
+    portal.id = portalId;
+    portal.setAttribute("role", "tooltip");
+    portal.style.cssText = "position:fixed;left:0;top:0;transform:translate(-9999px,-9999px);padding:6px 10px;background:rgba(15,23,42,0.96);color:#f8fafc;font-size:11px;line-height:1.4;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.12);max-width:min(320px,85vw);width:max-content;white-space:normal;word-break:break-word;overflow-wrap:anywhere;text-align:left;pointer-events:none;opacity:0;visibility:hidden;transition:opacity 0.08s;z-index:2147483647;";
+    document.body.appendChild(portal);
+  }
+  if (!arrow) {
+    arrow = document.createElement("div");
+    arrow.id = arrowId;
+    arrow.style.cssText = "position:fixed;left:0;top:0;width:8px;height:8px;background:rgba(15,23,42,0.96);transform:translate(-9999px,-9999px) rotate(45deg);border-left:1px solid rgba(255,255,255,0.12);border-top:1px solid rgba(255,255,255,0.12);pointer-events:none;opacity:0;visibility:hidden;z-index:2147483646;";
+    document.body.appendChild(arrow);
+  }
+  let currentTarget = null;
+  function hide() {
+    if (!portal || !arrow) return;
+    portal.style.opacity = "0";
+    portal.style.visibility = "hidden";
+    arrow.style.opacity = "0";
+    arrow.style.visibility = "hidden";
+    document.body.classList.remove("dsh-a6api-tooltip-active");
+    currentTarget = null;
+  }
+  function position(target) {
+    if (!portal || !arrow || !target) return;
+    const text = target.getAttribute("data-tooltip");
+    if (!text) return;
+    portal.textContent = text;
+    portal.style.visibility = "hidden";
+    portal.style.opacity = "0";
+    portal.style.transform = "translate(-9999px,-9999px)";
+    portal.style.visibility = "visible";
+    const ttRect = portal.getBoundingClientRect();
+    portal.style.visibility = "hidden";
+    const rect = target.getBoundingClientRect();
+    const gap = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 8;
+    let pos = target.getAttribute("data-tooltip-pos") || "";
+    if (!pos) {
+      const spaceAbove = rect.top;
+      const spaceBelow = vh - rect.bottom;
+      if (spaceAbove < ttRect.height + gap + 12 && spaceBelow > spaceAbove) pos = "down";
+      else pos = "top";
+    }
+    let top = 0;
+    let left = 0;
+    let arrowTop = 0;
+    let arrowLeft = 0;
+    const isDown = pos.startsWith("down");
+    if (isDown) {
+      top = rect.bottom + gap;
+      arrowTop = rect.bottom + gap - 4;
+    } else {
+      top = rect.top - ttRect.height - gap;
+      arrowTop = rect.top - gap - 4;
+    }
+    if (pos === "left") {
+      left = rect.right - ttRect.width;
+      arrowLeft = rect.right - 14;
+    } else if (pos === "right") {
+      left = rect.left;
+      arrowLeft = rect.left + 14;
+    } else if (pos === "down-left") {
+      left = rect.right - ttRect.width;
+      arrowLeft = rect.right - 14;
+    } else if (pos === "down-right") {
+      left = rect.left;
+      arrowLeft = rect.left + 14;
+    } else {
+      left = rect.left + rect.width / 2 - ttRect.width / 2;
+      arrowLeft = rect.left + rect.width / 2 - 4;
+    }
+    left = Math.max(margin, Math.min(left, vw - ttRect.width - margin));
+    const minArrow = left + 8;
+    const maxArrow = left + ttRect.width - 12;
+    arrowLeft = Math.max(minArrow, Math.min(arrowLeft, maxArrow));
+    if (top < margin) top = margin;
+    if (top + ttRect.height > vh - margin) top = vh - ttRect.height - margin;
+    portal.style.transform = "translate(" + left + "px," + top + "px)";
+    portal.style.visibility = "visible";
+    portal.style.opacity = "1";
+    arrow.style.transform = "translate(" + arrowLeft + "px," + arrowTop + "px) rotate(45deg)";
+    arrow.style.visibility = "visible";
+    arrow.style.opacity = "1";
+    document.body.classList.add("dsh-a6api-tooltip-active");
+  }
+  let hoverTimer = null;
+  const onMouseOver = (e) => {
+    const target = e.target && e.target.closest ? e.target.closest("[data-tooltip]") : null;
+    if (!target) return;
+    currentTarget = target;
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => {
+      if (currentTarget === target) position(target);
+    }, 30);
+  };
+  const onMouseOut = (e) => {
+    const target = e.target && e.target.closest ? e.target.closest("[data-tooltip]") : null;
+    if (!target) return;
+    const related = e.relatedTarget;
+    if (related && target.contains(related)) return;
+    if (currentTarget === target) {
+      if (hoverTimer) clearTimeout(hoverTimer);
+      hide();
+    }
+  };
+  const onFocusIn = (e) => {
+    const target = e.target && e.target.closest ? e.target.closest("[data-tooltip]") : null;
+    if (!target) return;
+    currentTarget = target;
+    position(target);
+  };
+  const onFocusOut = (e) => {
+    const target = e.target && e.target.closest ? e.target.closest("[data-tooltip]") : null;
+    if (!target) return;
+    if (currentTarget === target) hide();
+  };
+  const onScrollOrResize = () => {
+    if (currentTarget) {
+      if (document.body.contains(currentTarget) && currentTarget.matches && currentTarget.matches(":hover")) {
+        position(currentTarget);
+      } else if (document.activeElement === currentTarget) {
+        position(currentTarget);
+      } else {
+        hide();
+      }
+    }
+  };
+  document.addEventListener("mouseover", onMouseOver, true);
+  document.addEventListener("mouseout", onMouseOut, true);
+  document.addEventListener("focusin", onFocusIn, true);
+  document.addEventListener("focusout", onFocusOut, true);
+  window.addEventListener("scroll", onScrollOrResize, true);
+  window.addEventListener("resize", onScrollOrResize);
+  document.addEventListener("scroll", onScrollOrResize, true);
+  return () => {
+    document.removeEventListener("mouseover", onMouseOver, true);
+    document.removeEventListener("mouseout", onMouseOut, true);
+    document.removeEventListener("focusin", onFocusIn, true);
+    document.removeEventListener("focusout", onFocusOut, true);
+    window.removeEventListener("scroll", onScrollOrResize, true);
+    window.removeEventListener("resize", onScrollOrResize);
+    document.removeEventListener("scroll", onScrollOrResize, true);
+    if (hoverTimer) clearTimeout(hoverTimer);
+    try {
+      portal?.remove();
+    } catch {
+    }
+    try {
+      arrow?.remove();
+    } catch {
+    }
+    document.body.classList.remove("dsh-a6api-tooltip-active");
+    try {
+      delete window.__dsh_a6api_tooltip_setup;
+    } catch {
+      window.__dsh_a6api_tooltip_setup = void 0;
+    }
+    currentTarget = null;
+  };
+}
 function apply(ctx) {
   injectStyles();
+  if (typeof window !== "undefined") {
+    try {
+      ctx.effect(() => {
+        const dispose = setupGlobalTooltip();
+        return () => {
+          try {
+            if (typeof dispose === "function") dispose();
+          } catch {
+          }
+        };
+      }, "dsh-a6api: tooltip portal");
+    } catch {
+    }
+  }
   if (typeof window === "undefined") return;
   try {
     setTimeout(() => {
