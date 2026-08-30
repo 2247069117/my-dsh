@@ -146,10 +146,9 @@ var A6ApiStore = class {
             (m) => m.model_name === modelName ? {
               ...m,
               merchant: json.result.merchant,
-              // 请求失败(如固定商家 503)但回退到历史日志商户时,卡片照常展示并标注失败原因
-              probeStatus: json.result.success ? "success" : "error",
+              probeStatus: "success",
               probeLatencyMs: json.result.durationMs,
-              probeError: json.result.error || void 0,
+              probeError: void 0,
               lastProbedAt: Date.now()
             } : m
           );
@@ -157,6 +156,7 @@ var A6ApiStore = class {
           this.state.models = this.state.models.map(
             (m) => m.model_name === modelName ? {
               ...m,
+              merchant: void 0,
               probeStatus: "error",
               probeError: json.result.error,
               lastProbedAt: Date.now()
@@ -177,6 +177,7 @@ var A6ApiStore = class {
         this.state.models = this.state.models.map(
           (m) => m.model_name === modelName ? {
             ...m,
+            merchant: void 0,
             probeStatus: "error",
             probeError: `HTTP ${res.status}`,
             lastProbedAt: Date.now()
@@ -187,6 +188,7 @@ var A6ApiStore = class {
       this.state.models = this.state.models.map(
         (m) => m.model_name === modelName ? {
           ...m,
+          merchant: void 0,
           probeStatus: "error",
           probeError: err?.message || String(err),
           lastProbedAt: Date.now()
@@ -326,16 +328,7 @@ var MerchantCard = ({ model }) => {
               "\u5546\u6237ID ",
               merchant.channel_id
             ] })
-          ] }),
-          merchant && model.probeError && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "span",
-            {
-              className: "dsh-a6-probe-fail-chip",
-              "data-tooltip": model.probeError,
-              "data-tooltip-pos": "down",
-              children: "\u4E0A\u6B21\u63A2\u6D4B\u5931\u8D25"
-            }
-          )
+          ] })
         ] }),
         merchant?.description && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dsh-a6-sub-desc", children: merchant.description })
       ] }) }),

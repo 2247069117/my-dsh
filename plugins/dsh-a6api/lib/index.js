@@ -934,7 +934,7 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
     }
   }
   const durationMs = Date.now() - startTime;
-  if (userId || accessToken) {
+  if (requestOk && (userId || accessToken)) {
     await sleep(1200);
     try {
       const logs = await fetchRecentLogs(userId, accessToken, 15);
@@ -954,12 +954,11 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
         const merchant = await fetchChannelDetails(channelId, userId, accessToken, targetModel, logSnapshot);
         return {
           modelName: targetModel,
-          success: requestOk,
+          success: true,
           channelId,
           channelName: log.channel_name,
           merchant,
-          durationMs,
-          error: requestOk ? void 0 : requestError
+          durationMs
         };
       }
     } catch (err) {

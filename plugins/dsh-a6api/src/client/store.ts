@@ -144,10 +144,9 @@ class A6ApiStore {
               ? {
                   ...m,
                   merchant: json.result.merchant,
-                  // 请求失败(如固定商家 503)但回退到历史日志商户时,卡片照常展示并标注失败原因
-                  probeStatus: json.result.success ? ('success' as const) : ('error' as const),
+                  probeStatus: 'success' as const,
                   probeLatencyMs: json.result.durationMs,
-                  probeError: json.result.error || undefined,
+                  probeError: undefined,
                   lastProbedAt: Date.now(),
                 }
               : m,
@@ -157,6 +156,7 @@ class A6ApiStore {
             m.model_name === modelName
               ? {
                   ...m,
+                  merchant: undefined,
                   probeStatus: 'error' as const,
                   probeError: json.result.error,
                   lastProbedAt: Date.now(),
@@ -183,6 +183,7 @@ class A6ApiStore {
           m.model_name === modelName
             ? {
                 ...m,
+                merchant: undefined,
                 probeStatus: 'error' as const,
                 probeError: `HTTP ${res.status}`,
                 lastProbedAt: Date.now(),
@@ -195,6 +196,7 @@ class A6ApiStore {
         m.model_name === modelName
           ? {
               ...m,
+              merchant: undefined,
               probeStatus: 'error' as const,
               probeError: err?.message || String(err),
               lastProbedAt: Date.now(),
