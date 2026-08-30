@@ -25,13 +25,13 @@
 
 ---
 
-## 🛠️ 本地补丁脚本（scripts/）
+## 🛠️ 本地补丁脚本（patches/）
 
 | 目录 | 说明 |
 | --- | --- |
-| [patch-dsh-finish-reason](./scripts/patch-dsh-finish-reason/) | 修复「流结束不带 `finish_reason`」导致的 `Stream ended without finish_reason` 报错、内容丢弃与整轮重试（`openai-completions` 通用检查，覆盖 opencode.ai zen/go 等中转网关）。详见 [README](./scripts/patch-dsh-finish-reason/README.md) |
-| [patch-dsh-escalation-noop](./scripts/patch-dsh-escalation-noop/) | 修复 `dsh-sandbox` 同模式 `sandbox_permissions` 升级报错（`danger→danger` no-op 放行，真实升级仍审批）。详见 [README](./scripts/patch-dsh-escalation-noop/README.md) |
-| [dsh-message-edit-log-compat](./scripts/dsh-message-edit-log-compat/) | 修复第三方插件 `dsh-message-edit` 写入自定义事件 `message-edit/version` 导致的历史会话加载失败。详见 [README](./scripts/dsh-message-edit-log-compat/README.md) |
+| [patch-dsh-finish-reason](./patches/patch-dsh-finish-reason/) | 修复「流结束不带 `finish_reason`」导致的 `Stream ended without finish_reason` 报错、内容丢弃与整轮重试（`openai-completions` 通用检查，覆盖 opencode.ai zen/go 等中转网关）。详见 [README](./patches/patch-dsh-finish-reason/README.md) |
+| [patch-dsh-escalation-noop](./patches/patch-dsh-escalation-noop/) | 修复 `dsh-sandbox` 同模式 `sandbox_permissions` 升级报错（`danger→danger` no-op 放行，真实升级仍审批）。详见 [README](./patches/patch-dsh-escalation-noop/README.md) |
+| [dsh-message-edit-log-compat](./patches/dsh-message-edit-log-compat/) | 修复第三方插件 `dsh-message-edit` 写入自定义事件 `message-edit/version` 导致的历史会话加载失败。详见 [README](./patches/dsh-message-edit-log-compat/README.md) |
 
 ---
 

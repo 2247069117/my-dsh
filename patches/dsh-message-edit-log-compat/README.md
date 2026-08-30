@@ -34,11 +34,11 @@ DSH 会话持久化读取路径（`PersistenceCoordinator.assertEventsSupported`
 ## 使用
 
 ```bash
-scripts/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh            # 应用（幂等）
-scripts/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh check      # 校验补丁是否在位
-scripts/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh verify     # 用真实读取路径加载全部会话
-scripts/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh verify <session-id>  # 指定会话
-scripts/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh revert     # 撤销
+patches/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh            # 应用（幂等）
+patches/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh check      # 校验补丁是否在位
+patches/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh verify     # 用真实读取路径加载全部会话
+patches/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh verify <session-id>  # 指定会话
+patches/dsh-message-edit-log-compat/dsh-message-edit-log-compat.sh revert     # 撤销
 ```
 
 应用/撤销后**必须重启 `dsh web`**（运行中的进程仍持有旧代码），例如：停止当前服务（Ctrl-C 或 DSH Launcher）后重新 `dsh web`。
