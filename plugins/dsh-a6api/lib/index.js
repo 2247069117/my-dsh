@@ -929,7 +929,7 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
     requestError = err?.message || String(err);
   }
   const durationMs = Date.now() - startTime;
-  if (requestOk && (userId || accessToken)) {
+  if (userId || accessToken) {
     await sleep(1200);
     try {
       const logs = await fetchRecentLogs(userId, accessToken, 15);
@@ -949,11 +949,12 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
         const merchant = await fetchChannelDetails(channelId, userId, accessToken, targetModel, logSnapshot);
         return {
           modelName: targetModel,
-          success: true,
+          success: requestOk,
           channelId,
           channelName: log.channel_name,
           merchant,
-          durationMs
+          durationMs,
+          error: requestOk ? void 0 : requestError
         };
       }
     } catch (err) {
@@ -1329,6 +1330,7 @@ async function parseJsonBody(req) {
   }
 }
 var merchantCardCache = /* @__PURE__ */ new Map();
+var MERCHANT_CARD_TTL_MS = 15 * 60 * 1e3;
 function apply(ctx) {
   const webServer = ctx.webServer || (ctx.get ? ctx.get("webServer") : null);
   if (webServer && typeof webServer.register === "function") {
@@ -1372,18 +1374,22 @@ function apply(ctx) {
                 ];
               }
               if (config.userId || token) {
-                const missing = modelIds.filter((m) => !merchantCardCache.has(m.toLowerCase()));
+                const missing = modelIds.filter((m) => {
+                  const entry = merchantCardCache.get(m.toLowerCase());
+                  return !entry || Date.now() - entry.at >= MERCHANT_CARD_TTL_MS;
+                });
                 if (missing.length > 0) {
                   const found = await getKnownMerchantsFromLogs(config.userId, token, missing);
                   for (const [mName, card] of Object.entries(found)) {
-                    merchantCardCache.set(mName.toLowerCase(), card);
+                    merchantCardCache.set(mName.toLowerCase(), { card, at: Date.now() });
                   }
                 }
               }
               const dshSet = new Set(dshConfiguredModels);
               const models = modelIds.map((mId) => {
                 const meta = resolveModelMeta(mId);
-                const cachedCard = merchantCardCache.get(mId.toLowerCase());
+                const cacheEntry = merchantCardCache.get(mId.toLowerCase());
+                const cachedCard = cacheEntry && Date.now() - cacheEntry.at < MERCHANT_CARD_TTL_MS ? cacheEntry.card : void 0;
                 return {
                   model_name: mId,
                   brand: meta.brand,
@@ -1451,7 +1457,7 @@ function apply(ctx) {
               if (modelName && modelName !== "all") {
                 const result = await probeSingleModel(config.baseURL, config.apiKey, config.userId, token, modelName);
                 if (result.merchant) {
-                  merchantCardCache.set(modelName.toLowerCase(), result.merchant);
+                  merchantCardCache.set(modelName.toLowerCase(), { card: result.merchant, at: Date.now() });
                 }
                 return sendJson(res, 200, { ok: true, result });
               }
@@ -1466,7 +1472,7 @@ function apply(ctx) {
               for (const m of modelIds) {
                 const r = await probeSingleModel(config.baseURL, config.apiKey, config.userId, token, m);
                 if (r.merchant) {
-                  merchantCardCache.set(m.toLowerCase(), r.merchant);
+                  merchantCardCache.set(m.toLowerCase(), { card: r.merchant, at: Date.now() });
                 }
                 results.push(r);
               }

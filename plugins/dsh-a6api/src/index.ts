@@ -75,7 +75,9 @@ async function parseJsonBody(req: any): Promise<any> {
 }
 
 // In-memory cache for merchant cards to avoid duplicate log calls
-const merchantCardCache = new Map<string, MerchantChannelInfo>();
+const merchantCardCache = new Map<string, { card: MerchantChannelInfo; at: number }>();
+/** 卡片缓存有效期:过期后 /state 从最新日志重新推导,避免永远展示陈旧商户 */
+const MERCHANT_CARD_TTL_MS = 15 * 60 * 1000;
 
 export function apply(ctx: any): void {
   // Register Web API routes
@@ -134,11 +136,14 @@ export function apply(ctx: any): void {
 
               // Match known merchant cards from recent logs if not yet in cache
               if (config.userId || token) {
-                const missing = modelIds.filter((m) => !merchantCardCache.has(m.toLowerCase()));
+                const missing = modelIds.filter((m) => {
+                  const entry = merchantCardCache.get(m.toLowerCase());
+                  return !entry || Date.now() - entry.at >= MERCHANT_CARD_TTL_MS;
+                });
                 if (missing.length > 0) {
                   const found = await getKnownMerchantsFromLogs(config.userId, token, missing);
                   for (const [mName, card] of Object.entries(found)) {
-                    merchantCardCache.set(mName.toLowerCase(), card);
+                    merchantCardCache.set(mName.toLowerCase(), { card, at: Date.now() });
                   }
                 }
               }
@@ -146,7 +151,11 @@ export function apply(ctx: any): void {
               const dshSet = new Set(dshConfiguredModels);
               const models: ModelCardData[] = modelIds.map((mId) => {
                 const meta = resolveModelMeta(mId);
-                const cachedCard = merchantCardCache.get(mId.toLowerCase());
+                const cacheEntry = merchantCardCache.get(mId.toLowerCase());
+                const cachedCard =
+                  cacheEntry && Date.now() - cacheEntry.at < MERCHANT_CARD_TTL_MS
+                    ? cacheEntry.card
+                    : undefined;
                 return {
                   model_name: mId,
                   brand: meta.brand,
@@ -238,7 +247,7 @@ export function apply(ctx: any): void {
               if (modelName && modelName !== 'all') {
                 const result = await probeSingleModel(config.baseURL, config.apiKey, config.userId, token, modelName);
                 if (result.merchant) {
-                  merchantCardCache.set(modelName.toLowerCase(), result.merchant);
+                  merchantCardCache.set(modelName.toLowerCase(), { card: result.merchant, at: Date.now() });
                 }
                 return sendJson(res, 200, { ok: true, result });
               }
@@ -256,7 +265,7 @@ export function apply(ctx: any): void {
               for (const m of modelIds) {
                 const r = await probeSingleModel(config.baseURL, config.apiKey, config.userId, token, m);
                 if (r.merchant) {
-                  merchantCardCache.set(m.toLowerCase(), r.merchant);
+                  merchantCardCache.set(m.toLowerCase(), { card: r.merchant, at: Date.now() });
                 }
                 results.push(r);
               }

@@ -113,6 +113,15 @@ export const MerchantCard: React.FC<{
                   </span>
                 </>
               )}
+              {merchant && model.probeError && (
+                <span
+                  className="dsh-a6-probe-fail-chip"
+                  data-tooltip={model.probeError}
+                  data-tooltip-pos="down"
+                >
+                  上次探测失败
+                </span>
+              )}
             </div>
             {merchant?.description && (
               <div className="dsh-a6-sub-desc">{merchant.description}</div>

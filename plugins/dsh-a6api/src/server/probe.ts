@@ -60,8 +60,10 @@ export async function probeSingleModel(
 
   const durationMs = Date.now() - startTime;
 
-  // Query logs if the request was successful and user auth is configured
-  if (requestOk && (userId || accessToken)) {
+  // 无论请求成败,只要配置了账户鉴权,都尝试从日志捕获商户信息:
+  // 请求成功 → 命中本次新日志;请求失败(如固定商家 503)→ 回退该模型最近一条历史日志,
+  // 让卡片总能展示「上次路由」商户,而不是静默无更新
+  if (userId || accessToken) {
     // Wait slightly for gateway log writing (慢模型请求期间日志已落盘,快模型需要等待)
     await sleep(1200);
     try {
@@ -86,11 +88,12 @@ export async function probeSingleModel(
         const merchant = await fetchChannelDetails(channelId, userId, accessToken, targetModel, logSnapshot);
         return {
           modelName: targetModel,
-          success: true,
+          success: requestOk,
           channelId,
           channelName: log.channel_name,
           merchant,
           durationMs,
+          error: requestOk ? undefined : requestError,
         };
       }
     } catch (err: any) {

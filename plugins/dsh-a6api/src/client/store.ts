@@ -144,9 +144,10 @@ class A6ApiStore {
               ? {
                   ...m,
                   merchant: json.result.merchant,
-                  probeStatus: 'success' as const,
+                  // 请求失败(如固定商家 503)但回退到历史日志商户时,卡片照常展示并标注失败原因
+                  probeStatus: json.result.success ? ('success' as const) : ('error' as const),
                   probeLatencyMs: json.result.durationMs,
-                  probeError: undefined,
+                  probeError: json.result.error || undefined,
                   lastProbedAt: Date.now(),
                 }
               : m,
