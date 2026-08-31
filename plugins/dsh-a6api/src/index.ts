@@ -393,14 +393,15 @@ export function apply(ctx: any): void {
                     : current.accessToken;
               const newApiKey =
                 body.apiKey !== undefined && body.apiKey !== MASK ? body.apiKey : current.apiKey;
-              // 系统访问令牌变更时，持久化的 userId 属于旧令牌账号：从新令牌 JWT 重新派生
-              // （New-Api-User 鉴权头必须与令牌账号匹配，携带旧 userId 会 401）；
-              // 非 JWT 令牌派生不出则清空，交由 /api/user/self 自动发现回填
+              // 系统访问令牌变更时：从新令牌重新派生 userId（JWT / session cookie 均可零请求解码；
+              // New-Api-User 鉴权头必须与令牌账号匹配，携带旧 userId 会 401）。
+              // 不透明 PAT 派生不出 → 保留现有 userId（同账号换 PAT 是主流场景；
+              // 跨账号换 PAT 时旧 userId 会引发 401，由 fetchBalance 的诊断信息引导修正）
               const tokenChanged = rawToken !== (current.accessToken || '');
               let nextUserId =
                 body.userId !== undefined && body.userId !== MASK ? body.userId : current.userId;
               if (tokenChanged && (body.userId === undefined || body.userId === MASK)) {
-                nextUserId = deriveUserIdFromAccessToken(rawToken) || '';
+                nextUserId = deriveUserIdFromAccessToken(rawToken) || current.userId || '';
               }
               // API Key / 系统访问令牌（账号）/ userId 任一变更后，旧 tokenId 不再对应当前账号的令牌，
               // 清除并重置解析缓存，下次固定/取消固定时重新解析

@@ -418,6 +418,7 @@ async function fetchBalance(baseURL, apiKey, userId, accessToken) {
   let responseUserId = userId;
   let usedUsd = 0;
   let requestCount = 0;
+  let authError;
   if (userId || accessToken) {
     const candidates = ["https://a6api.com/api/user/self", `${cleanUrl}/api/user/self`];
     const uniqueCandidates = [...new Set(candidates)];
@@ -436,6 +437,7 @@ async function fetchBalance(baseURL, apiKey, userId, accessToken) {
             const cny = Number((usd * 6.7209).toFixed(2));
             const used = Number((rawUsed / 5e5).toFixed(4));
             hasAccountAuth = true;
+            authError = void 0;
             accountBalanceUsd = usd;
             accountBalanceFormatted = `$${usd.toFixed(2)}`;
             accountBalanceCnyFormatted = `\u2248 \xA5${cny.toFixed(2)}`;
@@ -444,6 +446,18 @@ async function fetchBalance(baseURL, apiKey, userId, accessToken) {
             username = json.data.username || json.data.display_name || void 0;
             if (json.data.id) responseUserId = json.data.id;
             break;
+          }
+        } else if (res.status === 401) {
+          const body = await res.json().catch(() => null);
+          const msg = String(body?.message || "");
+          if (msg.includes("New-Api-User header not provided")) {
+            authError = "\u4EE4\u724C\u6709\u6548\u4F46\u7F3A\u5C11\u7528\u6237 ID\uFF1A\u8BF7\u5728\u300C\u57FA\u7840\u914D\u7F6E\u300D\u586B\u5199\u300C\u7528\u6237 ID (New-Api-User)\u300D\u540E\u91CD\u8BD5";
+          } else if (msg.includes("New-Api-User does not match")) {
+            authError = "\u7528\u6237 ID \u4E0E\u4EE4\u724C\u8D26\u53F7\u4E0D\u5339\u914D\uFF1A\u8BF7\u6838\u5BF9\u300C\u7528\u6237 ID (New-Api-User)\u300D\uFF08\u5B98\u7F51\u63A7\u5236\u53F0\u53F3\u4E0A\u89D2\u5934\u50CF\u5904\u53EF\u89C1\uFF09";
+          } else if (msg.includes("invalid access token")) {
+            authError = "\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C\u65E0\u6548\u6216\u5DF2\u5931\u6548\uFF1A\u8BF7\u5728\u5B98\u7F51\u300C\u4E2A\u4EBA\u8BBE\u7F6E \u2192 \u5B89\u5168\u8BBE\u7F6E\u300D\u91CD\u65B0\u751F\u6210";
+          } else if (msg) {
+            authError = `\u9274\u6743\u5931\u8D25\uFF1A${msg}`;
           }
         }
       } catch {
@@ -480,7 +494,8 @@ async function fetchBalance(baseURL, apiKey, userId, accessToken) {
     username,
     userId: responseUserId,
     isLow: hasAccountAuth ? accountBalanceUsd < 0.5 : false,
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
+    authError: hasAccountAuth ? void 0 : authError
   };
 }
 async function fetchTokenModels(baseURL, apiKey) {
@@ -1118,18 +1133,68 @@ var A6API_CRED_REF = "A6API_API_KEY";
 var A6API_TOKEN_REF = "A6API_ACCESS_TOKEN";
 var A6API_USER_REF = "A6API_USER_ID";
 var ENV_SHADOW_RE = /supplied read-only by the launching environment|would be shadowed/;
-function deriveUserIdFromAccessToken(token) {
-  const t = (token || "").trim();
-  if (!t || t.startsWith("session=") || t.includes(";")) return void 0;
-  const parts = t.split(".");
-  if (parts.length !== 3) return void 0;
+function deriveUserIdFromSessionCookie(token) {
   try {
-    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
-    const id = Number(payload?.id ?? payload?.user_id ?? payload?.userId ?? payload?.sub);
-    if (Number.isInteger(id) && id > 0) return String(id);
+    const b64 = token.replace(/-/g, "+").replace(/_/g, "/");
+    const raw = Buffer.from(b64, "base64").toString("latin1");
+    if (!raw.includes("|")) return void 0;
+    const segments = raw.split("|");
+    if (segments.length < 3) return void 0;
+    const gob = Buffer.from(segments[1], "base64").toString("latin1");
+    const keyIdx = gob.indexOf("idint");
+    if (keyIdx < 0) return void 0;
+    let p = keyIdx + "idint".length;
+    while (p < gob.length && gob.charCodeAt(p) === 4) p++;
+    if (p < gob.length && gob.charCodeAt(p) === 0) p++;
+    if (p >= gob.length) return void 0;
+    const b = gob.charCodeAt(p);
+    let u;
+    if (b >= 128 && b <= 254) {
+      const len = 256 - b;
+      if (p + 1 + len > gob.length) return void 0;
+      u = 0;
+      for (let i = 1; i <= len; i++) u = u * 256 + gob.charCodeAt(p + i);
+    } else if (b < 128) {
+      u = b;
+    } else {
+      return void 0;
+    }
+    const v = u % 2 === 0 ? u / 2 : -(u + 1) / 2;
+    if (Number.isInteger(v) && v > 0) return String(v);
   } catch {
   }
   return void 0;
+}
+function deriveUserIdFromAccessToken(token) {
+  const t = (token || "").trim();
+  if (!t) return void 0;
+  if (t.startsWith("session=") || t.includes(";")) {
+    return deriveUserIdFromSessionCookie(t.replace(/^session=/, "").split(";")[0].trim());
+  }
+  if (t.split(".").length === 3 && t.includes(".") && partsLookLikeJwt(t)) {
+    try {
+      const payload = JSON.parse(Buffer.from(t.split(".")[1], "base64url").toString("utf8"));
+      const id = Number(payload?.id ?? payload?.user_id ?? payload?.userId ?? payload?.sub);
+      if (Number.isInteger(id) && id > 0) return String(id);
+    } catch {
+    }
+    return void 0;
+  }
+  if (/^[A-Za-z0-9+/=_-]{80,}$/.test(t)) {
+    const v = deriveUserIdFromSessionCookie(t);
+    if (v) return v;
+  }
+  return void 0;
+}
+function partsLookLikeJwt(t) {
+  try {
+    const seg = t.split(".")[1];
+    if (!seg) return false;
+    const payload = JSON.parse(Buffer.from(seg, "base64url").toString("utf8"));
+    return payload !== null && typeof payload === "object" && !Array.isArray(payload);
+  } catch {
+    return false;
+  }
 }
 var SETTINGS_NS = "llm-pi-ai";
 var PROVIDER_KEY = "a6api";
@@ -2014,7 +2079,7 @@ function apply(ctx) {
               const tokenChanged = rawToken !== (current.accessToken || "");
               let nextUserId = body.userId !== void 0 && body.userId !== MASK ? body.userId : current.userId;
               if (tokenChanged && (body.userId === void 0 || body.userId === MASK)) {
-                nextUserId = deriveUserIdFromAccessToken(rawToken) || "";
+                nextUserId = deriveUserIdFromAccessToken(rawToken) || current.userId || "";
               }
               const credChanged = newApiKey !== current.apiKey || tokenChanged || body.userId !== void 0 && body.userId !== MASK && body.userId !== current.userId || (nextUserId || "") !== (current.userId || "");
               if (credChanged) {

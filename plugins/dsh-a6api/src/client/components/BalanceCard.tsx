@@ -111,7 +111,13 @@ export const AccountPanel: React.FC<{
           <div className="dsh-a6-auth-banner-content">
             <div className="dsh-a6-auth-banner-title">连接系统访问令牌以解锁完整资产监控</div>
             <div className="dsh-a6-auth-banner-desc">
-              填入您的 <strong>A6API 系统访问令牌</strong> 后，即可在此实时查看账户真实可用余额、历史消耗、累计请求以及商户路由价格指标。
+              {balance?.authError ? (
+                <strong style={{ color: '#dc2626' }}>{balance.authError}</strong>
+              ) : (
+                <>
+                  填入您的 <strong>A6API 系统访问令牌</strong> 后，即可在此实时查看账户真实可用余额、历史消耗、累计请求以及商户路由价格指标。
+                </>
+              )}
             </div>
           </div>
           {onNavigateToConfig && (
@@ -120,7 +126,7 @@ export const AccountPanel: React.FC<{
               className="dsh-a6-btn dsh-a6-btn-primary dsh-a6-btn-sm"
               onClick={onNavigateToConfig}
             >
-              填写系统访问令牌
+              {balance?.authError ? '前往修正配置' : '填写系统访问令牌'}
             </button>
           )}
         </div>

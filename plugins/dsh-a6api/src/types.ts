@@ -238,6 +238,8 @@ export interface BalanceInfo {
   userId?: string | number;
   isLow: boolean;
   updatedAt: number;
+  /** 鉴权失败诊断（PAT 缺 userId / ID 不匹配 / 令牌失效）；成功时为 undefined */
+  authError?: string;
 }
 
 export interface ApiRoutingLogItem {

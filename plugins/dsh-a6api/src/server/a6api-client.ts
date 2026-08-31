@@ -72,6 +72,8 @@ export async function fetchBalance(
   let responseUserId: string | number | undefined = userId;
   let usedUsd = 0;
   let requestCount = 0;
+  /** 鉴权失败诊断（PAT 缺 userId / userId 不匹配 / 令牌失效），呈现给 UI 引导修复 */
+  let authError: string | undefined;
 
   // 1. Fetch real account balance from Web Console API
   if (userId || accessToken) {
@@ -94,6 +96,7 @@ export async function fetchBalance(
             const used = Number((rawUsed / 500000).toFixed(4));
 
             hasAccountAuth = true;
+            authError = undefined;
             accountBalanceUsd = usd;
             accountBalanceFormatted = `$${usd.toFixed(2)}`;
             accountBalanceCnyFormatted = `≈ ¥${cny.toFixed(2)}`;
@@ -102,6 +105,20 @@ export async function fetchBalance(
             username = json.data.username || json.data.display_name || undefined;
             if (json.data.id) responseUserId = json.data.id;
             break;
+          }
+        } else if (res.status === 401) {
+          // 区分三种 401：缺 New-Api-User 头 / 头与令牌账号不匹配 / 令牌本身无效。
+          // 不透明 PAT 不含用户信息，缺 userId 时用户无从得知该填什么——诊断必须点明。
+          const body = await res.json().catch(() => null);
+          const msg = String(body?.message || '');
+          if (msg.includes('New-Api-User header not provided')) {
+            authError = '令牌有效但缺少用户 ID：请在「基础配置」填写「用户 ID (New-Api-User)」后重试';
+          } else if (msg.includes('New-Api-User does not match')) {
+            authError = '用户 ID 与令牌账号不匹配：请核对「用户 ID (New-Api-User)」（官网控制台右上角头像处可见）';
+          } else if (msg.includes('invalid access token')) {
+            authError = '系统访问令牌无效或已失效：请在官网「个人设置 → 安全设置」重新生成';
+          } else if (msg) {
+            authError = `鉴权失败：${msg}`;
           }
         }
       } catch {
@@ -144,6 +161,7 @@ export async function fetchBalance(
     userId: responseUserId,
     isLow: hasAccountAuth ? accountBalanceUsd < 0.5 : false,
     updatedAt: Date.now(),
+    authError: hasAccountAuth ? undefined : authError,
   };
 }
 

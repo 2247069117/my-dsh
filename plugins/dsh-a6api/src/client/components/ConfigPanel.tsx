@@ -11,6 +11,7 @@ export const ConfigPanel: React.FC<{
 }> = ({ config, dshConfiguredModels }) => {
   const [apiKey, setApiKey] = useState(config.apiKey || '');
   const [accessToken, setAccessToken] = useState(config.accessToken || '');
+  const [userId, setUserId] = useState(config.userId || '');
   const [clearKey, setClearKey] = useState(false);
   const [clearToken, setClearToken] = useState(false);
   const [selectedNode, setSelectedNode] = useState(
@@ -40,6 +41,7 @@ export const ConfigPanel: React.FC<{
   useEffect(() => {
     setApiKey(config.apiKey || '');
     setAccessToken(config.accessToken || '');
+    setUserId(config.userId || '');
     setClearKey(false);
     setClearToken(false);
     setSelectedNode(config.baseURL || 'https://api.a6api.com');
@@ -60,9 +62,12 @@ export const ConfigPanel: React.FC<{
     // 未修改（占位符态）→ 不发送该字段，服务端保留原值；点击「清除」→ 发送空串删除
     const newApiKey = apiKeySet ? (clearKey ? '' : undefined) : apiKey.trim();
     const newToken = tokenSet ? (clearToken ? '' : undefined) : accessToken.trim();
+    // userId：非机密短数字，直接以当前输入为准（空 = 清除）
+    const newUserId = userId.trim();
     const ok = await store.saveConfig({
       ...(newApiKey !== undefined ? { apiKey: newApiKey } : {}),
       ...(newToken !== undefined ? { accessToken: newToken } : {}),
+      ...(newUserId !== (config.userId || '') ? { userId: newUserId } : {}),
       baseURL: finalBaseUrl,
     });
     setSaving(false);
@@ -236,6 +241,37 @@ export const ConfigPanel: React.FC<{
               </button>
             </div>
           </div>
+
+          {/* User ID (New-Api-User) */}
+          <div className="dsh-a6-field">
+            <div className="dsh-a6-field-header">
+              <label className="dsh-a6-label">用户 ID (New-Api-User)</label>
+              <div className="dsh-a6-field-header-actions">
+                {userId && (
+                  <button
+                    type="button"
+                    className="dsh-a6-btn-text"
+                    onClick={() => setUserId('')}
+                  >
+                    清除
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="dsh-a6-input-wrapper">
+              <input
+                type="text"
+                className="dsh-a6-input"
+                placeholder="例如 16585（纯数字）"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+              />
+            </div>
+            <span className="dsh-a6-field-hint">
+              控制台 API 鉴权所需的账号数字 ID。JWT 令牌 / 会话 Cookie 会自动识别，无需手填；
+              仅当令牌是不透明访问令牌（如 32 位随机串）时才需要手动填写。
+            </span>
+          </div>
         </div>
 
         {/* Tutorial Drawer */}
@@ -252,6 +288,13 @@ export const ConfigPanel: React.FC<{
               </li>
               <li>在「系统访问令牌」栏目直接点击复制令牌字符串（例如 <code>eyJhbGciOi...</code>）</li>
               <li>粘贴到上方的「系统访问令牌」输入框中并点击下方「保存配置」即可自动同步余额！</li>
+            </ol>
+            <div className="dsh-a6-help-title" style={{ marginTop: '10px' }}>
+              用户 ID (New-Api-User) 获取方式：
+            </div>
+            <ol className="dsh-a6-help-list">
+              <li>登录 A6API 控制台后，打开「个人设置」页面，页面中展示的数字 ID 即为用户 ID</li>
+              <li>或按 F12 打开浏览器开发者工具 → Network → 点击任意 api 请求，请求头中 <code>New-Api-User</code> 的值即为用户 ID</li>
             </ol>
           </div>
         )}

@@ -1139,11 +1139,11 @@ var AccountPanel = ({ balance, config, recentLogs = [], onNavigateToConfig }) =>
     !hasAuth && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "dsh-a6-auth-banner-box", children: [
       /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "dsh-a6-auth-banner-content", children: [
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dsh-a6-auth-banner-title", children: "\u8FDE\u63A5\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C\u4EE5\u89E3\u9501\u5B8C\u6574\u8D44\u4EA7\u76D1\u63A7" }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "dsh-a6-auth-banner-desc", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dsh-a6-auth-banner-desc", children: balance?.authError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("strong", { style: { color: "#dc2626" }, children: balance.authError }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
           "\u586B\u5165\u60A8\u7684 ",
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("strong", { children: "A6API \u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C" }),
           " \u540E\uFF0C\u5373\u53EF\u5728\u6B64\u5B9E\u65F6\u67E5\u770B\u8D26\u6237\u771F\u5B9E\u53EF\u7528\u4F59\u989D\u3001\u5386\u53F2\u6D88\u8017\u3001\u7D2F\u8BA1\u8BF7\u6C42\u4EE5\u53CA\u5546\u6237\u8DEF\u7531\u4EF7\u683C\u6307\u6807\u3002"
-        ] })
+        ] }) })
       ] }),
       onNavigateToConfig && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
         "button",
@@ -1151,7 +1151,7 @@ var AccountPanel = ({ balance, config, recentLogs = [], onNavigateToConfig }) =>
           type: "button",
           className: "dsh-a6-btn dsh-a6-btn-primary dsh-a6-btn-sm",
           onClick: onNavigateToConfig,
-          children: "\u586B\u5199\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C"
+          children: balance?.authError ? "\u524D\u5F80\u4FEE\u6B63\u914D\u7F6E" : "\u586B\u5199\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C"
         }
       )
     ] }),
@@ -1202,6 +1202,7 @@ var MASK = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
 var ConfigPanel = ({ config, dshConfiguredModels }) => {
   const [apiKey, setApiKey] = (0, import_react3.useState)(config.apiKey || "");
   const [accessToken, setAccessToken] = (0, import_react3.useState)(config.accessToken || "");
+  const [userId, setUserId] = (0, import_react3.useState)(config.userId || "");
   const [clearKey, setClearKey] = (0, import_react3.useState)(false);
   const [clearToken, setClearToken] = (0, import_react3.useState)(false);
   const [selectedNode, setSelectedNode] = (0, import_react3.useState)(
@@ -1224,6 +1225,7 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
   (0, import_react3.useEffect)(() => {
     setApiKey(config.apiKey || "");
     setAccessToken(config.accessToken || "");
+    setUserId(config.userId || "");
     setClearKey(false);
     setClearToken(false);
     setSelectedNode(config.baseURL || "https://api.a6api.com");
@@ -1240,9 +1242,11 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
     const finalBaseUrl = isCustom ? customNode.trim() || "https://api.a6api.com" : selectedNode;
     const newApiKey = apiKeySet ? clearKey ? "" : void 0 : apiKey.trim();
     const newToken = tokenSet ? clearToken ? "" : void 0 : accessToken.trim();
+    const newUserId = userId.trim();
     const ok = await store.saveConfig({
       ...newApiKey !== void 0 ? { apiKey: newApiKey } : {},
       ...newToken !== void 0 ? { accessToken: newToken } : {},
+      ...newUserId !== (config.userId || "") ? { userId: newUserId } : {},
       baseURL: finalBaseUrl
     });
     setSaving(false);
@@ -1402,6 +1406,31 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
               }
             )
           ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-field", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-field-header", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { className: "dsh-a6-label", children: "\u7528\u6237 ID (New-Api-User)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dsh-a6-field-header-actions", children: userId && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+              "button",
+              {
+                type: "button",
+                className: "dsh-a6-btn-text",
+                onClick: () => setUserId(""),
+                children: "\u6E05\u9664"
+              }
+            ) })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dsh-a6-input-wrapper", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "input",
+            {
+              type: "text",
+              className: "dsh-a6-input",
+              placeholder: "\u4F8B\u5982 16585\uFF08\u7EAF\u6570\u5B57\uFF09",
+              value: userId,
+              onChange: (e) => setUserId(e.target.value)
+            }
+          ) }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dsh-a6-field-hint", children: "\u63A7\u5236\u53F0 API \u9274\u6743\u6240\u9700\u7684\u8D26\u53F7\u6570\u5B57 ID\u3002JWT \u4EE4\u724C / \u4F1A\u8BDD Cookie \u4F1A\u81EA\u52A8\u8BC6\u522B\uFF0C\u65E0\u9700\u624B\u586B\uFF1B \u4EC5\u5F53\u4EE4\u724C\u662F\u4E0D\u900F\u660E\u8BBF\u95EE\u4EE4\u724C\uFF08\u5982 32 \u4F4D\u968F\u673A\u4E32\uFF09\u65F6\u624D\u9700\u8981\u624B\u52A8\u586B\u5199\u3002" })
         ] })
       ] }),
       showHelp && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-help-drawer", children: [
@@ -1420,6 +1449,15 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
             "\uFF09"
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "\u7C98\u8D34\u5230\u4E0A\u65B9\u7684\u300C\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C\u300D\u8F93\u5165\u6846\u4E2D\u5E76\u70B9\u51FB\u4E0B\u65B9\u300C\u4FDD\u5B58\u914D\u7F6E\u300D\u5373\u53EF\u81EA\u52A8\u540C\u6B65\u4F59\u989D\uFF01" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dsh-a6-help-title", style: { marginTop: "10px" }, children: "\u7528\u6237 ID (New-Api-User) \u83B7\u53D6\u65B9\u5F0F\uFF1A" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("ol", { className: "dsh-a6-help-list", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "\u767B\u5F55 A6API \u63A7\u5236\u53F0\u540E\uFF0C\u6253\u5F00\u300C\u4E2A\u4EBA\u8BBE\u7F6E\u300D\u9875\u9762\uFF0C\u9875\u9762\u4E2D\u5C55\u793A\u7684\u6570\u5B57 ID \u5373\u4E3A\u7528\u6237 ID" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("li", { children: [
+            "\u6216\u6309 F12 \u6253\u5F00\u6D4F\u89C8\u5668\u5F00\u53D1\u8005\u5DE5\u5177 \u2192 Network \u2192 \u70B9\u51FB\u4EFB\u610F api \u8BF7\u6C42\uFF0C\u8BF7\u6C42\u5934\u4E2D ",
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { children: "New-Api-User" }),
+            " \u7684\u503C\u5373\u4E3A\u7528\u6237 ID"
+          ] })
         ] })
       ] })
     ] }),

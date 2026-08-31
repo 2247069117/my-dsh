@@ -22,24 +22,93 @@ export const A6API_USER_REF = 'A6API_USER_ID';
 const ENV_SHADOW_RE = /supplied read-only by the launching environment|would be shadowed/;
 
 /**
- * 从 JWT 形态的系统访问令牌 payload 解析用户 ID。
- * new-api 系「系统访问令牌」是携带 id claim 的 JWT；Web 控制台 API 以
- * Authorization + New-Api-User（用户 ID）双头鉴权，缺 New-Api-User 会被 401 拒绝，
- * 导致「仅配置令牌、尚未持久化 userId」时 /api/user/self 永远失败（鸡生蛋问题：
- * 发现 userId 需要鉴权，鉴权又需要 userId）。令牌本身即可零请求解码出用户 ID，
- * 打破该循环。非 JWT（原始会话 Cookie 等）返回 undefined，保持原「接口自动发现」路径。
+ * 从 gorilla securecookie 形态的会话 Cookie 解析用户 ID。
+ * new-api Web 会话 cookie 的值是 base64(`timestamp|base64(gob map)|hmac`)，
+ * gob map 含 id 键（int）。会话即使已过期/被轮换，解码依然能取出 id——
+ * 用户从浏览器粘贴任何历史 session 值，都足以恢复 PAT 所需的 New-Api-User。
+ */
+function deriveUserIdFromSessionCookie(token: string): string | undefined {
+  try {
+    const b64 = token.replace(/-/g, '+').replace(/_/g, '/');
+    const raw = Buffer.from(b64, 'base64').toString('latin1');
+    if (!raw.includes('|')) return undefined;
+    const segments = raw.split('|');
+    if (segments.length < 3) return undefined;
+    // 第二段再 base64 解码得到 gob 编码的 map
+    const gob = Buffer.from(segments[1], 'base64').toString('latin1');
+    // 找 id 键：gob 中形如 "id" 后跟 "int" 类型定义，再跟 gob int 值
+    const keyIdx = gob.indexOf('id\x03int');
+    if (keyIdx < 0) return undefined;
+    let p = keyIdx + 'id\x03int'.length;
+    // 跳过类型定义字节（观测为 \x04\x04\x00，防御性跳过 \x04 串与单个 \x00）
+    while (p < gob.length && gob.charCodeAt(p) === 0x04) p++;
+    if (p < gob.length && gob.charCodeAt(p) === 0x00) p++;
+    if (p >= gob.length) return undefined;
+    const b = gob.charCodeAt(p);
+    let u: number;
+    if (b >= 0x80 && b <= 0xfe) {
+      // 多字节：长度 = 256 - b，big-endian
+      const len = 256 - b;
+      if (p + 1 + len > gob.length) return undefined;
+      u = 0;
+      for (let i = 1; i <= len; i++) u = u * 256 + gob.charCodeAt(p + i);
+    } else if (b < 0x80) {
+      u = b;
+    } else {
+      return undefined;
+    }
+    // gob 有符号整数：偶数 u → v = u/2；奇数 u → v = -(u+1)/2
+    const v = u % 2 === 0 ? u / 2 : -(u + 1) / 2;
+    if (Number.isInteger(v) && v > 0) return String(v);
+  } catch {}
+  return undefined;
+}
+
+/**
+ * 从令牌或会话 Cookie 解析用户 ID（New-Api-User 鉴权头所需）。
+ * 覆盖三种形态：
+ * 1. JWT 系统访问令牌 —— payload 携带 id claim，零请求解码；
+ * 2. gorilla 会话 Cookie（session= 前缀 / 含分号 / 整串多段 base64）——
+ *    gob map 含 id，即使会话已过期也能解出；
+ * 3. 不透明 PAT（如 32 字符随机串）——不含用户信息，返回 undefined，
+ *    由调用方走「接口自动发现」或用户手填兜底。
+ * 背景：new-api Web API 以 Authorization + New-Api-User 双头鉴权，缺
+ * New-Api-User 一律 401，而 userId 的自动发现又依赖该鉴权（鸡生蛋）。
  */
 export function deriveUserIdFromAccessToken(token: string | undefined): string | undefined {
   const t = (token || '').trim();
-  if (!t || t.startsWith('session=') || t.includes(';')) return undefined;
-  const parts = t.split('.');
-  if (parts.length !== 3) return undefined;
-  try {
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    const id = Number(payload?.id ?? payload?.user_id ?? payload?.userId ?? payload?.sub);
-    if (Number.isInteger(id) && id > 0) return String(id);
-  } catch {}
+  if (!t) return undefined;
+  // 会话 Cookie 族：session= 前缀或含分号
+  if (t.startsWith('session=') || t.includes(';')) {
+    return deriveUserIdFromSessionCookie(t.replace(/^session=/, '').split(';')[0].trim());
+  }
+  // JWT（三段点分隔）
+  if (t.split('.').length === 3 && t.includes('.') && partsLookLikeJwt(t)) {
+    try {
+      const payload = JSON.parse(Buffer.from(t.split('.')[1], 'base64url').toString('utf8'));
+      const id = Number(payload?.id ?? payload?.user_id ?? payload?.userId ?? payload?.sub);
+      if (Number.isInteger(id) && id > 0) return String(id);
+    } catch {}
+    return undefined;
+  }
+  // gorilla securecookie 整串（长 base64，解码后含 | 分隔）
+  if (/^[A-Za-z0-9+/=_-]{80,}$/.test(t)) {
+    const v = deriveUserIdFromSessionCookie(t);
+    if (v) return v;
+  }
   return undefined;
+}
+
+/** JWT 粗筛：第二段可 base64url 解码且解出 JSON 对象 */
+function partsLookLikeJwt(t: string): boolean {
+  try {
+    const seg = t.split('.')[1];
+    if (!seg) return false;
+    const payload = JSON.parse(Buffer.from(seg, 'base64url').toString('utf8'));
+    return payload !== null && typeof payload === 'object' && !Array.isArray(payload);
+  } catch {
+    return false;
+  }
 }
 
 const SETTINGS_NS = 'llm-pi-ai';
