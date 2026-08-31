@@ -71,6 +71,21 @@ export const A6ApiSettingsPanel: React.FC = () => {
 
   return (
     <div className="dsh-a6-container">
+      {/* 0. Global Error Banner（凭据保存失败、状态拉取失败等；成功刷新自动消失，可手动关闭） */}
+      {state.error && (
+        <div className="dsh-a6-error-banner" role="alert">
+          <span className="dsh-a6-error-banner-text">{state.error}</span>
+          <button
+            type="button"
+            className="dsh-a6-error-banner-close"
+            onClick={() => store.clearError()}
+            aria-label="关闭错误提示"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* 1. Header Title & Description */}
       <div className="dsh-a6-main-header">
         <div className="dsh-a6-header-text">

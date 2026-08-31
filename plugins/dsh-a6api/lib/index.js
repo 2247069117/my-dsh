@@ -1117,6 +1117,20 @@ import * as os from "node:os";
 var A6API_CRED_REF = "A6API_API_KEY";
 var A6API_TOKEN_REF = "A6API_ACCESS_TOKEN";
 var A6API_USER_REF = "A6API_USER_ID";
+var ENV_SHADOW_RE = /supplied read-only by the launching environment|would be shadowed/;
+function deriveUserIdFromAccessToken(token) {
+  const t = (token || "").trim();
+  if (!t || t.startsWith("session=") || t.includes(";")) return void 0;
+  const parts = t.split(".");
+  if (parts.length !== 3) return void 0;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+    const id = Number(payload?.id ?? payload?.user_id ?? payload?.userId ?? payload?.sub);
+    if (Number.isInteger(id) && id > 0) return String(id);
+  } catch {
+  }
+  return void 0;
+}
 var SETTINGS_NS = "llm-pi-ai";
 var PROVIDER_KEY = "a6api";
 var DEFAULT_BASE_URL = "https://api.a6api.com";
@@ -1231,6 +1245,17 @@ async function writeCredentialKey(refKey, value) {
     }
   }
   await atomicWriteFile(cFile, lines.join("\n"), 384);
+}
+async function healCredentialsFileMode() {
+  const cFile = credentialsFile();
+  try {
+    const st = await fsp2.stat(cFile);
+    if (st.mode & 63) {
+      await fsp2.chmod(cFile, 384);
+      console.warn("[dsh-a6api] \u5DF2\u5C06\u51ED\u636E\u6587\u4EF6\u6743\u9650\u6536\u7D27\u4E3A 0600\uFF08\u6B64\u524D group/other \u4F4D\u88AB\u7F6E\u4F4D\uFF0C\u539F\u751F\u51ED\u636E\u670D\u52A1\u56E0\u6B64\u62D2\u7EDD\u5199\u5165\uFF09");
+    }
+  } catch {
+  }
 }
 async function readRawConfiguredModels() {
   try {
@@ -1474,7 +1499,7 @@ function createConfigAccess(ctx) {
   let migration = null;
   const ensureMigrated = () => {
     if (!migration) {
-      migration = doMigrate().catch((err) => {
+      migration = healCredentialsFileMode().then(() => doMigrate()).catch((err) => {
         console.warn("[dsh-a6api] \u65E7\u914D\u7F6E\u8FC1\u79FB\u5931\u8D25\uFF08\u4FDD\u7559\u65E7\u6587\u4EF6\u8BFB\u53D6\u515C\u5E95\uFF09:", err?.message || err);
       });
     }
@@ -1512,6 +1537,7 @@ function createConfigAccess(ctx) {
     await ensureMigrated();
     const creds = getCredentials(ctx);
     const settings = getSettings(ctx);
+    await healCredentialsFileMode();
     const apiKey = await resolveRef(creds, A6API_CRED_REF);
     const accessToken = await resolveRef(creds, A6API_TOKEN_REF);
     const userId = await resolveRef(creds, A6API_USER_REF);
@@ -1529,25 +1555,35 @@ function createConfigAccess(ctx) {
     if (!apiKey && !accessToken && fs2.existsSync(legacyConfigFile())) {
       const legacy = await readLegacyConfig();
       if (legacy) {
+        const mergedToken = accessToken || legacy.accessToken;
         return {
           baseURL: baseURL || legacy.baseURL,
           apiKey: apiKey || legacy.apiKey,
-          accessToken: accessToken || legacy.accessToken,
-          userId: userId || legacy.userId,
+          accessToken: mergedToken,
+          // userId：显式持久化值 → 旧文件值 → 令牌 JWT 派生（New-Api-User 鉴权头需要）
+          userId: userId || legacy.userId || deriveUserIdFromAccessToken(mergedToken),
           activeModels: activeModels.length > 0 ? activeModels : legacy.activeModels
         };
       }
     }
-    return { baseURL, apiKey, accessToken, userId, activeModels };
+    return {
+      baseURL,
+      apiKey,
+      accessToken,
+      userId: userId || deriveUserIdFromAccessToken(accessToken),
+      activeModels
+    };
   };
   const writeConfig = async (parts) => {
     await ensureMigrated();
     const creds = getCredentials(ctx);
+    await healCredentialsFileMode();
     const entries = [
       [A6API_CRED_REF, parts.apiKey],
       [A6API_TOKEN_REF, parts.accessToken],
       [A6API_USER_REF, parts.userId]
     ];
+    const failures = [];
     for (const [ref, value] of entries) {
       if (value === void 0) continue;
       const v = value.trim();
@@ -1559,9 +1595,23 @@ function createConfigAccess(ctx) {
           await writeCredentialKey(ref, v);
         }
       } catch (err) {
-        console.warn(`[dsh-a6api] \u5199\u5165\u51ED\u636E ${ref} \u5931\u8D25\uFF08\u5DF2\u8DF3\u8FC7\uFF09:`, err?.message || err);
+        const msg = String(err?.message || err);
+        if (ENV_SHADOW_RE.test(msg)) {
+          console.warn(`[dsh-a6api] \u5199\u5165\u51ED\u636E ${ref} \u88AB\u73AF\u5883\u53D8\u91CF\u906E\u853D\uFF08\u5DF2\u8DF3\u8FC7\uFF09:`, msg);
+          failures.push({ ref, reason: "\u8BE5\u51ED\u636E\u7531\u542F\u52A8\u73AF\u5883\u7684\u73AF\u5883\u53D8\u91CF\u63D0\u4F9B\uFF0C\u6587\u4EF6\u5199\u5165\u4F1A\u88AB\u906E\u853D\uFF1B\u5982\u9700\u4FEE\u6539\u8BF7\u66F4\u65B0\u5BF9\u5E94\u73AF\u5883\u53D8\u91CF" });
+          continue;
+        }
+        try {
+          await writeCredentialKey(ref, v);
+          console.warn(`[dsh-a6api] \u539F\u751F\u7F1D\u5199\u5165 ${ref} \u5931\u8D25\uFF0C\u5DF2\u964D\u7EA7\u6587\u4EF6\u76F4\u5199\u6210\u529F:`, msg);
+        } catch (err2) {
+          console.error(`[dsh-a6api] \u5199\u5165\u51ED\u636E ${ref} \u5F7B\u5E95\u5931\u8D25\uFF08\u539F\u751F\u7F1D\u4E0E\u6587\u4EF6\u515C\u5E95\u5747\u5931\u8D25\uFF09:`, err2?.message || err2);
+          failures.push({ ref, reason: `\u539F\u751F\u7F1D\u4E0E\u6587\u4EF6\u515C\u5E95\u5747\u5931\u8D25\uFF1A${err2?.message || err2}` });
+        }
       }
+      await healCredentialsFileMode();
     }
+    return { failures };
   };
   const syncModels = async (baseURL, modelIds) => {
     const settings = getSettings(ctx);
@@ -1824,7 +1874,8 @@ function apply(ctx) {
               if (balance?.userId && String(balance.userId) !== config.userId) {
                 tokenResolveCache = null;
                 config.userId = String(balance.userId);
-                await configAccess.writeConfig({ userId: config.userId });
+                const r = await configAccess.writeConfig({ userId: config.userId });
+                if (r.failures.length > 0) console.warn("[dsh-a6api] userId \u81EA\u52A8\u6301\u4E45\u5316\u5931\u8D25:", r.failures);
               }
               let modelIds = modelIdsRaw;
               if (modelIds.length === 0) {
@@ -1960,7 +2011,12 @@ function apply(ctx) {
               const current = await configAccess.readConfig();
               const rawToken = body.accessToken !== void 0 && body.accessToken !== MASK ? body.accessToken : body.sessionCookie !== void 0 && body.sessionCookie !== MASK ? body.sessionCookie : current.accessToken;
               const newApiKey = body.apiKey !== void 0 && body.apiKey !== MASK ? body.apiKey : current.apiKey;
-              const credChanged = newApiKey !== current.apiKey || rawToken !== (current.accessToken || "") || body.userId !== void 0 && body.userId !== MASK && body.userId !== current.userId;
+              const tokenChanged = rawToken !== (current.accessToken || "");
+              let nextUserId = body.userId !== void 0 && body.userId !== MASK ? body.userId : current.userId;
+              if (tokenChanged && (body.userId === void 0 || body.userId === MASK)) {
+                nextUserId = deriveUserIdFromAccessToken(rawToken) || "";
+              }
+              const credChanged = newApiKey !== current.apiKey || tokenChanged || body.userId !== void 0 && body.userId !== MASK && body.userId !== current.userId || (nextUserId || "") !== (current.userId || "");
               if (credChanged) {
                 tokenResolveCache = null;
               }
@@ -1968,7 +2024,7 @@ function apply(ctx) {
                 baseURL: body.baseURL !== void 0 ? body.baseURL : current.baseURL,
                 apiKey: newApiKey,
                 accessToken: rawToken,
-                userId: body.userId !== void 0 && body.userId !== MASK ? body.userId : current.userId,
+                userId: nextUserId,
                 activeModels: Array.isArray(body.activeModels) ? body.activeModels : current.activeModels
               };
               const balance = await fetchBalance(updated.baseURL, updated.apiKey, updated.userId, updated.accessToken);
@@ -1980,7 +2036,15 @@ function apply(ctx) {
               if ((updated.accessToken || "") !== (current.accessToken || "")) credWrites.accessToken = updated.accessToken;
               if ((updated.userId || "") !== (current.userId || "")) credWrites.userId = updated.userId;
               if (Object.keys(credWrites).length > 0) {
-                await configAccess.writeConfig(credWrites);
+                const writeResult = await configAccess.writeConfig(credWrites);
+                if (writeResult.failures.length > 0) {
+                  const detail = writeResult.failures.map((f) => `${f.ref}\uFF1A${f.reason}`).join("\uFF1B");
+                  console.error("[dsh-a6api] \u51ED\u636E\u4FDD\u5B58\u5931\u8D25:", writeResult.failures);
+                  return sendJson(res, 500, {
+                    ok: false,
+                    error: `\u51ED\u636E\u4FDD\u5B58\u5931\u8D25\uFF08${detail}\uFF09\u3002\u5DF2\u5C1D\u8BD5\u81EA\u52A8\u4FEE\u590D\u6743\u9650\u5E76\u964D\u7EA7\u6587\u4EF6\u5199\u5165\u4ECD\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5 ~/.dsh/.credentials.yaml \u7684\u6743\u9650\uFF08\u5E94\u4E3A 0600\uFF09\u4E0E\u78C1\u76D8\u72B6\u6001\u540E\u91CD\u8BD5\u3002`
+                  });
+                }
               }
               if (updated.activeModels.length > 0) {
                 await configAccess.syncModels(updated.baseURL, updated.activeModels);
@@ -2330,6 +2394,7 @@ export {
   apply,
   clearCatalog,
   createConfigAccess,
+  deriveUserIdFromAccessToken,
   fetchBalance,
   fetchChannelDetails,
   fetchMarketplaceModels,

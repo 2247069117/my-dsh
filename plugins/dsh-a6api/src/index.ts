@@ -1,7 +1,7 @@
 import { fetchBalance, fetchTokenModels, fetchRecentLogs, fetchPriceFluctuation, formatRelativeTime, fetchMarketplacePins, fetchTokens, fetchChannelDetails, marketplacePin, marketplaceUnpin, marketplaceDisableChannel, marketplaceRestoreChannel } from './server/a6api-client.js';
 import { getKnownMerchantsFromLogs, probeSingleModel } from './server/probe.js';
 import { resolveModelMeta, getCatalog, upsertCatalogEntries, clearCatalog, queryOpenRouter, fetchMarketplaceModels, updateCatalogEntry } from './server/catalog.js';
-import { createConfigAccess } from './server/sync.js';
+import { createConfigAccess, deriveUserIdFromAccessToken } from './server/sync.js';
 import type { A6ApiConfig, A6ApiStateResponse, MarketplacePin, MerchantChannelInfo, ModelCardData } from './types.js';
 import { validateReasoningEfforts } from './types.js';
 
@@ -26,7 +26,7 @@ export {
   fetchMarketplaceModels,
   updateCatalogEntry,
 } from './server/catalog.js';
-export { createConfigAccess, A6API_CRED_REF, A6API_TOKEN_REF, A6API_USER_REF } from './server/sync.js';
+export { createConfigAccess, deriveUserIdFromAccessToken, A6API_CRED_REF, A6API_TOKEN_REF, A6API_USER_REF } from './server/sync.js';
 
 const PREFIX = '/api/dsh-a6api';
 
@@ -215,7 +215,8 @@ export function apply(ctx: any): void {
                 // 账号变化：旧 tokenId 不再对应当前账号，作废并重置解析缓存
                 tokenResolveCache = null;
                 config.userId = String(balance.userId);
-                await configAccess.writeConfig({ userId: config.userId });
+                const r = await configAccess.writeConfig({ userId: config.userId });
+                if (r.failures.length > 0) console.warn('[dsh-a6api] userId 自动持久化失败:', r.failures);
               }
 
               // Fallback to DSH-configured / default models if token query returned empty
@@ -392,12 +393,22 @@ export function apply(ctx: any): void {
                     : current.accessToken;
               const newApiKey =
                 body.apiKey !== undefined && body.apiKey !== MASK ? body.apiKey : current.apiKey;
+              // 系统访问令牌变更时，持久化的 userId 属于旧令牌账号：从新令牌 JWT 重新派生
+              // （New-Api-User 鉴权头必须与令牌账号匹配，携带旧 userId 会 401）；
+              // 非 JWT 令牌派生不出则清空，交由 /api/user/self 自动发现回填
+              const tokenChanged = rawToken !== (current.accessToken || '');
+              let nextUserId =
+                body.userId !== undefined && body.userId !== MASK ? body.userId : current.userId;
+              if (tokenChanged && (body.userId === undefined || body.userId === MASK)) {
+                nextUserId = deriveUserIdFromAccessToken(rawToken) || '';
+              }
               // API Key / 系统访问令牌（账号）/ userId 任一变更后，旧 tokenId 不再对应当前账号的令牌，
               // 清除并重置解析缓存，下次固定/取消固定时重新解析
               const credChanged =
                 newApiKey !== current.apiKey ||
-                rawToken !== (current.accessToken || '') ||
-                (body.userId !== undefined && body.userId !== MASK && body.userId !== current.userId);
+                tokenChanged ||
+                (body.userId !== undefined && body.userId !== MASK && body.userId !== current.userId) ||
+                (nextUserId || '') !== (current.userId || '');
               if (credChanged) {
                 tokenResolveCache = null;
               }
@@ -406,7 +417,7 @@ export function apply(ctx: any): void {
                 baseURL: body.baseURL !== undefined ? body.baseURL : current.baseURL,
                 apiKey: newApiKey,
                 accessToken: rawToken,
-                userId: body.userId !== undefined && body.userId !== MASK ? body.userId : current.userId,
+                userId: nextUserId,
                 activeModels: Array.isArray(body.activeModels) ? body.activeModels : current.activeModels,
               };
 
@@ -422,7 +433,19 @@ export function apply(ctx: any): void {
               if ((updated.accessToken || '') !== (current.accessToken || '')) credWrites.accessToken = updated.accessToken;
               if ((updated.userId || '') !== (current.userId || '')) credWrites.userId = updated.userId;
               if (Object.keys(credWrites).length > 0) {
-                await configAccess.writeConfig(credWrites);
+                const writeResult = await configAccess.writeConfig(credWrites);
+                // 凭据落盘失败必须让用户看见：此前静默吞掉后 UI 显示「保存成功」，
+                // 令牌实际丢失，账户页永远「未连接」
+                if (writeResult.failures.length > 0) {
+                  const detail = writeResult.failures
+                    .map((f) => `${f.ref}：${f.reason}`)
+                    .join('；');
+                  console.error('[dsh-a6api] 凭据保存失败:', writeResult.failures);
+                  return sendJson(res, 500, {
+                    ok: false,
+                    error: `凭据保存失败（${detail}）。已尝试自动修复权限并降级文件写入仍失败，请检查 ~/.dsh/.credentials.yaml 的权限（应为 0600）与磁盘状态后重试。`,
+                  });
+                }
               }
 
               // 同步 DSH settings（与旧行为一致：仅当有活动模型时）。

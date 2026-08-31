@@ -1300,6 +1300,49 @@
   font-weight: 500;
 }
 
+/* 保存失败内联提示（保存栏）与全局错误横幅（设置页顶部） */
+.dsh-a6-error-msg {
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.dsh-a6-error-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.dsh-a6-error-banner-text {
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.dsh-a6-error-banner-close {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.dsh-a6-error-banner-close:hover {
+  opacity: 0.7;
+}
+
 /* ==========================================================================
    7. Buttons & Common State Styles
    ========================================================================== */

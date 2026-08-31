@@ -31,6 +31,7 @@ export const ConfigPanel: React.FC<{
 
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // 值为占位符即表示「已保存密钥」，此时输入框留空展示，保存时不回传占位符
   const apiKeySet = apiKey === MASK;
@@ -54,6 +55,7 @@ export const ConfigPanel: React.FC<{
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError('');
     const finalBaseUrl = isCustom ? customNode.trim() || 'https://api.a6api.com' : selectedNode;
     // 未修改（占位符态）→ 不发送该字段，服务端保留原值；点击「清除」→ 发送空串删除
     const newApiKey = apiKeySet ? (clearKey ? '' : undefined) : apiKey.trim();
@@ -65,8 +67,12 @@ export const ConfigPanel: React.FC<{
     });
     setSaving(false);
     if (ok) {
+      setSaveError('');
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3500);
+    } else {
+      // 失败原因已由 store 写入 state.error 并渲染在错误横幅；此处保留内联提示与刷新入口
+      setSaveError('保存失败：凭据可能未写入本机存储，请展开上方错误信息查看原因，修复后重新保存。');
     }
   };
 
@@ -288,6 +294,11 @@ export const ConfigPanel: React.FC<{
           {saveSuccess && (
             <span className="dsh-a6-success-msg">
               配置已成功保存并同步
+            </span>
+          )}
+          {saveError && (
+            <span className="dsh-a6-error-msg" role="alert">
+              {saveError}
             </span>
           )}
         </div>

@@ -162,6 +162,12 @@ class A6ApiStore {
     }
   }
 
+  /** 手动清除全局错误横幅（网络恢复/问题修复后用户主动关闭） */
+  public clearError(): void {
+    this.state.error = null;
+    this.notify();
+  }
+
   public async saveConfig(config: Partial<A6ApiConfig>): Promise<boolean> {
     try {
       const res = await fetch('/api/dsh-a6api/config', {
@@ -173,6 +179,10 @@ class A6ApiStore {
         await this.fetchState();
         return true;
       }
+      // 服务端非 2xx = 凭据落盘失败（权限/环境变量遮蔽等）：把原因呈现在 UI，杜绝「假成功」
+      const body = await res.json().catch(() => null);
+      this.state.error = body?.error || `配置保存失败 (HTTP ${res.status})`;
+      this.notify();
     } catch (err: any) {
       this.state.error = err?.message || String(err);
       this.notify();

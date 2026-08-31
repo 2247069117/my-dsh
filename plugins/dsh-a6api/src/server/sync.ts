@@ -18,6 +18,30 @@ export const A6API_CRED_REF = 'A6API_API_KEY';
 export const A6API_TOKEN_REF = 'A6API_ACCESS_TOKEN';
 export const A6API_USER_REF = 'A6API_USER_ID';
 
+/** 环境变量遮蔽类错误特征（DSH credentials-local 的 assertUnshadowed 文案）：env 值优先，写入无意义 */
+const ENV_SHADOW_RE = /supplied read-only by the launching environment|would be shadowed/;
+
+/**
+ * 从 JWT 形态的系统访问令牌 payload 解析用户 ID。
+ * new-api 系「系统访问令牌」是携带 id claim 的 JWT；Web 控制台 API 以
+ * Authorization + New-Api-User（用户 ID）双头鉴权，缺 New-Api-User 会被 401 拒绝，
+ * 导致「仅配置令牌、尚未持久化 userId」时 /api/user/self 永远失败（鸡生蛋问题：
+ * 发现 userId 需要鉴权，鉴权又需要 userId）。令牌本身即可零请求解码出用户 ID，
+ * 打破该循环。非 JWT（原始会话 Cookie 等）返回 undefined，保持原「接口自动发现」路径。
+ */
+export function deriveUserIdFromAccessToken(token: string | undefined): string | undefined {
+  const t = (token || '').trim();
+  if (!t || t.startsWith('session=') || t.includes(';')) return undefined;
+  const parts = t.split('.');
+  if (parts.length !== 3) return undefined;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    const id = Number(payload?.id ?? payload?.user_id ?? payload?.userId ?? payload?.sub);
+    if (Number.isInteger(id) && id > 0) return String(id);
+  } catch {}
+  return undefined;
+}
+
 const SETTINGS_NS = 'llm-pi-ai';
 const PROVIDER_KEY = 'a6api';
 const DEFAULT_BASE_URL = 'https://api.a6api.com';
@@ -155,6 +179,27 @@ export async function writeCredentialKey(refKey: string, value: string): Promise
   }
 
   await atomicWriteFile(cFile, lines.join('\n'), 0o600);
+}
+
+/**
+ * 修复凭据文件松散权限（group/other 位置位时收回到 0600）。
+ * DSH 原生 credentials-local 对可被其他用户读取的文档整体拒写（fail loud，
+ * 报 "readable beyond its owner"）；容器/沙箱文件系统可能产生异常权限位（如 007），
+ * 一旦发生，用户在设置页保存的凭据会被原生缝拒绝——此前插件把该失败静默吞掉，
+ * 造成「显示保存成功、令牌实际丢失」。这里在每次写入前主动收紧权限位：
+ * 只移除访问位、绝不放宽，安全且幂等；收紧后原生缝即可正常写入。
+ */
+async function healCredentialsFileMode(): Promise<void> {
+  const cFile = credentialsFile();
+  try {
+    const st = await fsp.stat(cFile);
+    if (st.mode & 0o077) {
+      await fsp.chmod(cFile, 0o600);
+      console.warn('[dsh-a6api] 已将凭据文件权限收紧为 0600（此前 group/other 位被置位，原生凭据服务因此拒绝写入）');
+    }
+  } catch {
+    // 文件不存在等：无需处理（原生缝会走创建路径，mode 0600）
+  }
 }
 
 // ===== settings.yaml 手写读写（原生缝缺失/写入失败时的兜底） =====
@@ -458,13 +503,23 @@ function buildA6apiBlock(baseURL: string, modelIds: string[]): Record<string, an
   };
 }
 
+export interface CredentialWriteFailure {
+  /** 凭据 ref 名（A6API_API_KEY / A6API_ACCESS_TOKEN / A6API_USER_ID） */
+  ref: string;
+  /** 失败原因（面向用户的中文描述） */
+  reason: string;
+}
+
 export interface ConfigAccess {
   /** 触发（并等待）旧配置文件的自动迁移；幂等，进程内只执行一次，失败不阻塞 */
   ensureMigrated(): Promise<void>;
   /** 读取当前配置：原生缝优先，逐级兜底到旧文件 */
   readConfig(): Promise<A6ApiConfig>;
-  /** 写入凭据字段（空串 = 清除，走 unset）；settings 同步请用 syncModels */
-  writeConfig(parts: Partial<Pick<A6ApiConfig, 'apiKey' | 'accessToken' | 'userId'>>): Promise<void>;
+  /** 写入凭据字段（空串 = 清除，走 unset）；settings 同步请用 syncModels。
+   *  返回未落盘成功的字段列表——调用方必须向用户呈现 failures，杜绝「假成功」。 */
+  writeConfig(
+    parts: Partial<Pick<A6ApiConfig, 'apiKey' | 'accessToken' | 'userId'>>,
+  ): Promise<{ failures: CredentialWriteFailure[] }>;
   /** 把模型列表（与 baseURL）同步进 DSH settings.yaml 的 llm-pi-ai.providers.a6api 块 */
   syncModels(baseURL: string, modelIds: string[]): Promise<void>;
   /** 当前 DSH 已配置的 a6api 模型 ID 列表 */
@@ -476,10 +531,16 @@ export function createConfigAccess(ctx: any): ConfigAccess {
 
   const ensureMigrated = (): Promise<void> => {
     if (!migration) {
-      migration = doMigrate().catch((err: any) => {
-        // 迁移失败不阻塞：保留旧文件，readConfig 的末级兜底继续工作，下次启动重试
-        console.warn('[dsh-a6api] 旧配置迁移失败（保留旧文件读取兜底）:', err?.message || err);
-      });
+      // 启动自愈：apply() 即触发本函数。凭据文件在上一进程生命周期内被任何
+      // 组件原子重建后，权限位可能停在异常态（本沙箱 FS 强制新文件 007）；
+      // 尽早收回 0600 —— 若本插件先于 credentials-local 激活，可让它免于
+      // loadInitial 拒载（顺序无保证，晚于它时由读时/写时自愈接管）。
+      migration = healCredentialsFileMode()
+        .then(() => doMigrate())
+        .catch((err: any) => {
+          // 迁移失败不阻塞：保留旧文件，readConfig 的末级兜底继续工作，下次启动重试
+          console.warn('[dsh-a6api] 旧配置迁移失败（保留旧文件读取兜底）:', err?.message || err);
+        });
     }
     return migration;
   };
@@ -527,6 +588,11 @@ export function createConfigAccess(ctx: any): ConfigAccess {
     const creds = getCredentials(ctx);
     const settings = getSettings(ctx);
 
+    // 读时自愈：其他组件（浏览器会话等）重写凭据文件同样会触发文件系统的异常
+    // 权限位；每次读取顺带收回 0600，让原生缝的 watcher 重载恢复正常、下次
+    // 启动 loadInitial 不至于整体拒载。/state 60s 轮询使其成为常驻看护。
+    await healCredentialsFileMode();
+
     // 凭据：原生 resolve（env 优先）→ 文件直读兜底
     const apiKey = await resolveRef(creds, A6API_CRED_REF);
     const accessToken = await resolveRef(creds, A6API_TOKEN_REF);
@@ -550,30 +616,43 @@ export function createConfigAccess(ctx: any): ConfigAccess {
     if (!apiKey && !accessToken && fs.existsSync(legacyConfigFile())) {
       const legacy = await readLegacyConfig();
       if (legacy) {
+        const mergedToken = accessToken || legacy.accessToken;
         return {
           baseURL: baseURL || legacy.baseURL,
           apiKey: apiKey || legacy.apiKey,
-          accessToken: accessToken || legacy.accessToken,
-          userId: userId || legacy.userId,
+          accessToken: mergedToken,
+          // userId：显式持久化值 → 旧文件值 → 令牌 JWT 派生（New-Api-User 鉴权头需要）
+          userId: userId || legacy.userId || deriveUserIdFromAccessToken(mergedToken),
           activeModels: activeModels.length > 0 ? activeModels : legacy.activeModels,
         };
       }
     }
 
-    return { baseURL, apiKey, accessToken, userId, activeModels };
+    // userId：显式持久化值优先；缺失时从 JWT 令牌派生（派生值不回写，仅作有效值使用，
+    // /state 的自动发现成功后会照常持久化真实值）
+    return {
+      baseURL,
+      apiKey,
+      accessToken,
+      userId: userId || deriveUserIdFromAccessToken(accessToken),
+      activeModels,
+    };
   };
 
   const writeConfig = async (
     parts: Partial<Pick<A6ApiConfig, 'apiKey' | 'accessToken' | 'userId'>>,
-  ): Promise<void> => {
+  ): Promise<{ failures: CredentialWriteFailure[] }> => {
     // 先等迁移完成，避免 fillRef 的「读→写」两步把迁移值覆盖用户刚写入的新值
     await ensureMigrated();
     const creds = getCredentials(ctx);
+    // 写前自愈权限：松散权限位（group/other 可读）会让原生缝整体拒写
+    await healCredentialsFileMode();
     const entries: Array<[string, string | undefined]> = [
       [A6API_CRED_REF, parts.apiKey],
       [A6API_TOKEN_REF, parts.accessToken],
       [A6API_USER_REF, parts.userId],
     ];
+    const failures: CredentialWriteFailure[] = [];
     for (const [ref, value] of entries) {
       if (value === undefined) continue;
       const v = value.trim();
@@ -586,10 +665,29 @@ export function createConfigAccess(ctx: any): ConfigAccess {
           await writeCredentialKey(ref, v);
         }
       } catch (err: any) {
-        // env 遮蔽（assertUnshadowed）等场景：跳过写入，env 值优先符合 DSH 原生语义
-        console.warn(`[dsh-a6api] 写入凭据 ${ref} 失败（已跳过）:`, err?.message || err);
+        const msg = String(err?.message || err);
+        // env 遮蔽：环境变量值优先（DSH 原生语义），写入无意义——跳过但记录原因供 UI 呈现
+        if (ENV_SHADOW_RE.test(msg)) {
+          console.warn(`[dsh-a6api] 写入凭据 ${ref} 被环境变量遮蔽（已跳过）:`, msg);
+          failures.push({ ref, reason: '该凭据由启动环境的环境变量提供，文件写入会被遮蔽；如需修改请更新对应环境变量' });
+          continue;
+        }
+        // 其他失败（权限位、写锁超时等）：降级到文件直写兜底（原子写 0600，顺带修复松散权限）
+        try {
+          await writeCredentialKey(ref, v);
+          console.warn(`[dsh-a6api] 原生缝写入 ${ref} 失败，已降级文件直写成功:`, msg);
+        } catch (err2: any) {
+          console.error(`[dsh-a6api] 写入凭据 ${ref} 彻底失败（原生缝与文件兜底均失败）:`, err2?.message || err2);
+          failures.push({ ref, reason: `原生缝与文件兜底均失败：${err2?.message || err2}` });
+        }
       }
+      // 写后自愈：原生缝与文件兜底都走「原子 rename 重建文件」，会在强制新文件
+      // 异常权限位的文件系统上（本沙箱为 007）把 mode 打回松散态——不修的话，
+      // 同批下一个写入会被原生缝拒绝（降级兜底救数据），且下次启动 loadInitial
+      // 将整体拒载凭据文档（浏览器会话等全部失效）。每写一个字段即收回 0600。
+      await healCredentialsFileMode();
     }
+    return { failures };
   };
 
   const syncModels = async (baseURL: string, modelIds: string[]): Promise<void> => {

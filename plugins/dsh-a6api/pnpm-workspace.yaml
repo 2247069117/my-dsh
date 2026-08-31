@@ -1,0 +1,8 @@
+# esbuild 安装时需要下载平台二进制（构建脚本的正常行为）
+allowBuilds:
+  esbuild: true
+# dsh-a6api 开发工作区（非 pnpm workspace 包，仅承载 pnpm 配置）
+# @deepseek-ai/dsh-home-paths@0.1.2-alpha.2 发布不足 24h，pnpm 11 的
+# minimum-release-age 供应链守卫需要精确到版本的豁免；后续新版本不受影响。
+minimumReleaseAgeExclude:
+  - '@deepseek-ai/dsh-home-paths@0.1.2-alpha.2'

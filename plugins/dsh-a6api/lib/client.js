@@ -154,6 +154,11 @@ var A6ApiStore = class {
       this.notify();
     }
   }
+  /** 手动清除全局错误横幅（网络恢复/问题修复后用户主动关闭） */
+  clearError() {
+    this.state.error = null;
+    this.notify();
+  }
   async saveConfig(config) {
     try {
       const res = await fetch("/api/dsh-a6api/config", {
@@ -165,6 +170,9 @@ var A6ApiStore = class {
         await this.fetchState();
         return true;
       }
+      const body = await res.json().catch(() => null);
+      this.state.error = body?.error || `\u914D\u7F6E\u4FDD\u5B58\u5931\u8D25 (HTTP ${res.status})`;
+      this.notify();
     } catch (err) {
       this.state.error = err?.message || String(err);
       this.notify();
@@ -1210,6 +1218,7 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
   const [showHelp, setShowHelp] = (0, import_react3.useState)(false);
   const [saving, setSaving] = (0, import_react3.useState)(false);
   const [saveSuccess, setSaveSuccess] = (0, import_react3.useState)(false);
+  const [saveError, setSaveError] = (0, import_react3.useState)("");
   const apiKeySet = apiKey === MASK;
   const tokenSet = accessToken === MASK;
   (0, import_react3.useEffect)(() => {
@@ -1227,6 +1236,7 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
   }, [config]);
   const handleSave = async () => {
     setSaving(true);
+    setSaveError("");
     const finalBaseUrl = isCustom ? customNode.trim() || "https://api.a6api.com" : selectedNode;
     const newApiKey = apiKeySet ? clearKey ? "" : void 0 : apiKey.trim();
     const newToken = tokenSet ? clearToken ? "" : void 0 : accessToken.trim();
@@ -1237,8 +1247,11 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
     });
     setSaving(false);
     if (ok) {
+      setSaveError("");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3500);
+    } else {
+      setSaveError("\u4FDD\u5B58\u5931\u8D25\uFF1A\u51ED\u636E\u53EF\u80FD\u672A\u5199\u5165\u672C\u673A\u5B58\u50A8\uFF0C\u8BF7\u5C55\u5F00\u4E0A\u65B9\u9519\u8BEF\u4FE1\u606F\u67E5\u770B\u539F\u56E0\uFF0C\u4FEE\u590D\u540E\u91CD\u65B0\u4FDD\u5B58\u3002");
     }
   };
   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-config-page", children: [
@@ -1434,7 +1447,10 @@ var ConfigPanel = ({ config, dshConfiguredModels }) => {
       ] })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-save-bar", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dsh-a6-save-status", children: saveSuccess && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dsh-a6-success-msg", children: "\u914D\u7F6E\u5DF2\u6210\u529F\u4FDD\u5B58\u5E76\u540C\u6B65" }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dsh-a6-save-status", children: [
+        saveSuccess && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dsh-a6-success-msg", children: "\u914D\u7F6E\u5DF2\u6210\u529F\u4FDD\u5B58\u5E76\u540C\u6B65" }),
+        saveError && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dsh-a6-error-msg", role: "alert", children: saveError })
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
         "button",
         {
@@ -2085,6 +2101,19 @@ var A6ApiSettingsPanel = () => {
     return a.model_name.localeCompare(b.model_name);
   });
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "dsh-a6-container", children: [
+    state.error && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "dsh-a6-error-banner", role: "alert", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "dsh-a6-error-banner-text", children: state.error }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        "button",
+        {
+          type: "button",
+          className: "dsh-a6-error-banner-close",
+          onClick: () => store.clearError(),
+          "aria-label": "\u5173\u95ED\u9519\u8BEF\u63D0\u793A",
+          children: "\xD7"
+        }
+      )
+    ] }),
     /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "dsh-a6-main-header", children: [
       /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "dsh-a6-header-text", children: [
         /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { className: "dsh-a6-main-title", children: "A6api" }),
@@ -3885,6 +3914,49 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
   color: #10b981;
   font-size: 12px;
   font-weight: 500;
+}
+
+/* \u4FDD\u5B58\u5931\u8D25\u5185\u8054\u63D0\u793A\uFF08\u4FDD\u5B58\u680F\uFF09\u4E0E\u5168\u5C40\u9519\u8BEF\u6A2A\u5E45\uFF08\u8BBE\u7F6E\u9875\u9876\u90E8\uFF09 */
+.dsh-a6-error-msg {
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.dsh-a6-error-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.dsh-a6-error-banner-text {
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.dsh-a6-error-banner-close {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.dsh-a6-error-banner-close:hover {
+  opacity: 0.7;
 }
 
 /* ==========================================================================
