@@ -1,457 +1,110 @@
 // src/server/catalog.ts
-var A6API_CATALOG = {
-  // --- OpenAI Series ---
-  "gpt-5.6-sol": {
-    id: "gpt-5.6-sol",
-    name: "GPT-5.6 Sol",
-    brand: "OpenAI",
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    reasoningEfforts: { off: "", low: "low", medium: "medium", high: "high" },
-    officialPriceMicros: { input: 4e6, output: 2e7, cacheRead: 4e5, cacheWrite: 5e6 }
-  },
-  "gpt-5.6-terra": {
-    id: "gpt-5.6-terra",
-    name: "GPT-5.6 Terra",
-    brand: "OpenAI",
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    reasoningEfforts: { off: "", low: "low", medium: "medium", high: "high" },
-    officialPriceMicros: { input: 4e6, output: 2e7, cacheRead: 4e5, cacheWrite: 5e6 }
-  },
-  "gpt-5.6-luna": {
-    id: "gpt-5.6-luna",
-    name: "GPT-5.6 Luna",
-    brand: "OpenAI",
-    contextWindow: 524288,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    reasoningEfforts: { off: "", low: "low", medium: "medium", high: "high" },
-    officialPriceMicros: { input: 2e6, output: 1e7, cacheRead: 2e5, cacheWrite: 25e5 }
-  },
-  "gpt-5.6": {
-    id: "gpt-5.6",
-    name: "GPT-5.6",
-    brand: "OpenAI",
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    reasoningEfforts: { off: "", low: "low", medium: "medium", high: "high" },
-    officialPriceMicros: { input: 4e6, output: 2e7, cacheRead: 4e5, cacheWrite: 5e6 }
-  },
-  "gpt-5.5": {
-    id: "gpt-5.5",
-    name: "GPT-5.5",
-    brand: "OpenAI",
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    reasoningEfforts: { off: "", low: "low", medium: "medium", high: "high" },
-    officialPriceMicros: { input: 3e6, output: 15e6, cacheRead: 3e5, cacheWrite: 375e4 }
-  },
-  "gpt-5.4": {
-    id: "gpt-5.4",
-    name: "GPT-5.4",
-    brand: "OpenAI",
-    contextWindow: 524288,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    reasoningEfforts: { off: "", low: "low", medium: "medium", high: "high" },
-    officialPriceMicros: { input: 25e5, output: 1e7, cacheRead: 25e4, cacheWrite: 3e6 }
-  },
-  "gpt-5.4-mini": {
-    id: "gpt-5.4-mini",
-    name: "GPT-5.4 Mini",
-    brand: "OpenAI",
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    reasoningEfforts: { off: "", low: "low", medium: "medium", high: "high" },
-    officialPriceMicros: { input: 15e4, output: 6e5, cacheRead: 75e3, cacheWrite: 15e4 }
-  },
-  "gpt-5.3-codex": {
-    id: "gpt-5.3-codex",
-    name: "GPT-5.3 Codex",
-    brand: "OpenAI",
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ["text"],
-    officialPriceMicros: { input: 2e6, output: 8e6, cacheRead: 2e5, cacheWrite: 2e6 }
-  },
-  "gpt-5.3-codex-spark": {
-    id: "gpt-5.3-codex-spark",
-    name: "GPT-5.3 Codex Spark",
-    brand: "OpenAI",
-    contextWindow: 262144,
-    maxTokens: 16384,
-    modalities: ["text"],
-    officialPriceMicros: { input: 1e6, output: 4e6, cacheRead: 1e5, cacheWrite: 1e6 }
-  },
-  "gpt-5.2": {
-    id: "gpt-5.2",
-    name: "GPT-5.2",
-    brand: "OpenAI",
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 2e6, output: 8e6, cacheRead: 2e5, cacheWrite: 2e6 }
-  },
-  "gpt-4o": {
-    id: "gpt-4o",
-    name: "GPT-4o",
-    brand: "OpenAI",
-    contextWindow: 128e3,
-    maxTokens: 16384,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 25e5, output: 1e7, cacheRead: 125e4, cacheWrite: 25e5 }
-  },
-  "gpt-4o-mini": {
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
-    brand: "OpenAI",
-    contextWindow: 128e3,
-    maxTokens: 16384,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 15e4, output: 6e5, cacheRead: 75e3, cacheWrite: 15e4 }
-  },
-  // --- Anthropic Claude Series ---
-  "claude-opus-5": {
-    id: "claude-opus-5",
-    name: "Claude Opus 5",
-    brand: "Anthropic",
-    contextWindow: 2e5,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    thinkingFormat: "anthropic",
-    officialPriceMicros: { input: 15e6, output: 75e6, cacheRead: 15e5, cacheWrite: 1875e4 }
-  },
-  "claude-sonnet-5": {
-    id: "claude-sonnet-5",
-    name: "Claude Sonnet 5",
-    brand: "Anthropic",
-    contextWindow: 2e5,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    thinkingFormat: "anthropic",
-    officialPriceMicros: { input: 3e6, output: 15e6, cacheRead: 3e5, cacheWrite: 375e4 }
-  },
-  "claude-fable-5": {
-    id: "claude-fable-5",
-    name: "Claude Fable 5",
-    brand: "Anthropic",
-    contextWindow: 2e5,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 3e6, output: 15e6, cacheRead: 3e5, cacheWrite: 375e4 }
-  },
-  "claude-opus-4-8": {
-    id: "claude-opus-4-8",
-    name: "Claude Opus 4.8",
-    brand: "Anthropic",
-    contextWindow: 2e5,
-    maxTokens: 16384,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 15e6, output: 75e6, cacheRead: 15e5, cacheWrite: 1875e4 }
-  },
-  "claude-opus-4-7": {
-    id: "claude-opus-4-7",
-    name: "Claude Opus 4.7",
-    brand: "Anthropic",
-    contextWindow: 2e5,
-    maxTokens: 16384,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 15e6, output: 75e6, cacheRead: 15e5, cacheWrite: 1875e4 }
-  },
-  "claude-opus-4-6": {
-    id: "claude-opus-4-6",
-    name: "Claude Opus 4.6",
-    brand: "Anthropic",
-    contextWindow: 2e5,
-    maxTokens: 16384,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 15e6, output: 75e6, cacheRead: 15e5, cacheWrite: 1875e4 }
-  },
-  "claude-sonnet-4-6": {
-    id: "claude-sonnet-4-6",
-    name: "Claude Sonnet 4.6",
-    brand: "Anthropic",
-    contextWindow: 2e5,
-    maxTokens: 16384,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 3e6, output: 15e6, cacheRead: 3e5, cacheWrite: 375e4 }
-  },
-  "claude-haiku-4-5": {
-    id: "claude-haiku-4-5",
-    name: "Claude Haiku 4.5",
-    brand: "Anthropic",
-    contextWindow: 2e5,
-    maxTokens: 8192,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 25e4, output: 125e4, cacheRead: 25e3, cacheWrite: 312500 }
-  },
-  // --- DeepSeek Series ---
-  "deepseek-v4-pro": {
-    id: "deepseek-v4-pro",
-    name: "DeepSeek V4 Pro",
-    brand: "DeepSeek",
-    contextWindow: 131072,
-    maxTokens: 32768,
-    modalities: ["text"],
-    thinkingFormat: "deepseek",
-    officialPriceMicros: { input: 55e4, output: 219e4, cacheRead: 14e4, cacheWrite: 55e4 }
-  },
-  "deepseek-v4-flash": {
-    id: "deepseek-v4-flash",
-    name: "DeepSeek V4 Flash",
-    brand: "DeepSeek",
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ["text"],
-    officialPriceMicros: { input: 14e4, output: 28e4, cacheRead: 14e3, cacheWrite: 14e4 }
-  },
-  "DeepSeek-V4-Flash-0731": {
-    id: "DeepSeek-V4-Flash-0731",
-    name: "DeepSeek V4 Flash (0731)",
-    brand: "DeepSeek",
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ["text"],
-    officialPriceMicros: { input: 14e4, output: 28e4, cacheRead: 14e3, cacheWrite: 14e4 }
-  },
-  "deepseek-v4-pro-0813": {
-    id: "deepseek-v4-pro-0813",
-    name: "DeepSeek V4 Pro (0813)",
-    brand: "DeepSeek",
-    contextWindow: 131072,
-    maxTokens: 32768,
-    modalities: ["text"],
-    thinkingFormat: "deepseek",
-    officialPriceMicros: { input: 55e4, output: 219e4, cacheRead: 14e4, cacheWrite: 55e4 }
-  },
-  "deepseek-v4-flash-vision-exp": {
-    id: "deepseek-v4-flash-vision-exp",
-    name: "DeepSeek V4 Flash Vision Exp",
-    brand: "DeepSeek",
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 14e4, output: 28e4, cacheRead: 14e3, cacheWrite: 14e4 }
-  },
-  "deepseek-chat": {
-    id: "deepseek-chat",
-    name: "DeepSeek Chat",
-    brand: "DeepSeek",
-    contextWindow: 65536,
-    maxTokens: 8192,
-    modalities: ["text"],
-    officialPriceMicros: { input: 14e4, output: 28e4, cacheRead: 14e3, cacheWrite: 14e4 }
-  },
-  "deepseek-reasoner": {
-    id: "deepseek-reasoner",
-    name: "DeepSeek Reasoner",
-    brand: "DeepSeek",
-    contextWindow: 65536,
-    maxTokens: 16384,
-    modalities: ["text"],
-    thinkingFormat: "deepseek",
-    officialPriceMicros: { input: 55e4, output: 219e4, cacheRead: 14e4, cacheWrite: 55e4 }
-  },
-  // --- Google Gemini Series ---
-  "gemini-3.7-flash": {
-    id: "gemini-3.7-flash",
-    name: "Gemini 3.7 Flash",
-    brand: "Google",
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    reasoningEfforts: { off: "", low: "low", medium: "medium", high: "high" },
-    officialPriceMicros: { input: 1e5, output: 4e5, cacheRead: 25e3, cacheWrite: 1e5 }
-  },
-  "gemini-3.6-flash": {
-    id: "gemini-3.6-flash",
-    name: "Gemini 3.6 Flash",
-    brand: "Google",
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 1e5, output: 4e5, cacheRead: 25e3, cacheWrite: 1e5 }
-  },
-  "gemini-3.5-flash": {
-    id: "gemini-3.5-flash",
-    name: "Gemini 3.5 Flash",
-    brand: "Google",
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 75e3, output: 3e5, cacheRead: 18750, cacheWrite: 75e3 }
-  },
-  "gemini-3.5-flash-high": {
-    id: "gemini-3.5-flash-high",
-    name: "Gemini 3.5 Flash High",
-    brand: "Google",
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    reasoningEfforts: { high: "high" },
-    officialPriceMicros: { input: 75e3, output: 3e5, cacheRead: 18750, cacheWrite: 75e3 }
-  },
-  "gemini-3.1-pro-preview": {
-    id: "gemini-3.1-pro-preview",
-    name: "Gemini 3.1 Pro Preview",
-    brand: "Google",
-    contextWindow: 2097152,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 125e4, output: 5e6, cacheRead: 312500, cacheWrite: 125e4 }
-  },
-  "gemini-3.1-flash-lite-preview": {
-    id: "gemini-3.1-flash-lite-preview",
-    name: "Gemini 3.1 Flash Lite Preview",
-    brand: "Google",
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 75e3, output: 3e5, cacheRead: 18750, cacheWrite: 75e3 }
-  },
-  "gemini-2.5-pro": {
-    id: "gemini-2.5-pro",
-    name: "Gemini 2.5 Pro",
-    brand: "Google",
-    contextWindow: 2097152,
-    maxTokens: 65536,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 125e4, output: 5e6, cacheRead: 312500, cacheWrite: 125e4 }
-  },
-  "gemini-2.5-flash": {
-    id: "gemini-2.5-flash",
-    name: "Gemini 2.5 Flash",
-    brand: "Google",
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 75e3, output: 3e5, cacheRead: 18750, cacheWrite: 75e3 }
-  },
-  // --- xAI Grok Series ---
-  "grok-4.6": {
-    id: "grok-4.6",
-    name: "Grok 4.6",
-    brand: "xAI",
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    reasoningEfforts: { off: "", high: "high" },
-    officialPriceMicros: { input: 2e6, output: 1e7, cacheRead: 2e5, cacheWrite: 25e5 }
-  },
-  "grok-4.5": {
-    id: "grok-4.5",
-    name: "Grok 4.5",
-    brand: "xAI",
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ["text", "image"],
-    officialPriceMicros: { input: 2e6, output: 1e7, cacheRead: 2e5, cacheWrite: 25e5 }
-  },
-  "grok-4.3": {
-    id: "grok-4.3",
-    name: "Grok 4.3",
-    brand: "xAI",
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ["text"],
-    officialPriceMicros: { input: 2e6, output: 1e7, cacheRead: 2e5, cacheWrite: 25e5 }
-  },
-  // --- Zhipu GLM Series ---
-  "glm-5.3": {
-    id: "glm-5.3",
-    name: "GLM 5.3",
-    brand: "Zhipu",
-    contextWindow: 131072,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    thinkingFormat: "deepseek",
-    officialPriceMicros: { input: 1e6, output: 4e6, cacheRead: 2e5, cacheWrite: 1e6 }
-  },
-  "glm-5.3-flash": {
-    id: "glm-5.3-flash",
-    name: "GLM 5.3 Flash",
-    brand: "Zhipu",
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ["text"],
-    officialPriceMicros: { input: 1e5, output: 2e5, cacheRead: 1e4, cacheWrite: 1e5 }
-  },
-  "glm-5.2": {
-    id: "glm-5.2",
-    name: "GLM 5.2",
-    brand: "Zhipu",
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ["text"],
-    officialPriceMicros: { input: 1e6, output: 4e6, cacheRead: 2e5, cacheWrite: 1e6 }
-  },
-  // --- Moonshot Kimi Series ---
-  "kimi-k3": {
-    id: "kimi-k3",
-    name: "Kimi K3",
-    brand: "Moonshot",
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    thinkingFormat: "deepseek",
-    officialPriceMicros: { input: 15e5, output: 6e6, cacheRead: 3e5, cacheWrite: 15e5 }
-  },
-  "kimi-k2.7-code": {
-    id: "kimi-k2.7-code",
-    name: "Kimi K2.7 Code",
-    brand: "Moonshot",
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ["text"],
-    officialPriceMicros: { input: 1e6, output: 4e6, cacheRead: 2e5, cacheWrite: 1e6 }
-  },
-  // --- Alibaba Qwen Series ---
-  "qwen3.8-max": {
-    id: "qwen3.8-max",
-    name: "Qwen 3.8 Max",
-    brand: "Alibaba",
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    thinkingFormat: "deepseek",
-    officialPriceMicros: { input: 2e6, output: 8e6, cacheRead: 4e5, cacheWrite: 2e6 }
-  },
-  "qwen3.8-flash": {
-    id: "qwen3.8-flash",
-    name: "Qwen 3.8 Flash",
-    brand: "Alibaba",
-    contextWindow: 1048576,
-    maxTokens: 16384,
-    modalities: ["text"],
-    officialPriceMicros: { input: 1e5, output: 3e5, cacheRead: 2e4, cacheWrite: 1e5 }
-  },
-  "qwen3.7-max": {
-    id: "qwen3.7-max",
-    name: "Qwen 3.7 Max",
-    brand: "Alibaba",
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ["text", "image"],
-    thinkingFormat: "deepseek",
-    officialPriceMicros: { input: 2e6, output: 8e6, cacheRead: 4e5, cacheWrite: 2e6 }
-  },
-  // --- MiniMax Series ---
-  "minimax-m3": {
-    id: "minimax-m3",
-    name: "MiniMax M3",
-    brand: "MiniMax",
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ["text"],
-    officialPriceMicros: { input: 1e6, output: 4e6, cacheRead: 2e5, cacheWrite: 1e6 }
+import fs from "node:fs";
+import fsp from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+var CATALOG_VERSION = 1;
+function dshHome() {
+  return process.env.DSH_HOME || path.join(os.homedir(), ".dsh");
+}
+function catalogFile() {
+  return path.join(dshHome(), "dsh-a6api-catalog.json");
+}
+var catalogCache = null;
+function ensureLoaded() {
+  if (catalogCache) return catalogCache;
+  try {
+    const raw = fs.readFileSync(catalogFile(), "utf8");
+    const j = JSON.parse(raw);
+    catalogCache = Array.isArray(j?.entries) ? j.entries.filter((e) => e && typeof e.id === "string") : [];
+  } catch {
+    catalogCache = [];
   }
+  const loaded = catalogCache;
+  return loaded;
+}
+function getCatalog() {
+  return ensureLoaded();
+}
+function getCatalogEntry(id) {
+  const t = id.toLowerCase();
+  return ensureLoaded().find((e) => e.id.toLowerCase() === t);
+}
+var writeChain = Promise.resolve();
+function enqueueWrite(fn) {
+  const next = writeChain.then(fn, fn);
+  writeChain = next.then(
+    () => {
+    },
+    () => {
+    }
+  );
+  return next;
+}
+async function writeCatalog(entries) {
+  const file = catalogFile();
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tmp`;
+  await fsp.writeFile(tmp, JSON.stringify({ version: CATALOG_VERSION, entries }, null, 2), {
+    encoding: "utf8",
+    mode: 420
+  });
+  await fsp.rename(tmp, file);
+  catalogCache = entries;
+}
+async function upsertCatalogEntries(entries) {
+  await enqueueWrite(async () => {
+    const cur = ensureLoaded();
+    const map = /* @__PURE__ */ new Map();
+    for (const e of cur) map.set(e.id.toLowerCase(), e);
+    for (const e of entries) {
+      const clean = Object.fromEntries(Object.entries(e).filter(([, v]) => v !== void 0));
+      const key = clean.id.toLowerCase();
+      const prev = map.get(key);
+      map.set(key, prev ? { ...prev, ...clean } : clean);
+    }
+    await writeCatalog([...map.values()]);
+  });
+}
+async function clearCatalog() {
+  await enqueueWrite(async () => {
+    await writeCatalog([]);
+  });
+}
+async function updateCatalogEntry(id, patch) {
+  let result = null;
+  await enqueueWrite(async () => {
+    const cur = ensureLoaded();
+    const idx = cur.findIndex((e) => e.id.toLowerCase() === id.toLowerCase());
+    if (idx < 0) return;
+    const next = { ...cur[idx], ...patch, id: cur[idx].id, updatedAt: Date.now() };
+    for (const k of Object.keys(patch)) {
+      if (patch[k] === null) delete next[k];
+    }
+    const list = cur.slice();
+    list[idx] = next;
+    await writeCatalog(list);
+    result = next;
+  });
+  return result;
+}
+var BRAND_NORMALIZE = {
+  meituan: "MeiTuan",
+  tencent: "Tencent",
+  xiaomi: "Xiaomi",
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  google: "Google",
+  deepseek: "DeepSeek",
+  zhipu: "Zhipu",
+  moonshot: "Moonshot",
+  alibaba: "Alibaba",
+  minimax: "MiniMax"
 };
+function normalizeBrand(raw) {
+  const k = String(raw || "").toLowerCase();
+  return BRAND_NORMALIZE[k] || raw || "Other";
+}
 function inferBrand(modelId) {
   const m = modelId.toLowerCase();
   if (m.startsWith("gpt") || m.startsWith("o1") || m.startsWith("o3") || m.startsWith("chatgpt")) return "OpenAI";
@@ -467,28 +120,193 @@ function inferBrand(modelId) {
   if (m.startsWith("hunyuan") || m.startsWith("tencent") || m.startsWith("hy")) return "Tencent";
   return "Other";
 }
+var DEFAULT_REASONING_EFFORTS = {
+  off: null,
+  minimal: "minimal",
+  low: "low",
+  medium: "medium",
+  high: "high",
+  xhigh: "xhigh",
+  max: "max"
+};
 function resolveModelMeta(modelId) {
-  if (A6API_CATALOG[modelId]) {
-    return A6API_CATALOG[modelId];
+  const entry = getCatalogEntry(modelId);
+  if (entry) {
+    return {
+      id: entry.id,
+      name: entry.name || entry.id,
+      brand: entry.brand || inferBrand(entry.id),
+      contextWindow: entry.contextWindow ?? 262144,
+      maxTokens: entry.maxTokens ?? 32768,
+      modalities: entry.input && entry.input.length > 0 ? [...entry.input] : ["text"],
+      ...entry.reasoningEfforts && typeof entry.reasoningEfforts === "object" && Object.keys(entry.reasoningEfforts).length > 0 ? {
+        reasoningEfforts: Object.fromEntries(
+          Object.entries(entry.reasoningEfforts).filter(([, v]) => v !== null && v !== void 0)
+        )
+      } : {}
+    };
   }
   const lowerId = modelId.toLowerCase();
-  for (const [k, v] of Object.entries(A6API_CATALOG)) {
-    if (k.toLowerCase() === lowerId) {
-      return v;
-    }
-  }
-  const brand = inferBrand(modelId);
   const isVision = lowerId.includes("vision") || lowerId.includes("vl") || lowerId.includes("image");
   const hasReasoning = lowerId.includes("think") || lowerId.includes("reason") || lowerId.includes("pro") || lowerId.includes("sol");
   return {
     id: modelId,
     name: modelId,
-    brand,
+    brand: inferBrand(modelId),
     contextWindow: 262144,
     maxTokens: 32768,
     modalities: isVision ? ["text", "image"] : ["text"],
     ...hasReasoning ? { thinkingFormat: "deepseek" } : {}
   };
+}
+var MARKET_SEARCH = "https://a6api.com/api/marketplace/channels/search";
+var PAGE_SIZE = 500;
+var CONCURRENCY = 6;
+function buildWebHeaders(userId, accessToken) {
+  const headers = {
+    Accept: "application/json",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+  };
+  const uid = userId ? String(userId).trim() : "";
+  const token = accessToken ? String(accessToken).trim() : "";
+  if (uid) headers["New-Api-User"] = uid;
+  if (token) {
+    headers["Authorization"] = token;
+    headers["Cookie"] = `session=${token}`;
+  }
+  return headers;
+}
+async function fetchMarketplaceModels(userId, accessToken) {
+  if (!userId && !accessToken) {
+    throw new Error("\u9700\u5148\u914D\u7F6E\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C\u624D\u80FD\u83B7\u53D6\u5E02\u573A\u6A21\u578B");
+  }
+  const headers = buildWebHeaders(userId, accessToken);
+  const first = await (async () => {
+    const res = await fetch(`${MARKET_SEARCH}?view=list&page=1&page_size=${PAGE_SIZE}`, {
+      headers,
+      signal: AbortSignal.timeout(15e3)
+    });
+    if (!res.ok) throw new Error(`A6API \u5E02\u573A\u63A5\u53E3 HTTP ${res.status}`);
+    return res.json();
+  })();
+  const total = Number(first?.data?.total || 0);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const all = [...first?.data?.items || []];
+  let failedPages = 0;
+  let idx = 2;
+  const worker = async () => {
+    while (idx <= pages) {
+      const p = idx++;
+      try {
+        const res = await fetch(`${MARKET_SEARCH}?view=list&page=${p}&page_size=${PAGE_SIZE}`, {
+          headers,
+          signal: AbortSignal.timeout(15e3)
+        });
+        const j = await res.json();
+        all.push(...j?.data?.items || []);
+      } catch (err) {
+        failedPages++;
+        console.warn("[dsh-a6api] fetchMarketplaceModels page", p, "failed:", err?.message || err);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+  const byModel = /* @__PURE__ */ new Map();
+  for (const it of all) {
+    const name2 = it?.model_name;
+    if (!name2) continue;
+    if (!byModel.has(name2)) {
+      byModel.set(name2, {
+        id: String(name2),
+        brand: normalizeBrand(it?.brand),
+        // 默认声明 DSH 全部思考档位（用户可修改；upsert 仅补缺失字段，已有自定义不受影响）
+        reasoningEfforts: { ...DEFAULT_REASONING_EFFORTS }
+      });
+    }
+  }
+  const models = [...byModel.values()].sort((a, b) => a.id.localeCompare(b.id));
+  return { models, failedPages };
+}
+var OPENROUTER_URL = "https://openrouter.ai/api/v1/models";
+var OR_TTL_MS = 60 * 60 * 1e3;
+var orCache = null;
+async function getOpenRouterModels() {
+  if (orCache && Date.now() - orCache.at < OR_TTL_MS) return orCache.models;
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(2e4)
+    });
+    if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`);
+    const j = await res.json();
+    if (!Array.isArray(j?.data)) throw new Error("OpenRouter \u8FD4\u56DE\u683C\u5F0F\u5F02\u5E38");
+    orCache = { at: Date.now(), models: j.data };
+    return orCache.models;
+  } catch (err) {
+    if (orCache) return orCache.models;
+    throw err;
+  }
+}
+var tailOf = (s) => String(s).split("/").pop() || "";
+function matchOpenRouter(models, target) {
+  const t = target.toLowerCase();
+  const tTail = tailOf(t);
+  const norm = (s) => s.toLowerCase().replace(/[\s_.]+/g, "-");
+  const byTail = models.find((m) => tailOf(String(m.id)).toLowerCase() === tTail);
+  if (byTail) return byTail;
+  const nTail = norm(tTail);
+  const byNorm = models.find((m) => norm(tailOf(String(m.id))) === nTail);
+  if (byNorm) return byNorm;
+  const stripped = tTail.replace(/-(?:\d{4}-\d{2}-\d{2}|\d{8}|-\d{2,4}|\d\.\d+)$/, "");
+  if (stripped && stripped !== tTail) {
+    const byStripped = models.find((m) => tailOf(String(m.id)).toLowerCase() === stripped);
+    if (byStripped) return byStripped;
+  }
+  const tSeg = t.split("/").pop() || t;
+  return models.find((m) => {
+    const id = String(m.id).toLowerCase();
+    if (!id.includes(t)) return false;
+    const tailSeg = id.split("/").pop() || "";
+    return tailSeg === t || tailSeg.split("-").includes(tSeg);
+  }) || null;
+}
+function orModalities(m) {
+  const set = /* @__PURE__ */ new Set();
+  const input = m?.architecture?.input_modalities || [];
+  for (const mod of input) {
+    const k = String(mod).toLowerCase();
+    if (k === "text") set.add("text");
+    else if (k === "image") set.add("image");
+  }
+  return [...set];
+}
+async function queryOpenRouter(ids) {
+  const uniq = [...new Set(ids.map((s) => String(s).trim()).filter(Boolean))];
+  if (uniq.length === 0) return { updated: [], notFound: [] };
+  const models = await getOpenRouterModels();
+  const updated = [];
+  const notFound = [];
+  for (const id of uniq) {
+    const hit = matchOpenRouter(models, id);
+    if (!hit) {
+      notFound.push(id);
+      continue;
+    }
+    const patch = {
+      updatedAt: Date.now()
+    };
+    const ctx = hit.context_length ?? hit.top_provider?.context_length;
+    if (ctx != null && Number(ctx) > 0) patch.contextWindow = Number(ctx);
+    const maxOut = hit.top_provider?.max_completion_tokens ?? hit.max_completion_tokens;
+    if (maxOut != null && Number(maxOut) > 0) patch.maxTokens = Number(maxOut);
+    const mods = orModalities(hit);
+    if (mods.length > 0) patch.input = mods;
+    updated.push({ id, ...patch });
+  }
+  if (updated.length > 0) {
+    await upsertCatalogEntries(updated);
+  }
+  return { updated, notFound };
 }
 
 // src/server/a6api-client.ts
@@ -516,7 +334,7 @@ function formatCnyPrice(micros, exchangeRate = 6.7209) {
   if (cny < 1) return `\xA5${cny.toFixed(4)}`;
   return `\xA5${cny.toFixed(3)}`;
 }
-function buildWebHeaders(userId, sessionCookie) {
+function buildWebHeaders2(userId, accessToken) {
   const headers = {
     Accept: "application/json",
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
@@ -525,8 +343,8 @@ function buildWebHeaders(userId, sessionCookie) {
   if (uid) {
     headers["New-Api-User"] = uid;
   }
-  if (sessionCookie && sessionCookie.trim()) {
-    const raw = sessionCookie.trim();
+  if (accessToken && accessToken.trim()) {
+    const raw = accessToken.trim();
     if (raw.startsWith("session=")) {
       headers["Cookie"] = raw;
     } else if (raw.includes(";")) {
@@ -538,7 +356,7 @@ function buildWebHeaders(userId, sessionCookie) {
   }
   return headers;
 }
-async function fetchBalance(baseURL, apiKey, userId, sessionCookie) {
+async function fetchBalance(baseURL, apiKey, userId, accessToken) {
   const cleanUrl = cleanBaseUrl(baseURL);
   let hasAccountAuth = false;
   let accountBalanceUsd = 0;
@@ -548,13 +366,13 @@ async function fetchBalance(baseURL, apiKey, userId, sessionCookie) {
   let responseUserId = userId;
   let usedUsd = 0;
   let requestCount = 0;
-  if (userId || sessionCookie) {
+  if (userId || accessToken) {
     const candidates = ["https://a6api.com/api/user/self", `${cleanUrl}/api/user/self`];
     const uniqueCandidates = [...new Set(candidates)];
     for (const url of uniqueCandidates) {
       try {
         const res = await fetch(url, {
-          headers: buildWebHeaders(userId, sessionCookie),
+          headers: buildWebHeaders2(userId, accessToken),
           signal: AbortSignal.timeout(6e3)
         });
         if (res.ok) {
@@ -642,11 +460,11 @@ async function fetchTokenModels(baseURL, apiKey) {
   }
   return [];
 }
-async function fetchRecentLogs(userId, sessionCookie, limit = 30) {
-  if (!userId && !sessionCookie) return [];
+async function fetchRecentLogs(userId, accessToken, limit = 30) {
+  if (!userId && !accessToken) return [];
   try {
     const res = await fetch(`https://a6api.com/api/log/self?p=1&page_size=${limit}&type=0`, {
-      headers: buildWebHeaders(userId, sessionCookie),
+      headers: buildWebHeaders2(userId, accessToken),
       signal: AbortSignal.timeout(8e3)
     });
     if (res.ok) {
@@ -681,6 +499,7 @@ async function fetchRecentLogs(userId, sessionCookie, limit = 30) {
             model_name: it.model_name || it.marketplace_model_name || "",
             channel: channelId,
             channel_name: it.channel_name || (channelId ? `\u5546\u6237 #${channelId}` : void 0),
+            token_id: it.token_id !== void 0 && it.token_id !== null ? Number(it.token_id) : void 0,
             prompt_tokens: Number(it.prompt_tokens || 0),
             completion_tokens: Number(it.completion_tokens || 0),
             use_time: Number(it.use_time || 0),
@@ -700,7 +519,7 @@ async function fetchRecentLogs(userId, sessionCookie, limit = 30) {
   }
   return [];
 }
-async function fetchChannelDetails(channelId, userId, sessionCookie, targetModelName, logSnapshot) {
+async function fetchChannelDetails(channelId, userId, accessToken, targetModelName, logSnapshot) {
   if (!channelId) return null;
   const targetName = targetModelName || "";
   const meta = resolveModelMeta(targetName);
@@ -708,7 +527,7 @@ async function fetchChannelDetails(channelId, userId, sessionCookie, targetModel
     const res = await fetch(
       `https://a6api.com/api/marketplace/channels/search?channel_id=${channelId}&view=list&page=1&page_size=20`,
       {
-        headers: buildWebHeaders(userId, sessionCookie),
+        headers: buildWebHeaders2(userId, accessToken),
         signal: AbortSignal.timeout(8e3)
       }
     );
@@ -781,7 +600,8 @@ async function fetchChannelDetails(channelId, userId, sessionCookie, targetModel
         const ratioFormatted = ratioCny.toFixed(4);
         return {
           listing_id: item.listing_id,
-          channel_id: item.channel_id,
+          // 归一化为数字，避免官方返回字符串 channel_id 导致严格相等比较失效（接管/固定判定依赖）
+          channel_id: item.channel_id !== void 0 && item.channel_id !== null ? Number(item.channel_id) : channelId,
           channel_name: item.channel_name || `\u5546\u6237 #${channelId}`,
           supplier_name: item.supplier_name || item.supplier_nickname || "GPT\u4F4E\u4EF7",
           supplier_id: item.supplier_id || 290,
@@ -819,8 +639,10 @@ async function fetchChannelDetails(channelId, userId, sessionCookie, targetModel
           last_success_text: formatRelativeTime(lastSuccessAt),
           authenticity_guaranteed: Boolean(item.authenticity_guaranteed),
           authenticity_badge: item.authenticity_guarantee_badge_key,
-          is_pinned: Boolean(item.pin_status === "pinned" || item.is_pinned),
-          user_channel_disabled: Boolean(item.user_channel_disabled),
+          // 官方固定状态值是 pin_here / pin_elsewhere（早期代码误用 'pinned'，已修正）
+          is_pinned: item.pin_status === "pin_here" || item.route_status === "pin_here",
+          pin_status: typeof item.pin_status === "string" ? item.pin_status : void 0,
+          user_channel_disabled: Boolean(item.user_channel_disabled || item.route_status === "user_disabled"),
           supplier_channel_disabled: Boolean(item.supplier_channel_disabled),
           raw: item
         };
@@ -892,13 +714,13 @@ async function fetchChannelDetails(channelId, userId, sessionCookie, targetModel
   }
   return null;
 }
-async function fetchPriceFluctuation(userId, sessionCookie, accessToken) {
-  const token = (accessToken || sessionCookie || "").trim();
+async function fetchPriceFluctuation(userId, accessToken) {
+  const token = (accessToken || "").trim();
   const uid = (userId || "").trim();
   if (!uid && !token) {
     return { pendingCount: 0, unseenCount: 0, totalCount: 0, authError: false };
   }
-  const headers = buildWebHeaders(uid || void 0, token || void 0);
+  const headers = buildWebHeaders2(uid || void 0, token || void 0);
   const url = "https://a6api.com/api/marketplace/price-notices";
   try {
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(8e3) });
@@ -950,6 +772,158 @@ async function fetchPriceFluctuation(userId, sessionCookie, accessToken) {
   } catch (err) {
     console.warn("[dsh-a6api] fetchPriceFluctuation error", err);
     return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+  }
+}
+function parseMarketplaceResult(json) {
+  if (!json) return { ok: false, message: "\u7A7A\u54CD\u5E94" };
+  const top = json.success === false ? json : null;
+  const inner = json.data && json.data.success === false ? json.data : null;
+  if (top) return { ok: false, message: top.message || "\u64CD\u4F5C\u5931\u8D25" };
+  if (inner) return { ok: false, message: inner.message || "\u64CD\u4F5C\u5931\u8D25" };
+  return { ok: true, data: json.data };
+}
+function extractArray(json) {
+  if (!json) return [];
+  if (Array.isArray(json)) return json;
+  if (Array.isArray(json.data)) return json.data;
+  if (json.data && Array.isArray(json.data.data)) return json.data.data;
+  if (json.data && Array.isArray(json.data.items)) return json.data.items;
+  if (json.data && json.data.data && Array.isArray(json.data.data.items)) return json.data.data.items;
+  return [];
+}
+async function fetchMarketplacePins(userId, accessToken) {
+  if (!userId && !accessToken) return [];
+  try {
+    const res = await fetch("https://a6api.com/api/marketplace/pins", {
+      headers: buildWebHeaders2(userId, accessToken),
+      signal: AbortSignal.timeout(8e3)
+    });
+    if (!res.ok) {
+      console.warn("[dsh-a6api] fetchMarketplacePins HTTP", res.status);
+      return [];
+    }
+    const json = await res.json().catch(() => null);
+    if (!json || json.success === false) return [];
+    return extractArray(json).filter((it) => it && it.model_name).map((it) => ({
+      id: it.id !== void 0 ? Number(it.id) : void 0,
+      token_id: Number(it.token_id || 0),
+      token_name: it.token_name || void 0,
+      model_name: String(it.model_name),
+      channel_id: it.channel_id !== void 0 && Number(it.channel_id) > 0 ? Number(it.channel_id) : void 0,
+      channel_name: it.channel_name || void 0,
+      supplier_name: it.supplier_name || void 0,
+      supplier_nickname: it.supplier_nickname || void 0,
+      fallback_to_smart_routing: it.fallback_to_smart_routing !== void 0 ? Boolean(it.fallback_to_smart_routing) : void 0,
+      created_at: it.created_at !== void 0 ? Number(it.created_at) : void 0
+      // 不下发 raw：客户端 60s 轮询用 JSON 对比判断变化，raw 含易变字段会导致误判整页刷新
+    }));
+  } catch (err) {
+    console.warn("[dsh-a6api] fetchMarketplacePins error:", err);
+    return [];
+  }
+}
+async function fetchTokens(userId, accessToken) {
+  if (!userId && !accessToken) return [];
+  try {
+    const res = await fetch("https://a6api.com/api/token/?p=1&size=100", {
+      headers: buildWebHeaders2(userId, accessToken),
+      signal: AbortSignal.timeout(8e3)
+    });
+    if (!res.ok) return [];
+    const json = await res.json().catch(() => null);
+    if (!json || json.success === false) return [];
+    return extractArray(json).filter((it) => it && Number(it.id) > 0).map((it) => ({
+      id: Number(it.id),
+      name: it.name || void 0,
+      key: typeof it.key === "string" ? it.key : void 0,
+      status: it.status !== void 0 ? Number(it.status) : void 0,
+      raw: it
+    }));
+  } catch (err) {
+    console.warn("[dsh-a6api] fetchTokens error:", err);
+    return [];
+  }
+}
+function friendlyActionError(err) {
+  const raw = err?.message || String(err);
+  if (raw.includes("aborted due to timeout") || err?.name === "TimeoutError") {
+    return "\u8BF7\u6C42\u8D85\u65F6\uFF0C\u8BF7\u91CD\u8BD5";
+  }
+  return raw;
+}
+async function marketplacePin(userId, accessToken, payload) {
+  try {
+    const res = await fetch("https://a6api.com/api/marketplace/pin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildWebHeaders2(userId, accessToken)
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(1e4)
+    });
+    const json = await res.json().catch(() => null);
+    const result = parseMarketplaceResult(json);
+    if (!res.ok && !json) return { ok: false, message: `HTTP ${res.status}` };
+    return result;
+  } catch (err) {
+    console.warn("[dsh-a6api] marketplacePin error:", err);
+    return { ok: false, message: friendlyActionError(err) };
+  }
+}
+async function marketplaceUnpin(userId, accessToken, payload) {
+  try {
+    const res = await fetch("https://a6api.com/api/marketplace/unpin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildWebHeaders2(userId, accessToken)
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(1e4)
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok && !json) return { ok: false, message: `HTTP ${res.status}` };
+    return parseMarketplaceResult(json);
+  } catch (err) {
+    console.warn("[dsh-a6api] marketplaceUnpin error:", err);
+    return { ok: false, message: friendlyActionError(err) };
+  }
+}
+async function marketplaceDisableChannel(userId, accessToken, channelId, model) {
+  try {
+    const res = await fetch(
+      `https://a6api.com/api/marketplace/channels/${channelId}/disable?model=${encodeURIComponent(model)}`,
+      {
+        method: "POST",
+        headers: buildWebHeaders2(userId, accessToken),
+        signal: AbortSignal.timeout(1e4)
+      }
+    );
+    const json = await res.json().catch(() => null);
+    if (!res.ok && !json) return { ok: false, message: `HTTP ${res.status}` };
+    return parseMarketplaceResult(json);
+  } catch (err) {
+    console.warn("[dsh-a6api] marketplaceDisableChannel error:", err);
+    return { ok: false, message: friendlyActionError(err) };
+  }
+}
+async function marketplaceRestoreChannel(userId, accessToken, channelId, model) {
+  try {
+    const res = await fetch(
+      `https://a6api.com/api/marketplace/channels/${channelId}/restore?model=${encodeURIComponent(model)}`,
+      {
+        method: "POST",
+        headers: buildWebHeaders2(userId, accessToken),
+        signal: AbortSignal.timeout(1e4)
+      }
+    );
+    const json = await res.json().catch(() => null);
+    if (!res.ok && !json) return { ok: false, message: `HTTP ${res.status}` };
+    return parseMarketplaceResult(json);
+  } catch (err) {
+    console.warn("[dsh-a6api] marketplaceRestoreChannel error:", err);
+    return { ok: false, message: friendlyActionError(err) };
   }
 }
 
@@ -1017,6 +991,8 @@ async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName)
           success: true,
           channelId,
           channelName: log.channel_name,
+          // 该次请求由 API Key 发起，日志中记录的 token_id 即该 Key 的令牌 ID
+          tokenId: log.token_id !== void 0 && Number(log.token_id) > 0 ? Number(log.token_id) : void 0,
           merchant,
           durationMs
         };
@@ -1082,77 +1058,56 @@ async function getKnownMerchantsFromLogs(userId, accessToken, modelNames = [], l
 }
 
 // src/server/sync.ts
-import * as fsp from "node:fs/promises";
-import * as path from "node:path";
-import * as os from "node:os";
+import * as fs2 from "node:fs";
+import * as fsp2 from "node:fs/promises";
+import * as path2 from "node:path";
+import * as os2 from "node:os";
 var A6API_CRED_REF = "A6API_API_KEY";
+var A6API_TOKEN_REF = "A6API_ACCESS_TOKEN";
+var A6API_USER_REF = "A6API_USER_ID";
+var SETTINGS_NS = "llm-pi-ai";
+var PROVIDER_KEY = "a6api";
+var DEFAULT_BASE_URL = "https://api.a6api.com";
+var LEGACY_CONFIG_NAME = "dsh-a6api-config.json";
 async function atomicWriteFile(filePath, content, mode = 384) {
-  const dir = path.dirname(filePath);
-  await fsp.mkdir(dir, { recursive: true });
-  const tmpPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
-  await fsp.writeFile(tmpPath, content, { mode });
-  await fsp.rename(tmpPath, filePath);
+  const dir = path2.dirname(filePath);
+  await fsp2.mkdir(dir, { recursive: true });
+  const tmpPath = path2.join(dir, `.${path2.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
+  await fsp2.writeFile(tmpPath, content, { mode });
+  await fsp2.rename(tmpPath, filePath);
 }
-function dshHome() {
-  return process.env.DSH_HOME || path.join(os.homedir(), ".dsh");
+function dshHome2() {
+  return process.env.DSH_HOME || path2.join(os2.homedir(), ".dsh");
 }
-function configFile() {
-  return path.join(dshHome(), "dsh-a6api-config.json");
+function legacyConfigFile() {
+  return path2.join(dshHome2(), LEGACY_CONFIG_NAME);
 }
 function credentialsFile() {
-  return path.join(dshHome(), ".credentials.yaml");
+  return path2.join(dshHome2(), ".credentials.yaml");
 }
 function settingsFile() {
-  return path.join(dshHome(), "settings.yaml");
+  return path2.join(dshHome2(), "settings.yaml");
 }
-async function readPluginConfig() {
-  const filePath = configFile();
-  let raw = "";
+function getCredentials(ctx) {
   try {
-    raw = await fsp.readFile(filePath, "utf8");
+    if (ctx && typeof ctx.get === "function") return ctx.get("credentials");
   } catch {
-    const apiKey = await readCredentialKey(A6API_CRED_REF) || "";
-    return {
-      baseURL: "https://api.a6api.com",
-      apiKey,
-      userId: "",
-      activeModels: []
-    };
   }
-  try {
-    const parsed = JSON.parse(raw);
-    const apiKey = parsed.apiKey || await readCredentialKey(A6API_CRED_REF) || "";
-    const accessToken = parsed.accessToken || parsed.systemAccessToken || parsed.sessionCookie || "";
-    return {
-      baseURL: parsed.baseURL || "https://api.a6api.com",
-      apiKey,
-      accessToken,
-      userId: parsed.userId || "",
-      sessionCookie: accessToken,
-      activeModels: Array.isArray(parsed.activeModels) ? parsed.activeModels : [],
-      customBaseURL: parsed.customBaseURL
-    };
-  } catch {
-    return {
-      baseURL: "https://api.a6api.com",
-      apiKey: "",
-      accessToken: "",
-      userId: "",
-      activeModels: []
-    };
-  }
+  return void 0;
 }
-async function savePluginConfig(config) {
-  const filePath = configFile();
-  const { apiKey: _apiKey, ...safeConfig } = config;
-  await atomicWriteFile(filePath, JSON.stringify(safeConfig, null, 2));
-  if (config.apiKey && config.apiKey.trim()) {
-    await writeCredentialKey(A6API_CRED_REF, config.apiKey.trim());
+function getSettings(ctx) {
+  try {
+    if (ctx && typeof ctx.get === "function") return ctx.get("settings");
+  } catch {
   }
+  return void 0;
+}
+function stripV1(baseURL) {
+  return baseURL.replace(/\/v1\/?$/, "");
 }
 async function readCredentialKey(refKey) {
   try {
-    const yaml = await fsp.readFile(credentialsFile(), "utf8");
+    const yaml = await fsp2.readFile(credentialsFile(), "utf8");
     let inRefs = false;
     for (const line of yaml.split(/\r?\n/)) {
       const trimmed = line.trim();
@@ -1169,7 +1124,7 @@ async function readCredentialKey(refKey) {
         if (val.startsWith('"') && val.endsWith('"') || val.startsWith("'") && val.endsWith("'")) {
           val = val.slice(1, -1);
         }
-        return val;
+        return val || null;
       }
     }
   } catch {
@@ -1180,14 +1135,14 @@ async function writeCredentialKey(refKey, value) {
   const cFile = credentialsFile();
   let yaml = "";
   try {
-    yaml = await fsp.readFile(cFile, "utf8");
+    yaml = await fsp2.readFile(cFile, "utf8");
   } catch {
     yaml = "version: 1\nrefs:\n";
   }
   const lines = yaml.split(/\r?\n/);
   let inRefs = false;
   let refsLineIdx = -1;
-  let found = false;
+  let foundIdx = -1;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
@@ -1205,58 +1160,81 @@ async function writeCredentialKey(refKey, value) {
     if (inRefs) {
       const m = /^([A-Za-z0-9_.\-]+):/.exec(trimmed);
       if (m && m[1] === refKey) {
-        lines[i] = `  ${refKey}: ${JSON.stringify(value)}`;
-        found = true;
+        foundIdx = i;
         break;
       }
     }
   }
-  if (!found) {
-    if (refsLineIdx >= 0) {
-      lines.splice(refsLineIdx + 1, 0, `  ${refKey}: ${JSON.stringify(value)}`);
+  if (value === "") {
+    if (foundIdx >= 0) lines.splice(foundIdx, 1);
+  } else {
+    if (foundIdx >= 0) {
+      lines[foundIdx] = `  ${refKey}: ${JSON.stringify(value)}`;
     } else {
-      lines.push("refs:", `  ${refKey}: ${JSON.stringify(value)}`);
+      if (refsLineIdx >= 0) {
+        lines.splice(refsLineIdx + 1, 0, `  ${refKey}: ${JSON.stringify(value)}`);
+      } else {
+        lines.push("refs:", `  ${refKey}: ${JSON.stringify(value)}`);
+      }
     }
   }
   await atomicWriteFile(cFile, lines.join("\n"), 384);
 }
-async function syncToDshSettings(baseURL, modelIds) {
-  const sFile = settingsFile();
-  let yaml = "";
+async function readRawConfiguredModels() {
   try {
-    yaml = await fsp.readFile(sFile, "utf8");
-  } catch {
-    yaml = "llm-pi-ai:\n  providers:\n";
-  }
-  const modelEntries = modelIds.map((id) => {
-    const meta = resolveModelMeta(id);
-    const lines2 = [
-      `        - id: ${meta.id}`,
-      `          name: ${meta.name}`,
-      `          contextWindow: ${meta.contextWindow}`,
-      `          maxTokens: ${meta.maxTokens}`,
-      `          input:`,
-      ...meta.modalities.map((m) => `            - ${m}`)
-    ];
-    if (meta.reasoningEfforts) {
-      lines2.push(`          reasoningEfforts:`);
-      for (const [k, v] of Object.entries(meta.reasoningEfforts)) {
-        if (v) lines2.push(`            ${k}: ${v}`);
+    const yaml = await fsp2.readFile(settingsFile(), "utf8");
+    const lines = yaml.split(/\r?\n/);
+    let inA6 = false;
+    let inModels = false;
+    const modelIds = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const indent = line.match(/^\s*/)?.[0].length ?? 0;
+      if (indent === 4 && trimmed.startsWith("a6api:")) {
+        inA6 = true;
+        inModels = false;
+        continue;
+      }
+      if (inA6 && indent <= 4 && !trimmed.startsWith("a6api:")) {
+        inA6 = false;
+        inModels = false;
+      }
+      if (inA6 && indent === 6 && trimmed.startsWith("models:")) {
+        inModels = true;
+        continue;
+      }
+      if (inModels && indent === 8 && trimmed.startsWith("- id:")) {
+        const id = trimmed.replace(/^- id:\s*/, "").trim();
+        if (id) modelIds.push(id);
       }
     }
-    return lines2.join("\n");
-  });
-  const dshBaseUrl = baseURL.endsWith("/v1") ? baseURL : `${baseURL.replace(/\/+$/, "")}/v1`;
-  const a6apiBlockLines = [
-    `    a6api:`,
-    `      displayName: A6API`,
-    `      apiKeyEnv: ${A6API_CRED_REF}`,
-    `      api: openai-completions`,
-    `      baseURL: ${dshBaseUrl}`,
-    `      models:`,
-    ...modelEntries.length > 0 ? modelEntries : [`        []`]
-  ];
-  const lines = yaml.split(/\r?\n/);
+    return modelIds;
+  } catch {
+    return [];
+  }
+}
+async function readRawA6apiBaseURL() {
+  try {
+    const yaml = await fsp2.readFile(settingsFile(), "utf8");
+    let inA6 = false;
+    for (const line of yaml.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const indent = line.match(/^\s*/)?.[0].length ?? 0;
+      if (indent === 4 && trimmed.startsWith("a6api:")) {
+        inA6 = true;
+        continue;
+      }
+      if (inA6 && indent <= 4 && !trimmed.startsWith("a6api:")) inA6 = false;
+      if (inA6 && indent === 6 && trimmed.startsWith("baseURL:")) {
+        return trimmed.replace(/^baseURL:\s*/, "").trim().replace(/^["']|["']$/g, "");
+      }
+    }
+  } catch {
+  }
+  return "";
+}
+function scanA6apiBlockRange(lines) {
   let inLlm = false;
   let inProviders = false;
   let inA6 = false;
@@ -1302,6 +1280,46 @@ async function syncToDshSettings(baseURL, modelIds) {
       inA6 = false;
     }
   }
+  return { a6Start, a6End, providersLineIdx, llmLineIdx };
+}
+async function writeRawA6apiBlock(baseURL, modelIds) {
+  const sFile = settingsFile();
+  let yaml = "";
+  try {
+    yaml = await fsp2.readFile(sFile, "utf8");
+  } catch {
+    yaml = "llm-pi-ai:\n  providers:\n";
+  }
+  const modelEntries = modelIds.map((id) => {
+    const entry = getCatalogEntry(id);
+    const lines2 = [`        - id: ${id}`];
+    if (entry?.name) lines2.push(`          name: ${JSON.stringify(String(entry.name).replace(/\r?\n/g, " "))}`);
+    if (entry?.contextWindow != null) lines2.push(`          contextWindow: ${entry.contextWindow}`);
+    if (entry?.maxTokens != null) lines2.push(`          maxTokens: ${entry.maxTokens}`);
+    if (entry?.input && entry.input.length > 0) {
+      lines2.push(`          input:`);
+      for (const m of entry.input) lines2.push(`            - ${m}`);
+    }
+    if (entry?.reasoningEfforts && typeof entry.reasoningEfforts === "object") {
+      lines2.push(`          reasoningEfforts:`);
+      for (const [k, v] of Object.entries(entry.reasoningEfforts)) {
+        lines2.push(v ? `            ${k}: ${v}` : `            ${k}: `);
+      }
+    }
+    return lines2.join("\n");
+  });
+  const dshBaseUrl = baseURL.endsWith("/v1") ? baseURL : `${baseURL.replace(/\/+$/, "")}/v1`;
+  const a6apiBlockLines = [
+    `    a6api:`,
+    `      displayName: A6API`,
+    `      apiKeyEnv: ${A6API_CRED_REF}`,
+    `      api: openai-completions`,
+    `      baseURL: ${dshBaseUrl}`,
+    `      models:`,
+    ...modelEntries
+  ];
+  const lines = yaml.split(/\r?\n/);
+  const { a6Start, a6End, providersLineIdx, llmLineIdx } = scanA6apiBlockRange(lines);
   if (a6Start >= 0) {
     lines.splice(a6Start, a6End - a6Start, ...a6apiBlockLines);
   } else if (providersLineIdx >= 0) {
@@ -1313,38 +1331,305 @@ async function syncToDshSettings(baseURL, modelIds) {
   }
   await atomicWriteFile(sFile, lines.join("\n"), 420);
 }
-async function getDshConfiguredModels() {
+async function removeRawA6apiBlock() {
+  const sFile = settingsFile();
+  let yaml = "";
   try {
-    const yaml = await fsp.readFile(settingsFile(), "utf8");
-    const lines = yaml.split(/\r?\n/);
-    let inA6 = false;
-    let inModels = false;
-    const modelIds = [];
-    for (const line of lines) {
-      const trimmed = line.trim();
-      const indent = line.match(/^\s*/)?.[0].length ?? 0;
-      if (indent === 4 && trimmed.startsWith("a6api:")) {
-        inA6 = true;
-        inModels = false;
-        continue;
-      }
-      if (inA6 && indent <= 4 && !trimmed.startsWith("a6api:")) {
-        inA6 = false;
-        inModels = false;
-      }
-      if (inA6 && indent === 6 && trimmed.startsWith("models:")) {
-        inModels = true;
-        continue;
-      }
-      if (inModels && indent === 8 && trimmed.startsWith("- id:")) {
-        const id = trimmed.replace(/^- id:\s*/, "").trim();
-        if (id) modelIds.push(id);
+    yaml = await fsp2.readFile(sFile, "utf8");
+  } catch {
+    return;
+  }
+  const lines = yaml.split(/\r?\n/);
+  const { a6Start, a6End, providersLineIdx, llmLineIdx } = scanA6apiBlockRange(lines);
+  if (a6Start < 0) return;
+  lines.splice(a6Start, a6End - a6Start);
+  if (providersLineIdx >= 0) {
+    let hasProvider = false;
+    for (let i = providersLineIdx + 1; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const indent = lines[i].match(/^\s*/)?.[0].length ?? 0;
+      if (indent <= 2) break;
+      if (indent === 4) {
+        hasProvider = true;
+        break;
       }
     }
-    return modelIds;
-  } catch {
-    return [];
+    if (!hasProvider) lines.splice(providersLineIdx, 1);
   }
+  if (llmLineIdx >= 0) {
+    let hasLlmKey = false;
+    for (let i = llmLineIdx + 1; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const indent = lines[i].match(/^\s*/)?.[0].length ?? 0;
+      if (indent === 0) break;
+      if (indent === 2) {
+        hasLlmKey = true;
+        break;
+      }
+    }
+    if (!hasLlmKey) lines.splice(llmLineIdx, 1);
+  }
+  await atomicWriteFile(sFile, lines.join("\n"), 420);
+}
+function normalizeLegacy(parsed) {
+  return {
+    apiKey: typeof parsed?.apiKey === "string" ? parsed.apiKey : "",
+    accessToken: String(parsed?.accessToken || parsed?.systemAccessToken || parsed?.sessionCookie || ""),
+    userId: String(parsed?.userId || ""),
+    baseURL: typeof parsed?.baseURL === "string" && parsed.baseURL ? parsed.baseURL : DEFAULT_BASE_URL,
+    activeModels: Array.isArray(parsed?.activeModels) ? parsed.activeModels.filter((m) => typeof m === "string") : []
+  };
+}
+async function readLegacyConfig() {
+  try {
+    const raw = await fsp2.readFile(legacyConfigFile(), "utf8");
+    const legacy = normalizeLegacy(JSON.parse(raw));
+    return {
+      baseURL: legacy.baseURL,
+      apiKey: legacy.apiKey,
+      accessToken: legacy.accessToken || void 0,
+      userId: legacy.userId || void 0,
+      activeModels: legacy.activeModels
+    };
+  } catch {
+    return null;
+  }
+}
+function buildA6apiBlock(baseURL, modelIds) {
+  const models = modelIds.map((id) => {
+    const entry = getCatalogEntry(id);
+    const m = { id };
+    if (entry?.name) m.name = entry.name;
+    if (entry?.contextWindow != null) m.contextWindow = entry.contextWindow;
+    if (entry?.maxTokens != null) m.maxTokens = entry.maxTokens;
+    if (entry?.input && entry.input.length > 0) m.input = [...entry.input];
+    if (entry?.reasoningEfforts !== void 0 && entry.reasoningEfforts !== null) {
+      m.reasoningEfforts = entry.reasoningEfforts;
+    }
+    return m;
+  });
+  return {
+    displayName: "A6API",
+    apiKeyEnv: A6API_CRED_REF,
+    api: "openai-completions",
+    baseURL: baseURL.endsWith("/v1") ? baseURL : `${baseURL.replace(/\/+$/, "")}/v1`,
+    models
+  };
+}
+function createConfigAccess(ctx) {
+  let migration = null;
+  const ensureMigrated = () => {
+    if (!migration) {
+      migration = doMigrate().catch((err) => {
+        console.warn("[dsh-a6api] \u65E7\u914D\u7F6E\u8FC1\u79FB\u5931\u8D25\uFF08\u4FDD\u7559\u65E7\u6587\u4EF6\u8BFB\u53D6\u515C\u5E95\uFF09:", err?.message || err);
+      });
+    }
+    return migration;
+  };
+  const resolveRef = async (creds, ref) => {
+    try {
+      if (creds && typeof creds.resolve === "function") {
+        const r = await creds.resolve(ref);
+        return r && typeof r.value === "string" ? r.value : "";
+      }
+    } catch (err) {
+      console.warn(`[dsh-a6api] credentials.resolve(${ref}) failed:`, err?.message || err);
+    }
+    return await readCredentialKey(ref) || "";
+  };
+  const readA6apiBlock = async (settings) => {
+    try {
+      if (settings && typeof settings.get === "function") {
+        const llm = settings.get(SETTINGS_NS);
+        const block = llm && llm.providers ? llm.providers[PROVIDER_KEY] : void 0;
+        if (block && typeof block === "object") {
+          return {
+            baseURL: typeof block.baseURL === "string" ? block.baseURL : void 0,
+            models: Array.isArray(block.models) ? block.models.map((m) => typeof m === "string" ? m : m && typeof m.id === "string" ? m.id : "").filter(Boolean) : []
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("[dsh-a6api] settings.get(llm-pi-ai) failed:", err?.message || err);
+    }
+    return null;
+  };
+  const readConfig = async () => {
+    await ensureMigrated();
+    const creds = getCredentials(ctx);
+    const settings = getSettings(ctx);
+    const apiKey = await resolveRef(creds, A6API_CRED_REF);
+    const accessToken = await resolveRef(creds, A6API_TOKEN_REF);
+    const userId = await resolveRef(creds, A6API_USER_REF);
+    let baseURL = DEFAULT_BASE_URL;
+    let activeModels = [];
+    const block = await readA6apiBlock(settings);
+    if (block) {
+      if (block.baseURL) baseURL = stripV1(block.baseURL) || DEFAULT_BASE_URL;
+      activeModels = block.models;
+    } else {
+      const rawBase = await readRawA6apiBaseURL();
+      if (rawBase) baseURL = stripV1(rawBase) || DEFAULT_BASE_URL;
+      activeModels = await readRawConfiguredModels();
+    }
+    if (!apiKey && !accessToken && fs2.existsSync(legacyConfigFile())) {
+      const legacy = await readLegacyConfig();
+      if (legacy) {
+        return {
+          baseURL: baseURL || legacy.baseURL,
+          apiKey: apiKey || legacy.apiKey,
+          accessToken: accessToken || legacy.accessToken,
+          userId: userId || legacy.userId,
+          activeModels: activeModels.length > 0 ? activeModels : legacy.activeModels
+        };
+      }
+    }
+    return { baseURL, apiKey, accessToken, userId, activeModels };
+  };
+  const writeConfig = async (parts) => {
+    await ensureMigrated();
+    const creds = getCredentials(ctx);
+    const entries = [
+      [A6API_CRED_REF, parts.apiKey],
+      [A6API_TOKEN_REF, parts.accessToken],
+      [A6API_USER_REF, parts.userId]
+    ];
+    for (const [ref, value] of entries) {
+      if (value === void 0) continue;
+      const v = value.trim();
+      try {
+        if (creds && typeof creds.set === "function" && typeof creds.unset === "function") {
+          if (v) await creds.set(ref, v);
+          else await creds.unset(ref);
+        } else {
+          await writeCredentialKey(ref, v);
+        }
+      } catch (err) {
+        console.warn(`[dsh-a6api] \u5199\u5165\u51ED\u636E ${ref} \u5931\u8D25\uFF08\u5DF2\u8DF3\u8FC7\uFF09:`, err?.message || err);
+      }
+    }
+  };
+  const syncModels = async (baseURL, modelIds) => {
+    const settings = getSettings(ctx);
+    if (modelIds.length === 0) {
+      if (settings && typeof settings.mutate === "function") {
+        try {
+          await settings.mutate(SETTINGS_NS, [{ op: "unset", path: ["providers", PROVIDER_KEY] }]);
+          return;
+        } catch (err) {
+          console.warn("[dsh-a6api] settings.mutate(llm-pi-ai) \u79FB\u9664 a6api \u5757\u5931\u8D25\uFF0C\u56DE\u9000\u88F8\u5199 settings.yaml:", err?.message || err);
+        }
+      }
+      await removeRawA6apiBlock();
+      return;
+    }
+    const block = buildA6apiBlock(baseURL, modelIds);
+    if (settings && typeof settings.update === "function") {
+      try {
+        await settings.update(SETTINGS_NS, { providers: { [PROVIDER_KEY]: block } });
+        return;
+      } catch (err) {
+        console.warn("[dsh-a6api] settings.update(llm-pi-ai) \u5931\u8D25\uFF0C\u56DE\u9000\u88F8\u5199 settings.yaml:", err?.message || err);
+      }
+    }
+    await writeRawA6apiBlock(baseURL, modelIds);
+  };
+  const getDshConfiguredModels = async () => {
+    const block = await readA6apiBlock(getSettings(ctx));
+    if (block) return block.models;
+    return readRawConfiguredModels();
+  };
+  const fillRef = async (creds, ref, value) => {
+    if (!value) return true;
+    try {
+      const current = await resolveRef(creds, ref);
+      if (current) return true;
+      if (creds && typeof creds.set === "function") await creds.set(ref, value);
+      else await writeCredentialKey(ref, value);
+      return true;
+    } catch (err) {
+      console.warn(`[dsh-a6api] \u8FC1\u79FB ${ref} \u5931\u8D25\uFF08\u8DF3\u8FC7\uFF0C\u4FDD\u7559\u65E7\u6587\u4EF6\uFF09:`, err?.message || err);
+      return false;
+    }
+  };
+  const archiveLegacy = async (filePath) => {
+    try {
+      await fsp2.rename(filePath, `${filePath}.bak`);
+      console.log("[dsh-a6api] \u65E7\u914D\u7F6E\u5DF2\u8FC1\u79FB\u81F3 DSH \u539F\u751F\u914D\u7F6E\u5E76\u5F52\u6863: dsh-a6api-config.json.bak");
+    } catch (err) {
+      console.warn("[dsh-a6api] \u65E7\u914D\u7F6E\u5F52\u6863\u5931\u8D25\uFF08\u8FC1\u79FB\u503C\u5DF2\u5199\u5165\uFF0C\u65E7\u6587\u4EF6\u4FDD\u7559\uFF0C\u4E0B\u6B21\u542F\u52A8\u91CD\u8BD5\uFF09:", err?.message || err);
+    }
+  };
+  const doMigrate = async () => {
+    const filePath = legacyConfigFile();
+    let raw = "";
+    try {
+      raw = await fsp2.readFile(filePath, "utf8");
+    } catch {
+      return;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      console.warn("[dsh-a6api] \u65E7\u914D\u7F6E\u6587\u4EF6\u635F\u574F\uFF0C\u8DF3\u8FC7\u8FC1\u79FB\u5E76\u5F52\u6863:", err?.message || err);
+      await archiveLegacy(filePath);
+      return;
+    }
+    const legacy = normalizeLegacy(parsed);
+    const creds = getCredentials(ctx);
+    const fillResults = [
+      await fillRef(creds, A6API_CRED_REF, legacy.apiKey),
+      await fillRef(creds, A6API_TOKEN_REF, legacy.accessToken),
+      await fillRef(creds, A6API_USER_REF, legacy.userId)
+    ];
+    if (fillResults.some((ok) => !ok)) {
+      console.warn("[dsh-a6api] \u51ED\u636E\u8FC1\u79FB\u672A\u5168\u90E8\u6210\u529F\uFF0C\u8DF3\u8FC7\u5F52\u6863\uFF0C\u4FDD\u7559\u65E7\u6587\u4EF6\u8BFB\u53D6\u515C\u5E95\uFF08\u4E0B\u6B21\u542F\u52A8\u91CD\u8BD5\uFF09");
+      return;
+    }
+    const block = await readA6apiBlock(getSettings(ctx));
+    const blockExists = Boolean(block) || (await readRawConfiguredModels()).length > 0;
+    if (!blockExists && legacy.activeModels.length > 0) {
+      await syncModels(legacy.baseURL, legacy.activeModels);
+    }
+    await archiveLegacy(filePath);
+  };
+  return { ensureMigrated, readConfig, writeConfig, syncModels, getDshConfiguredModels };
+}
+
+// src/types.ts
+var THINKING_LEVEL_KEYS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+function validateReasoningEfforts(value) {
+  if (value === false) return { ok: true, value: false };
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ok: false, error: "reasoningEfforts \u5FC5\u987B\u662F\u6863\u4F4D\u5B57\u5178\u6216 false" };
+  }
+  const dict = value;
+  const keys = Object.keys(dict);
+  if (keys.length === 0) return { ok: false, error: "reasoningEfforts \u4E0D\u80FD\u4E3A\u7A7A\u5B57\u5178" };
+  const out = {};
+  for (const k of keys) {
+    if (!THINKING_LEVEL_KEYS.includes(k)) {
+      return { ok: false, error: `reasoningEfforts \u952E "${k}" \u4E0D\u662F DSH \u652F\u6301\u7684\u6863\u4F4D\uFF08off/minimal/low/medium/high/xhigh/max\uFF09` };
+    }
+    const v = dict[k];
+    if (v === null) {
+      if (k !== "off") {
+        return { ok: false, error: `reasoningEfforts.${k} \u5FC5\u987B\u63D0\u4F9B wire \u503C\uFF0C\u4EC5 off \u5141\u8BB8\u7559\u7A7A` };
+      }
+      out[k] = null;
+    } else if (typeof v === "string" && v.length > 0) {
+      out[k] = v;
+    } else {
+      return { ok: false, error: `reasoningEfforts.${k} \u7684\u503C\u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32\u6216 null` };
+    }
+  }
+  if (!keys.some((k) => k !== "off")) {
+    return { ok: false, error: "reasoningEfforts \u9664 off \u5916\u81F3\u5C11\u9700\u8981\u4E00\u4E2A\u601D\u8003\u6863\u4F4D\uFF08\u975E\u63A8\u7406\u6A21\u578B\u8BF7\u7528 false\uFF09" };
+  }
+  return { ok: true, value: out };
 }
 
 // src/index.ts
@@ -1356,11 +1641,10 @@ function maskConfig(c) {
   return {
     ...c,
     apiKey: c.apiKey ? MASK : "",
-    accessToken: c.accessToken || c.sessionCookie ? MASK : "",
-    sessionCookie: "",
+    accessToken: c.accessToken ? MASK : "",
     userId: c.userId ? MASK : "",
     hasApiKey: Boolean(c.apiKey),
-    hasToken: Boolean(c.accessToken || c.sessionCookie)
+    hasToken: Boolean(c.accessToken)
   };
 }
 function sendJson(res, status, body) {
@@ -1396,7 +1680,68 @@ async function parseJsonBody(req) {
 }
 var merchantCardCache = /* @__PURE__ */ new Map();
 var MERCHANT_CARD_TTL_MS = 15 * 60 * 1e3;
+var tokenResolveCache = null;
+var TOKEN_RESOLVE_TTL_MS = 10 * 60 * 1e3;
+async function resolveTokenId(config) {
+  if (tokenResolveCache && Date.now() - tokenResolveCache.at < TOKEN_RESOLVE_TTL_MS) {
+    return tokenResolveCache.tokenId;
+  }
+  const token = config.accessToken || "";
+  if (!config.userId || !token) return null;
+  try {
+    const tokens = await fetchTokens(config.userId, token);
+    let tokenId = null;
+    const key = (config.apiKey || "").trim();
+    if (key) {
+      const hit = tokens.find((t) => t.key && t.key === key);
+      if (hit) tokenId = hit.id;
+    }
+    if (!tokenId && tokens.length === 1) tokenId = tokens[0].id;
+    if (tokenId && tokenId > 0) {
+      tokenResolveCache = { tokenId, at: Date.now() };
+      return tokenId;
+    }
+  } catch (err) {
+    console.warn("[dsh-a6api] resolveTokenId error:", err);
+  }
+  return null;
+}
+function webAuthOf(config) {
+  return { userId: config.userId || void 0, token: config.accessToken || void 0 };
+}
+function cachedMerchantOf(modelName) {
+  const entry = merchantCardCache.get(modelName.toLowerCase());
+  return entry && Date.now() - entry.at < MERCHANT_CARD_TTL_MS ? entry.card : void 0;
+}
+function overlayPinsOnModels(models, pins, tokenId) {
+  const byModel = /* @__PURE__ */ new Map();
+  for (const p of pins) {
+    const key = (p.model_name || "").toLowerCase();
+    if (!key) continue;
+    const list = byModel.get(key);
+    if (list) list.push(p);
+    else byModel.set(key, [p]);
+  }
+  return models.map((m) => {
+    const list = byModel.get(m.model_name.toLowerCase());
+    if (!list || list.length === 0) return m;
+    const pick = (tokenId ? list.find((p) => Number(p.token_id) === tokenId) : void 0) || list[0];
+    const cardChannel = m.merchant?.channel_id;
+    const pinChannel = pick.channel_id;
+    return {
+      ...m,
+      // Number() 归一化：官方接口可能返回字符串渠道 ID，严格相等会误判
+      pinStatus: pinChannel ? cardChannel && Number(cardChannel) === Number(pinChannel) ? "pin_here" : "pin_elsewhere" : void 0,
+      pinnedChannelId: pinChannel,
+      pinnedSupplierName: pick.supplier_nickname || pick.supplier_name,
+      pinnedFallback: pick.fallback_to_smart_routing,
+      pinTokenMatched: Boolean(tokenId && Number(pick.token_id) === tokenId)
+    };
+  });
+}
 function apply(ctx) {
+  const configAccess = createConfigAccess(ctx);
+  void configAccess.ensureMigrated();
   const webServer = ctx.webServer || (ctx.get ? ctx.get("webServer") : null);
   if (webServer && typeof webServer.register === "function") {
     ctx.effect(() => {
@@ -1410,24 +1755,29 @@ function apply(ctx) {
             res.writeHead(204);
             return res.end();
           }
+          if (req.method === "POST" && !String(req.headers["content-type"] || "").toLowerCase().includes("application/json")) {
+            return sendJson(res, 415, { ok: false, error: "Content-Type must be application/json" });
+          }
           try {
             if (pathname === "/state" && (req.method === "GET" || req.method === "HEAD")) {
-              const config = await readPluginConfig();
-              const token = config.accessToken || config.sessionCookie || "";
-              const balance = await fetchBalance(config.baseURL, config.apiKey, config.userId, token);
+              const config = await configAccess.readConfig();
+              const token = config.accessToken || "";
+              const [balance, dshConfiguredModels, modelIdsRaw, allLogs, pins] = await Promise.all([
+                fetchBalance(config.baseURL, config.apiKey, config.userId, token),
+                configAccess.getDshConfiguredModels(),
+                config.apiKey ? fetchTokenModels(config.baseURL, config.apiKey) : Promise.resolve([]),
+                fetchRecentLogs(config.userId, token, 100),
+                config.userId && token ? fetchMarketplacePins(config.userId, token).catch(() => []) : Promise.resolve([])
+              ]);
               if (balance?.userId && String(balance.userId) !== config.userId) {
+                tokenResolveCache = null;
                 config.userId = String(balance.userId);
-                await savePluginConfig(config);
+                await configAccess.writeConfig({ userId: config.userId });
               }
-              const dshConfiguredModels = await getDshConfiguredModels();
-              let modelIds = [];
-              if (config.apiKey) {
-                modelIds = await fetchTokenModels(config.baseURL, config.apiKey);
-              }
+              let modelIds = modelIdsRaw;
               if (modelIds.length === 0) {
                 modelIds = [
                   .../* @__PURE__ */ new Set([
-                    ...config.activeModels,
                     ...dshConfiguredModels,
                     "gpt-5.6-sol",
                     "gpt-5.6-terra",
@@ -1438,7 +1788,6 @@ function apply(ctx) {
                   ])
                 ];
               }
-              const allLogs = await fetchRecentLogs(config.userId, token, 100);
               allLogs.sort((a, b) => (Number(b.created_at) || 0) - (Number(a.created_at) || 0));
               if (config.userId || token) {
                 const missing = modelIds.filter((m) => {
@@ -1470,7 +1819,7 @@ function apply(ctx) {
                 }
               }
               const dshSet = new Set(dshConfiguredModels);
-              const models = modelIds.map((mId) => {
+              let models = modelIds.map((mId) => {
                 const meta = resolveModelMeta(mId);
                 const cacheEntry = merchantCardCache.get(mId.toLowerCase());
                 const cachedCard = cacheEntry && Date.now() - cacheEntry.at < MERCHANT_CARD_TTL_MS ? cacheEntry.card : void 0;
@@ -1489,57 +1838,120 @@ function apply(ctx) {
                   lastRoutedText: routedAt ? formatRelativeTime(routedAt) : void 0
                 };
               });
+              const resolvedTokenId = pins.length > 0 ? await resolveTokenId(config) : null;
+              models = overlayPinsOnModels(models, pins, resolvedTokenId);
+              const rePointTargets = models.filter(
+                (m) => m.pinStatus === "pin_elsewhere" && m.pinTokenMatched === true && m.pinnedChannelId && m.pinnedChannelId > 0
+              ).map((m) => ({ modelName: m.model_name, channelId: m.pinnedChannelId }));
+              if (rePointTargets.length > 0 && config.userId && token) {
+                try {
+                  await Promise.race([
+                    (async () => {
+                      for (let i = 0; i < rePointTargets.length; i += 4) {
+                        const batch = rePointTargets.slice(i, i + 4);
+                        await Promise.all(
+                          batch.map(async ({ modelName, channelId }) => {
+                            try {
+                              const pinnedCard = await fetchChannelDetails(
+                                channelId,
+                                config.userId,
+                                token,
+                                modelName
+                              );
+                              if (pinnedCard && Number(pinnedCard.channel_id) === Number(channelId)) {
+                                merchantCardCache.set(modelName.toLowerCase(), { card: pinnedCard, at: Date.now() });
+                              }
+                            } catch {
+                            }
+                          })
+                        );
+                      }
+                    })(),
+                    new Promise((resolve) => setTimeout(() => resolve(), 1e4))
+                  ]);
+                } catch {
+                }
+                models = models.map((m) => {
+                  if (m.pinStatus !== "pin_elsewhere" || m.pinTokenMatched !== true) return m;
+                  const entry = merchantCardCache.get(m.model_name.toLowerCase());
+                  const card = entry && Date.now() - entry.at < MERCHANT_CARD_TTL_MS ? entry.card : void 0;
+                  if (card && Number(card.channel_id) === Number(m.pinnedChannelId)) {
+                    const pinnedLog = allLogs.find(
+                      (l) => l.model_name?.toLowerCase() === m.model_name.toLowerCase() && Number(l.channel) === m.pinnedChannelId
+                    );
+                    const pinnedAt = pinnedLog ? Number(pinnedLog.created_at) || 0 : void 0;
+                    return {
+                      ...m,
+                      merchant: card,
+                      pinStatus: "pin_here",
+                      probeStatus: "success",
+                      lastRoutedAt: pinnedAt,
+                      lastRoutedText: pinnedAt ? formatRelativeTime(pinnedAt) : void 0
+                    };
+                  }
+                  return m;
+                });
+              }
               const recentLogs = allLogs.slice(0, 20);
               const response = {
                 config: maskConfig(config),
                 balance,
                 models,
                 dshConfiguredModels,
-                recentLogs
+                recentLogs,
+                pins
               };
               return sendJson(res, 200, { ok: true, data: response });
             }
             if (pathname === "/config" && req.method === "POST") {
               const body = await parseJsonBody(req);
-              const current = await readPluginConfig();
-              const rawToken = body.accessToken !== void 0 && body.accessToken !== MASK ? body.accessToken : body.sessionCookie !== void 0 && body.sessionCookie !== MASK ? body.sessionCookie : current.accessToken || current.sessionCookie || "";
+              const current = await configAccess.readConfig();
+              const rawToken = body.accessToken !== void 0 && body.accessToken !== MASK ? body.accessToken : body.sessionCookie !== void 0 && body.sessionCookie !== MASK ? body.sessionCookie : current.accessToken;
               const newApiKey = body.apiKey !== void 0 && body.apiKey !== MASK ? body.apiKey : current.apiKey;
+              const credChanged = newApiKey !== current.apiKey || rawToken !== (current.accessToken || "") || body.userId !== void 0 && body.userId !== MASK && body.userId !== current.userId;
+              if (credChanged) {
+                tokenResolveCache = null;
+              }
               const updated = {
                 baseURL: body.baseURL !== void 0 ? body.baseURL : current.baseURL,
                 apiKey: newApiKey,
                 accessToken: rawToken,
-                sessionCookie: rawToken,
-                userId: body.userId !== void 0 ? body.userId : current.userId,
-                activeModels: Array.isArray(body.activeModels) ? body.activeModels : current.activeModels,
-                customBaseURL: body.customBaseURL !== void 0 ? body.customBaseURL : current.customBaseURL
+                userId: body.userId !== void 0 && body.userId !== MASK ? body.userId : current.userId,
+                activeModels: Array.isArray(body.activeModels) ? body.activeModels : current.activeModels
               };
               const balance = await fetchBalance(updated.baseURL, updated.apiKey, updated.userId, updated.accessToken);
               if (balance?.userId) {
                 updated.userId = String(balance.userId);
               }
-              await savePluginConfig(updated);
+              const credWrites = {};
+              if (updated.apiKey !== current.apiKey) credWrites.apiKey = updated.apiKey;
+              if ((updated.accessToken || "") !== (current.accessToken || "")) credWrites.accessToken = updated.accessToken;
+              if ((updated.userId || "") !== (current.userId || "")) credWrites.userId = updated.userId;
+              if (Object.keys(credWrites).length > 0) {
+                await configAccess.writeConfig(credWrites);
+              }
               if (updated.activeModels.length > 0) {
-                await syncToDshSettings(updated.baseURL, updated.activeModels);
+                await configAccess.syncModels(updated.baseURL, updated.activeModels);
               }
               return sendJson(res, 200, { ok: true, config: maskConfig(updated), balance });
             }
             if (pathname === "/balance" && (req.method === "GET" || req.method === "HEAD")) {
-              const config = await readPluginConfig();
-              const token = config.accessToken || config.sessionCookie || "";
+              const config = await configAccess.readConfig();
+              const token = config.accessToken || "";
               const balance = await fetchBalance(config.baseURL, config.apiKey, config.userId, token);
               const recentLogs = await fetchRecentLogs(config.userId, token, 20);
               return sendJson(res, 200, { ok: true, balance, recentLogs });
             }
             if (pathname === "/logs" && (req.method === "GET" || req.method === "HEAD")) {
-              const config = await readPluginConfig();
-              const token = config.accessToken || config.sessionCookie || "";
+              const config = await configAccess.readConfig();
+              const token = config.accessToken || "";
               const recentLogs = await fetchRecentLogs(config.userId, token, 30);
               return sendJson(res, 200, { ok: true, logs: recentLogs });
             }
             if (pathname === "/probe" && req.method === "POST") {
               const body = await parseJsonBody(req);
-              const config = await readPluginConfig();
-              const token = config.accessToken || config.sessionCookie || "";
+              const config = await configAccess.readConfig();
+              const token = config.accessToken || "";
               const modelName = body.modelName;
               if (modelName && modelName !== "all") {
                 const result = await probeSingleModel(config.baseURL, config.apiKey, config.userId, token, modelName);
@@ -1553,7 +1965,7 @@ function apply(ctx) {
                 modelIds = await fetchTokenModels(config.baseURL, config.apiKey);
               }
               if (modelIds.length === 0) {
-                modelIds = config.activeModels;
+                modelIds = await configAccess.getDshConfiguredModels();
               }
               const results = [];
               for (const m of modelIds) {
@@ -1567,26 +1979,284 @@ function apply(ctx) {
             }
             if (pathname === "/sync-models" && req.method === "POST") {
               const body = await parseJsonBody(req);
-              const config = await readPluginConfig();
+              await configAccess.ensureMigrated();
+              const config = await configAccess.readConfig();
               const modelIds = Array.isArray(body.modelIds) ? body.modelIds : [];
               const baseURL = body.baseURL || config.baseURL;
-              config.activeModels = modelIds;
-              config.baseURL = baseURL;
-              await savePluginConfig(config);
-              await syncToDshSettings(baseURL, modelIds);
-              const dshConfiguredModels = await getDshConfiguredModels();
+              await configAccess.syncModels(baseURL, modelIds);
+              const dshConfiguredModels = await configAccess.getDshConfiguredModels();
               return sendJson(res, 200, { ok: true, dshConfiguredModels });
             }
+            if (pathname === "/pin" && req.method === "POST") {
+              const body = await parseJsonBody(req);
+              const config = await configAccess.readConfig();
+              const modelName = String(body.modelName || "").trim();
+              if (!modelName) return sendJson(res, 400, { ok: false, error: "\u7F3A\u5C11\u6A21\u578B\u540D\u79F0" });
+              const { userId, token } = webAuthOf(config);
+              if (!userId || !token) {
+                return sendJson(res, 400, { ok: false, error: "\u9700\u5728\u300C\u57FA\u7840\u914D\u7F6E\u300D\u586B\u5199\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C/\u4F1A\u8BDD\u540E\u624D\u80FD\u56FA\u5B9A\u5546\u5BB6" });
+              }
+              let card = cachedMerchantOf(modelName);
+              let tokenId = await resolveTokenId(config);
+              if ((!card || !tokenId) && config.apiKey) {
+                try {
+                  const probe = await probeSingleModel(config.baseURL, config.apiKey, userId, token, modelName);
+                  if (!tokenId && probe.tokenId && Number(probe.tokenId) > 0) tokenId = Number(probe.tokenId);
+                  if (!card && probe.merchant) {
+                    card = probe.merchant;
+                    merchantCardCache.set(modelName.toLowerCase(), { card, at: Date.now() });
+                  }
+                } catch {
+                }
+              }
+              if (!card) {
+                return sendJson(res, 400, { ok: false, error: "\u8BE5\u6A21\u578B\u6682\u65E0\u5546\u5BB6\u6570\u636E\uFF0C\u8BF7\u5148\u300C\u63A2\u6D4B\u5546\u5BB6\u300D" });
+              }
+              if (!tokenId) {
+                return sendJson(res, 400, { ok: false, error: "\u65E0\u6CD5\u81EA\u52A8\u89E3\u6790 API Key \u5BF9\u5E94\u7684\u4EE4\u724C ID\uFF0C\u8BF7\u68C0\u67E5\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C\u662F\u5426\u6709\u6548\uFF0C\u6216\u5230\u5B98\u7F51\u300C\u4EE4\u724C\u300D\u9875\u624B\u52A8\u56FA\u5B9A" });
+              }
+              if (!card.channel_id) {
+                return sendJson(res, 400, { ok: false, error: "\u5546\u5BB6\u5361\u7247\u7F3A\u5C11\u6E20\u9053 ID\uFF0C\u8BF7\u91CD\u65B0\u63A2\u6D4B" });
+              }
+              const pinResult = await marketplacePin(userId, token, {
+                token_id: tokenId,
+                channel_id: card.channel_id,
+                model_name: modelName,
+                // 平台默认兜底：渠道异常时自动切换智能优选（不暴露 UI 开关）
+                fallback_to_smart_routing: true
+              });
+              if (!pinResult.ok) {
+                return sendJson(res, 400, { ok: false, error: pinResult.message || "\u56FA\u5B9A\u5931\u8D25" });
+              }
+              tokenResolveCache = { tokenId, at: Date.now() };
+              merchantCardCache.set(modelName.toLowerCase(), {
+                card: { ...card, is_pinned: true, pin_status: "pin_here" },
+                at: Date.now()
+              });
+              const pinList = await fetchMarketplacePins(userId, token);
+              return sendJson(res, 200, { ok: true, message: `\u5DF2\u56FA\u5B9A ${modelName} \u81F3\u5546\u6237 #${card.channel_id}`, pins: pinList, tokenId });
+            }
+            if (pathname === "/unpin" && req.method === "POST") {
+              const body = await parseJsonBody(req);
+              const config = await configAccess.readConfig();
+              const modelName = String(body.modelName || "").trim();
+              if (!modelName) return sendJson(res, 400, { ok: false, error: "\u7F3A\u5C11\u6A21\u578B\u540D\u79F0" });
+              const { userId, token } = webAuthOf(config);
+              if (!userId || !token) {
+                return sendJson(res, 400, { ok: false, error: "\u9700\u5728\u300C\u57FA\u7840\u914D\u7F6E\u300D\u586B\u5199\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C/\u4F1A\u8BDD\u540E\u624D\u80FD\u53D6\u6D88\u56FA\u5B9A" });
+              }
+              const tokenId = await resolveTokenId(config);
+              if (!tokenId) {
+                return sendJson(res, 400, { ok: false, error: "\u65E0\u6CD5\u89E3\u6790 API Key \u5BF9\u5E94\u7684\u4EE4\u724C ID\uFF0C\u8BF7\u68C0\u67E5\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C\u662F\u5426\u6709\u6548" });
+              }
+              const unpinResult = await marketplaceUnpin(userId, token, { token_id: tokenId, model_name: modelName });
+              if (!unpinResult.ok) {
+                return sendJson(res, 400, { ok: false, error: unpinResult.message || "\u53D6\u6D88\u56FA\u5B9A\u5931\u8D25" });
+              }
+              const card = cachedMerchantOf(modelName);
+              if (card) {
+                merchantCardCache.set(modelName.toLowerCase(), {
+                  card: { ...card, is_pinned: false, pin_status: void 0 },
+                  at: Date.now()
+                });
+              }
+              const pinList = await fetchMarketplacePins(userId, token);
+              return sendJson(res, 200, { ok: true, message: `\u5DF2\u53D6\u6D88\u56FA\u5B9A ${modelName}`, pins: pinList, tokenId });
+            }
+            if (pathname === "/disable" && req.method === "POST") {
+              const body = await parseJsonBody(req);
+              const config = await configAccess.readConfig();
+              const modelName = String(body.modelName || "").trim();
+              if (!modelName) return sendJson(res, 400, { ok: false, error: "\u7F3A\u5C11\u6A21\u578B\u540D\u79F0" });
+              let card = cachedMerchantOf(modelName);
+              if (!card && config.apiKey) {
+                try {
+                  const probe = await probeSingleModel(config.baseURL, config.apiKey, config.userId, config.accessToken || "", modelName);
+                  if (probe.merchant) {
+                    card = probe.merchant;
+                    merchantCardCache.set(modelName.toLowerCase(), { card, at: Date.now() });
+                  }
+                } catch {
+                }
+              }
+              if (!card || !card.channel_id) {
+                return sendJson(res, 400, { ok: false, error: "\u8BE5\u6A21\u578B\u6682\u65E0\u5546\u5BB6\u6570\u636E\uFF0C\u8BF7\u5148\u300C\u63A2\u6D4B\u5546\u5BB6\u300D" });
+              }
+              const { userId, token } = webAuthOf(config);
+              if (!userId || !token) {
+                return sendJson(res, 400, { ok: false, error: "\u9700\u5728\u300C\u57FA\u7840\u914D\u7F6E\u300D\u586B\u5199\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C/\u4F1A\u8BDD\u540E\u624D\u80FD\u7981\u7528\u5546\u5BB6" });
+              }
+              const disableResult = await marketplaceDisableChannel(userId, token, card.channel_id, modelName);
+              if (!disableResult.ok) {
+                return sendJson(res, 400, { ok: false, error: disableResult.message || "\u7981\u7528\u5931\u8D25" });
+              }
+              merchantCardCache.set(modelName.toLowerCase(), {
+                card: { ...card, user_channel_disabled: true },
+                at: Date.now()
+              });
+              return sendJson(res, 200, { ok: true, message: `\u5DF2\u7981\u7528\u5546\u6237 #${card.channel_id} \u5BF9\u8BE5\u6A21\u578B\u7684\u670D\u52A1` });
+            }
+            if (pathname === "/restore" && req.method === "POST") {
+              const body = await parseJsonBody(req);
+              const config = await configAccess.readConfig();
+              const modelName = String(body.modelName || "").trim();
+              if (!modelName) return sendJson(res, 400, { ok: false, error: "\u7F3A\u5C11\u6A21\u578B\u540D\u79F0" });
+              let card = cachedMerchantOf(modelName);
+              if (!card && config.apiKey) {
+                try {
+                  const probe = await probeSingleModel(config.baseURL, config.apiKey, config.userId, config.accessToken || "", modelName);
+                  if (probe.merchant) {
+                    card = probe.merchant;
+                    merchantCardCache.set(modelName.toLowerCase(), { card, at: Date.now() });
+                  }
+                } catch {
+                }
+              }
+              if (!card || !card.channel_id) {
+                return sendJson(res, 400, { ok: false, error: "\u8BE5\u6A21\u578B\u6682\u65E0\u5546\u5BB6\u6570\u636E\uFF0C\u8BF7\u5148\u300C\u63A2\u6D4B\u5546\u5BB6\u300D" });
+              }
+              const { userId, token } = webAuthOf(config);
+              if (!userId || !token) {
+                return sendJson(res, 400, { ok: false, error: "\u9700\u5728\u300C\u57FA\u7840\u914D\u7F6E\u300D\u586B\u5199\u7CFB\u7EDF\u8BBF\u95EE\u4EE4\u724C/\u4F1A\u8BDD\u540E\u624D\u80FD\u6062\u590D\u5546\u5BB6" });
+              }
+              const restoreResult = await marketplaceRestoreChannel(userId, token, card.channel_id, modelName);
+              if (!restoreResult.ok) {
+                return sendJson(res, 400, { ok: false, error: restoreResult.message || "\u6062\u590D\u5931\u8D25" });
+              }
+              merchantCardCache.set(modelName.toLowerCase(), {
+                card: { ...card, user_channel_disabled: false },
+                at: Date.now()
+              });
+              return sendJson(res, 200, { ok: true, message: `\u5DF2\u6062\u590D\u5546\u6237 #${card.channel_id} \u5BF9\u8BE5\u6A21\u578B\u7684\u670D\u52A1` });
+            }
             if (pathname === "/price-fluctuation" && (req.method === "GET" || req.method === "HEAD")) {
-              const config = await readPluginConfig();
-              const token = config.accessToken || config.sessionCookie || "";
+              const config = await configAccess.readConfig();
+              const token = config.accessToken || "";
               if (!token || !config.userId) {
                 return sendJson(res, 200, { ok: true, data: { pendingCount: 0, unseenCount: 0, totalCount: 0, hasAuth: false, authError: false, updatedAt: Date.now() } });
               }
-              const result = await fetchPriceFluctuation(config.userId, token, token);
+              const result = await fetchPriceFluctuation(config.userId, token);
               const { notices, ...counts } = result;
               const hasAuth = !counts.authError;
               return sendJson(res, 200, { ok: true, data: { pendingCount: counts.pendingCount, unseenCount: counts.unseenCount, totalCount: counts.totalCount, hasAuth, authError: Boolean(counts.authError), updatedAt: Date.now() } });
+            }
+            if (pathname === "/pins" && (req.method === "GET" || req.method === "HEAD")) {
+              const config = await configAccess.readConfig();
+              const { userId, token } = webAuthOf(config);
+              if (!userId || !token) {
+                return sendJson(res, 200, { ok: true, pins: [] });
+              }
+              try {
+                const pins = await fetchMarketplacePins(userId, token);
+                return sendJson(res, 200, { ok: true, pins });
+              } catch (err) {
+                console.warn("[dsh-a6api] GET /pins error:", err);
+                return sendJson(res, 200, { ok: true, pins: [] });
+              }
+            }
+            if (pathname === "/catalog" && (req.method === "GET" || req.method === "HEAD")) {
+              return sendJson(res, 200, { ok: true, catalog: getCatalog() });
+            }
+            if (pathname === "/catalog/clear" && req.method === "POST") {
+              await clearCatalog();
+              return sendJson(res, 200, { ok: true });
+            }
+            if (pathname === "/catalog/fetch-models" && req.method === "POST") {
+              const config = await configAccess.readConfig();
+              const { userId, token } = webAuthOf(config);
+              let result;
+              try {
+                result = await fetchMarketplaceModels(userId, token);
+              } catch (err) {
+                return sendJson(res, 400, { ok: false, error: err?.message || "\u83B7\u53D6\u5E02\u573A\u6A21\u578B\u5931\u8D25" });
+              }
+              const models = result.models;
+              const before = new Set(getCatalog().map((e) => e.id.toLowerCase()));
+              let added = 0;
+              for (const m of models) {
+                if (!before.has(m.id.toLowerCase())) added++;
+              }
+              await upsertCatalogEntries(
+                models.map((m) => ({ id: m.id, brand: m.brand, reasoningEfforts: m.reasoningEfforts }))
+              );
+              return sendJson(res, 200, {
+                ok: true,
+                total: models.length,
+                added,
+                failedPages: result.failedPages
+              });
+            }
+            if (pathname === "/catalog/query-openrouter" && req.method === "POST") {
+              const body = await parseJsonBody(req);
+              const catalog = getCatalog();
+              const modelIds = Array.isArray(body.modelIds) && body.modelIds.length > 0 ? body.modelIds.map((s) => String(s)) : catalog.map((e) => e.id);
+              if (modelIds.length === 0) {
+                return sendJson(res, 400, { ok: false, error: "\u76EE\u5F55\u4E3A\u7A7A\uFF0C\u8BF7\u5148\u300C\u4ECE A6API \u83B7\u53D6\u5E02\u573A\u6A21\u578B\u300D" });
+              }
+              const result = await queryOpenRouter(modelIds);
+              return sendJson(res, 200, {
+                ok: true,
+                updated: result.updated.length,
+                notFound: result.notFound
+              });
+            }
+            if (pathname === "/catalog/update" && req.method === "POST") {
+              const body = await parseJsonBody(req);
+              const id = String(body.id || "").trim();
+              if (!id) return sendJson(res, 400, { ok: false, error: "\u7F3A\u5C11\u6A21\u578B ID" });
+              const patch = {};
+              if (body.name !== void 0) {
+                if (body.name === null) {
+                  patch.name = null;
+                } else if (typeof body.name !== "string") {
+                  return sendJson(res, 400, { ok: false, error: "name \u5FC5\u987B\u662F\u5B57\u7B26\u4E32" });
+                } else {
+                  const name2 = body.name.trim();
+                  patch.name = name2 || null;
+                }
+              }
+              for (const key of ["contextWindow", "maxTokens"]) {
+                if (body[key] === null) {
+                  patch[key] = null;
+                } else if (body[key] !== void 0) {
+                  const n = Number(body[key]);
+                  if (!Number.isInteger(n) || n < 1) {
+                    return sendJson(res, 400, { ok: false, error: `${key} \u5FC5\u987B\u662F\u6B63\u6574\u6570` });
+                  }
+                  patch[key] = n;
+                }
+              }
+              if (body.input !== void 0) {
+                if (body.input === null) {
+                  patch.input = null;
+                } else if (!Array.isArray(body.input)) {
+                  return sendJson(res, 400, { ok: false, error: "input \u5FC5\u987B\u662F\u6570\u7EC4" });
+                } else {
+                  const mods = body.input.filter((m) => m === "text" || m === "image");
+                  patch.input = mods.length > 0 ? mods : null;
+                }
+              }
+              if (body.reasoningEfforts !== void 0) {
+                if (body.reasoningEfforts === null) {
+                  patch.reasoningEfforts = null;
+                } else {
+                  const v = validateReasoningEfforts(body.reasoningEfforts);
+                  if (!v.ok) return sendJson(res, 400, { ok: false, error: v.error });
+                  patch.reasoningEfforts = v.value;
+                }
+              }
+              const entry = await updateCatalogEntry(id, patch);
+              if (!entry) return sendJson(res, 404, { ok: false, error: "\u76EE\u5F55\u4E2D\u4E0D\u5B58\u5728\u8BE5\u6A21\u578B" });
+              try {
+                const config = await configAccess.readConfig();
+                const dshModels = await configAccess.getDshConfiguredModels();
+                if (dshModels.some((m) => m.toLowerCase() === entry.id.toLowerCase()) && config.activeModels.length > 0) {
+                  await configAccess.syncModels(config.baseURL, config.activeModels);
+                }
+              } catch (err) {
+                console.warn("[dsh-a6api] catalog update: resync settings failed:", err?.message || err);
+              }
+              return sendJson(res, 200, { ok: true, entry });
             }
             return sendJson(res, 404, { ok: false, error: "Not found" });
           } catch (err) {
@@ -1602,19 +2272,27 @@ function apply(ctx) {
   }
 }
 export {
-  A6API_CATALOG,
+  A6API_CRED_REF,
+  A6API_TOKEN_REF,
+  A6API_USER_REF,
   apply,
+  clearCatalog,
+  createConfigAccess,
   fetchBalance,
   fetchChannelDetails,
+  fetchMarketplaceModels,
+  fetchMarketplacePins,
   fetchRecentLogs,
   fetchTokenModels,
+  getCatalog,
+  getCatalogEntry,
   getKnownMerchantsFromLogs,
+  inferBrand,
   inject,
   name,
   probeSingleModel,
-  readPluginConfig,
+  queryOpenRouter,
   resolveModelMeta,
-  savePluginConfig,
-  syncToDshSettings
+  updateCatalogEntry
 };
 //# sourceMappingURL=index.js.map

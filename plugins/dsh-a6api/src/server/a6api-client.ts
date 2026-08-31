@@ -1,4 +1,4 @@
-import type { BalanceInfo, MerchantChannelInfo, OfficialPrices, ApiRoutingLogItem } from '../types.js';
+import type { BalanceInfo, MerchantChannelInfo, OfficialPrices, ApiRoutingLogItem, MarketplacePin, A6ApiTokenItem } from '../types.js';
 import { resolveModelMeta } from './catalog.js';
 
 /** Normalize Base URL removing trailing slashes */
@@ -31,7 +31,7 @@ export function formatCnyPrice(micros: number, exchangeRate = 6.7209): string {
   return `¥${cny.toFixed(3)}`;
 }
 
-export function buildWebHeaders(userId?: string, sessionCookie?: string): Record<string, string> {
+export function buildWebHeaders(userId?: string, accessToken?: string): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
@@ -40,8 +40,8 @@ export function buildWebHeaders(userId?: string, sessionCookie?: string): Record
   if (uid) {
     headers['New-Api-User'] = uid;
   }
-  if (sessionCookie && sessionCookie.trim()) {
-    const raw = sessionCookie.trim();
+  if (accessToken && accessToken.trim()) {
+    const raw = accessToken.trim();
     if (raw.startsWith('session=')) {
       headers['Cookie'] = raw;
     } else if (raw.includes(';')) {
@@ -60,7 +60,7 @@ export async function fetchBalance(
   baseURL: string,
   apiKey: string,
   userId?: string,
-  sessionCookie?: string,
+  accessToken?: string,
 ): Promise<BalanceInfo | null> {
   const cleanUrl = cleanBaseUrl(baseURL);
 
@@ -74,14 +74,14 @@ export async function fetchBalance(
   let requestCount = 0;
 
   // 1. Fetch real account balance from Web Console API
-  if (userId || sessionCookie) {
+  if (userId || accessToken) {
     const candidates = ['https://a6api.com/api/user/self', `${cleanUrl}/api/user/self`];
     const uniqueCandidates = [...new Set(candidates)];
 
     for (const url of uniqueCandidates) {
       try {
         const res = await fetch(url, {
-          headers: buildWebHeaders(userId, sessionCookie),
+          headers: buildWebHeaders(userId, accessToken),
           signal: AbortSignal.timeout(6000),
         });
         if (res.ok) {
@@ -184,13 +184,13 @@ export async function fetchTokenModels(baseURL: string, apiKey: string): Promise
 /** Fetch Recent User Routing Logs */
 export async function fetchRecentLogs(
   userId?: string,
-  sessionCookie?: string,
+  accessToken?: string,
   limit = 30,
 ): Promise<ApiRoutingLogItem[]> {
-  if (!userId && !sessionCookie) return [];
+  if (!userId && !accessToken) return [];
   try {
     const res = await fetch(`https://a6api.com/api/log/self?p=1&page_size=${limit}&type=0`, {
-      headers: buildWebHeaders(userId, sessionCookie),
+      headers: buildWebHeaders(userId, accessToken),
       signal: AbortSignal.timeout(8000),
     });
     if (res.ok) {
@@ -234,6 +234,7 @@ export async function fetchRecentLogs(
             model_name: it.model_name || it.marketplace_model_name || '',
             channel: channelId,
             channel_name: it.channel_name || (channelId ? `商户 #${channelId}` : undefined),
+            token_id: it.token_id !== undefined && it.token_id !== null ? Number(it.token_id) : undefined,
             prompt_tokens: Number(it.prompt_tokens || 0),
             completion_tokens: Number(it.completion_tokens || 0),
             use_time: Number(it.use_time || 0),
@@ -258,7 +259,7 @@ export async function fetchRecentLogs(
 export async function fetchChannelDetails(
   channelId: number,
   userId?: string,
-  sessionCookie?: string,
+  accessToken?: string,
   targetModelName?: string,
   logSnapshot?: any,
 ): Promise<MerchantChannelInfo | null> {
@@ -270,7 +271,7 @@ export async function fetchChannelDetails(
     const res = await fetch(
       `https://a6api.com/api/marketplace/channels/search?channel_id=${channelId}&view=list&page=1&page_size=20`,
       {
-        headers: buildWebHeaders(userId, sessionCookie),
+        headers: buildWebHeaders(userId, accessToken),
         signal: AbortSignal.timeout(8000),
       },
     );
@@ -358,7 +359,8 @@ export async function fetchChannelDetails(
 
         return {
           listing_id: item.listing_id,
-          channel_id: item.channel_id,
+          // 归一化为数字，避免官方返回字符串 channel_id 导致严格相等比较失效（接管/固定判定依赖）
+          channel_id: item.channel_id !== undefined && item.channel_id !== null ? Number(item.channel_id) : channelId,
           channel_name: item.channel_name || `商户 #${channelId}`,
           supplier_name: item.supplier_name || item.supplier_nickname || 'GPT低价',
           supplier_id: item.supplier_id || 290,
@@ -396,8 +398,10 @@ export async function fetchChannelDetails(
           last_success_text: formatRelativeTime(lastSuccessAt),
           authenticity_guaranteed: Boolean(item.authenticity_guaranteed),
           authenticity_badge: item.authenticity_guarantee_badge_key,
-          is_pinned: Boolean(item.pin_status === 'pinned' || item.is_pinned),
-          user_channel_disabled: Boolean(item.user_channel_disabled),
+          // 官方固定状态值是 pin_here / pin_elsewhere（早期代码误用 'pinned'，已修正）
+          is_pinned: item.pin_status === 'pin_here' || item.route_status === 'pin_here',
+          pin_status: typeof item.pin_status === 'string' ? item.pin_status : undefined,
+          user_channel_disabled: Boolean(item.user_channel_disabled || item.route_status === 'user_disabled'),
           supplier_channel_disabled: Boolean(item.supplier_channel_disabled),
           raw: item,
         };
@@ -478,10 +482,9 @@ export async function fetchChannelDetails(
 /** 轻量拉取价格波动条数（仅 pending/unseen） */
 export async function fetchPriceFluctuation(
   userId?: string,
-  sessionCookie?: string,
   accessToken?: string,
 ): Promise<{ pendingCount: number; unseenCount: number; totalCount: number; notices?: any[]; authError?: boolean }> {
-  const token = (accessToken || sessionCookie || '').trim();
+  const token = (accessToken || '').trim();
   const uid = (userId || '').trim();
   if (!uid && !token) {
     return { pendingCount: 0, unseenCount: 0, totalCount: 0, authError: false };
@@ -550,5 +553,218 @@ export async function fetchPriceFluctuation(
   } catch (err) {
     console.warn('[dsh-a6api] fetchPriceFluctuation error', err);
     return { pendingCount: 0, unseenCount: 0, totalCount: 0 };
+  }
+}
+
+/* ============================================================================
+ * 固定 / 取消固定 / 禁用 一族接口（平台侧，Web 会话鉴权，与市场价格波动同凭据）
+ * ========================================================================== */
+
+interface MarketplaceActionResult {
+  ok: boolean;
+  message?: string;
+  data?: any;
+}
+
+/** 兼容多种返回形态：{success,message} / {data:{success,message}} */
+function parseMarketplaceResult(json: any): MarketplaceActionResult {
+  if (!json) return { ok: false, message: '空响应' };
+  const top = json.success === false ? json : null;
+  const inner = json.data && json.data.success === false ? json.data : null;
+  if (top) return { ok: false, message: top.message || '操作失败' };
+  if (inner) return { ok: false, message: inner.message || '操作失败' };
+  return { ok: true, data: json.data };
+}
+
+/** 提取数组字段：兼容 data / data.data / data.items / data.data.items 四种形态 */
+function extractArray(json: any): any[] {
+  if (!json) return [];
+  if (Array.isArray(json)) return json;
+  if (Array.isArray(json.data)) return json.data;
+  if (json.data && Array.isArray(json.data.data)) return json.data.data;
+  if (json.data && Array.isArray(json.data.items)) return json.data.items;
+  if (json.data && json.data.data && Array.isArray(json.data.data.items)) return json.data.data.items;
+  return [];
+}
+
+/** GET /api/marketplace/pins — 当前账号全部固定记录（卡片状态跟随官网的真相源） */
+export async function fetchMarketplacePins(
+  userId?: string,
+  accessToken?: string,
+): Promise<MarketplacePin[]> {
+  if (!userId && !accessToken) return [];
+  try {
+    const res = await fetch('https://a6api.com/api/marketplace/pins', {
+      headers: buildWebHeaders(userId, accessToken),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      console.warn('[dsh-a6api] fetchMarketplacePins HTTP', res.status);
+      return [];
+    }
+    const json: any = await res.json().catch(() => null);
+    if (!json || json.success === false) return [];
+    return extractArray(json)
+      .filter((it: any) => it && it.model_name)
+      .map((it: any) => ({
+        id: it.id !== undefined ? Number(it.id) : undefined,
+        token_id: Number(it.token_id || 0),
+        token_name: it.token_name || undefined,
+        model_name: String(it.model_name),
+        channel_id: it.channel_id !== undefined && Number(it.channel_id) > 0 ? Number(it.channel_id) : undefined,
+        channel_name: it.channel_name || undefined,
+        supplier_name: it.supplier_name || undefined,
+        supplier_nickname: it.supplier_nickname || undefined,
+        fallback_to_smart_routing: it.fallback_to_smart_routing !== undefined ? Boolean(it.fallback_to_smart_routing) : undefined,
+        created_at: it.created_at !== undefined ? Number(it.created_at) : undefined,
+        // 不下发 raw：客户端 60s 轮询用 JSON 对比判断变化，raw 含易变字段会导致误判整页刷新
+      }));
+  } catch (err) {
+    console.warn('[dsh-a6api] fetchMarketplacePins error:', err);
+    return [];
+  }
+}
+
+/** GET /api/token/?p=1&size=100 — 令牌列表（用于把 API Key 解析为 token_id） */
+export async function fetchTokens(
+  userId?: string,
+  accessToken?: string,
+): Promise<A6ApiTokenItem[]> {
+  if (!userId && !accessToken) return [];
+  try {
+    const res = await fetch('https://a6api.com/api/token/?p=1&size=100', {
+      headers: buildWebHeaders(userId, accessToken),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+    const json: any = await res.json().catch(() => null);
+    if (!json || json.success === false) return [];
+    return extractArray(json)
+      .filter((it: any) => it && Number(it.id) > 0)
+      .map((it: any) => ({
+        id: Number(it.id),
+        name: it.name || undefined,
+        key: typeof it.key === 'string' ? it.key : undefined,
+        status: it.status !== undefined ? Number(it.status) : undefined,
+        raw: it,
+      }));
+  } catch (err) {
+    console.warn('[dsh-a6api] fetchTokens error:', err);
+    return [];
+  }
+}
+
+/** 友好化动作类接口错误（超时英文原文转中文，与 probe.ts 同风格） */
+function friendlyActionError(err: any): string {
+  const raw = err?.message || String(err);
+  if (raw.includes('aborted due to timeout') || err?.name === 'TimeoutError') {
+    return '请求超时，请重试';
+  }
+  return raw;
+}
+
+/** POST /api/marketplace/pin — 把某模型的流量固定到指定渠道（绑定令牌） */
+export async function marketplacePin(
+  userId: string | undefined,
+  accessToken: string | undefined,
+  payload: {
+    token_id: number;
+    channel_id: number;
+    model_name: string;
+    fallback_to_smart_routing: boolean;
+  },
+): Promise<MarketplaceActionResult> {
+  try {
+    const res = await fetch('https://a6api.com/api/marketplace/pin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildWebHeaders(userId, accessToken),
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    });
+    const json: any = await res.json().catch(() => null);
+    const result = parseMarketplaceResult(json);
+    if (!res.ok && !json) return { ok: false, message: `HTTP ${res.status}` };
+    return result;
+  } catch (err: any) {
+    console.warn('[dsh-a6api] marketplacePin error:', err);
+    return { ok: false, message: friendlyActionError(err) };
+  }
+}
+
+/** POST /api/marketplace/unpin — 取消某模型的固定 */
+export async function marketplaceUnpin(
+  userId: string | undefined,
+  accessToken: string | undefined,
+  payload: { token_id: number; model_name: string },
+): Promise<MarketplaceActionResult> {
+  try {
+    const res = await fetch('https://a6api.com/api/marketplace/unpin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildWebHeaders(userId, accessToken),
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    });
+    const json: any = await res.json().catch(() => null);
+    if (!res.ok && !json) return { ok: false, message: `HTTP ${res.status}` };
+    return parseMarketplaceResult(json);
+  } catch (err: any) {
+    console.warn('[dsh-a6api] marketplaceUnpin error:', err);
+    return { ok: false, message: friendlyActionError(err) };
+  }
+}
+
+/** POST /api/marketplace/channels/:id/disable?model= — 禁用某渠道对该模型的服务 */
+export async function marketplaceDisableChannel(
+  userId: string | undefined,
+  accessToken: string | undefined,
+  channelId: number,
+  model: string,
+): Promise<MarketplaceActionResult> {
+  try {
+    const res = await fetch(
+      `https://a6api.com/api/marketplace/channels/${channelId}/disable?model=${encodeURIComponent(model)}`,
+      {
+        method: 'POST',
+        headers: buildWebHeaders(userId, accessToken),
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    const json: any = await res.json().catch(() => null);
+    if (!res.ok && !json) return { ok: false, message: `HTTP ${res.status}` };
+    return parseMarketplaceResult(json);
+  } catch (err: any) {
+    console.warn('[dsh-a6api] marketplaceDisableChannel error:', err);
+    return { ok: false, message: friendlyActionError(err) };
+  }
+}
+
+/** POST /api/marketplace/channels/:id/restore?model= — 恢复被禁用的渠道 */
+export async function marketplaceRestoreChannel(
+  userId: string | undefined,
+  accessToken: string | undefined,
+  channelId: number,
+  model: string,
+): Promise<MarketplaceActionResult> {
+  try {
+    const res = await fetch(
+      `https://a6api.com/api/marketplace/channels/${channelId}/restore?model=${encodeURIComponent(model)}`,
+      {
+        method: 'POST',
+        headers: buildWebHeaders(userId, accessToken),
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    const json: any = await res.json().catch(() => null);
+    if (!res.ok && !json) return { ok: false, message: `HTTP ${res.status}` };
+    return parseMarketplaceResult(json);
+  } catch (err: any) {
+    console.warn('[dsh-a6api] marketplaceRestoreChannel error:', err);
+    return { ok: false, message: friendlyActionError(err) };
   }
 }

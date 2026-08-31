@@ -6,6 +6,8 @@ export interface ProbeResult {
   success: boolean;
   channelId?: number;
   channelName?: string;
+  /** 该次请求实际使用的令牌 ID（用于固定/禁用按令牌绑定） */
+  tokenId?: number;
   merchant?: MerchantChannelInfo | null;
   error?: string;
   durationMs?: number;
@@ -95,6 +97,8 @@ export async function probeSingleModel(
           success: true,
           channelId,
           channelName: log.channel_name,
+          // 该次请求由 API Key 发起，日志中记录的 token_id 即该 Key 的令牌 ID
+          tokenId: log.token_id !== undefined && Number(log.token_id) > 0 ? Number(log.token_id) : undefined,
           merchant,
           durationMs,
         };

@@ -1,468 +1,155 @@
-import type { A6ApiModelMeta } from '../types.js';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import type { A6ApiModelMeta, CatalogModelEntry } from '../types.js';
 
-export const A6API_CATALOG: Record<string, A6ApiModelMeta> = {
-  // --- OpenAI Series ---
-  'gpt-5.6-sol': {
-    id: 'gpt-5.6-sol',
-    name: 'GPT-5.6 Sol',
-    brand: 'OpenAI',
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { off: '', low: 'low', medium: 'medium', high: 'high' },
-    officialPriceMicros: { input: 4000000, output: 20000000, cacheRead: 400000, cacheWrite: 5000000 },
-  },
-  'gpt-5.6-terra': {
-    id: 'gpt-5.6-terra',
-    name: 'GPT-5.6 Terra',
-    brand: 'OpenAI',
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { off: '', low: 'low', medium: 'medium', high: 'high' },
-    officialPriceMicros: { input: 4000000, output: 20000000, cacheRead: 400000, cacheWrite: 5000000 },
-  },
-  'gpt-5.6-luna': {
-    id: 'gpt-5.6-luna',
-    name: 'GPT-5.6 Luna',
-    brand: 'OpenAI',
-    contextWindow: 524288,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { off: '', low: 'low', medium: 'medium', high: 'high' },
-    officialPriceMicros: { input: 2000000, output: 10000000, cacheRead: 200000, cacheWrite: 2500000 },
-  },
-  'gpt-5.6': {
-    id: 'gpt-5.6',
-    name: 'GPT-5.6',
-    brand: 'OpenAI',
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { off: '', low: 'low', medium: 'medium', high: 'high' },
-    officialPriceMicros: { input: 4000000, output: 20000000, cacheRead: 400000, cacheWrite: 5000000 },
-  },
-  'gpt-5.5': {
-    id: 'gpt-5.5',
-    name: 'GPT-5.5',
-    brand: 'OpenAI',
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { off: '', low: 'low', medium: 'medium', high: 'high' },
-    officialPriceMicros: { input: 3000000, output: 15000000, cacheRead: 300000, cacheWrite: 3750000 },
-  },
-  'gpt-5.4': {
-    id: 'gpt-5.4',
-    name: 'GPT-5.4',
-    brand: 'OpenAI',
-    contextWindow: 524288,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { off: '', low: 'low', medium: 'medium', high: 'high' },
-    officialPriceMicros: { input: 2500000, output: 10000000, cacheRead: 250000, cacheWrite: 3000000 },
-  },
-  'gpt-5.4-mini': {
-    id: 'gpt-5.4-mini',
-    name: 'GPT-5.4 Mini',
-    brand: 'OpenAI',
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { off: '', low: 'low', medium: 'medium', high: 'high' },
-    officialPriceMicros: { input: 150000, output: 600000, cacheRead: 75000, cacheWrite: 150000 },
-  },
-  'gpt-5.3-codex': {
-    id: 'gpt-5.3-codex',
-    name: 'GPT-5.3 Codex',
-    brand: 'OpenAI',
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ['text'],
-    officialPriceMicros: { input: 2000000, output: 8000000, cacheRead: 200000, cacheWrite: 2000000 },
-  },
-  'gpt-5.3-codex-spark': {
-    id: 'gpt-5.3-codex-spark',
-    name: 'GPT-5.3 Codex Spark',
-    brand: 'OpenAI',
-    contextWindow: 262144,
-    maxTokens: 16384,
-    modalities: ['text'],
-    officialPriceMicros: { input: 1000000, output: 4000000, cacheRead: 100000, cacheWrite: 1000000 },
-  },
-  'gpt-5.2': {
-    id: 'gpt-5.2',
-    name: 'GPT-5.2',
-    brand: 'OpenAI',
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 2000000, output: 8000000, cacheRead: 200000, cacheWrite: 2000000 },
-  },
-  'gpt-4o': {
-    id: 'gpt-4o',
-    name: 'GPT-4o',
-    brand: 'OpenAI',
-    contextWindow: 128000,
-    maxTokens: 16384,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 2500000, output: 10000000, cacheRead: 1250000, cacheWrite: 2500000 },
-  },
-  'gpt-4o-mini': {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini',
-    brand: 'OpenAI',
-    contextWindow: 128000,
-    maxTokens: 16384,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 150000, output: 600000, cacheRead: 75000, cacheWrite: 150000 },
-  },
+/**
+ * 模型目录（运行时数据，取代旧的静态 A6API_CATALOG）。
+ *
+ * - 持久化：`$DSH_HOME/dsh-a6api-catalog.json`（结构 `{ version: 1, entries: [...] }`），
+ *   初始为空；「模型目录」页从 A6API 市场拉取模型 ID、从 OpenRouter 查询参数后建立。
+ * - 条目字段 = DSH settings.yaml 的 llm-pi-ai 原生模型字段（id/name/contextWindow/
+ *   maxTokens/input/reasoningEfforts），外加内部附带的 brand（来自 A6API 市场渠道，
+ *   仅用于可用模型卡片展示，不写入 settings.yaml）。
+ * - 目录为唯一参数真相源：「可用模型」页写入 settings.yaml 时从此取字段，缺则省略
+ *   （由 llm-pi-ai 默认值兜底），不再有任何内置手写默认参数。
+ */
 
-  // --- Anthropic Claude Series ---
-  'claude-opus-5': {
-    id: 'claude-opus-5',
-    name: 'Claude Opus 5',
-    brand: 'Anthropic',
-    contextWindow: 200000,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    thinkingFormat: 'anthropic',
-    officialPriceMicros: { input: 15000000, output: 75000000, cacheRead: 1500000, cacheWrite: 18750000 },
-  },
-  'claude-sonnet-5': {
-    id: 'claude-sonnet-5',
-    name: 'Claude Sonnet 5',
-    brand: 'Anthropic',
-    contextWindow: 200000,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    thinkingFormat: 'anthropic',
-    officialPriceMicros: { input: 3000000, output: 15000000, cacheRead: 300000, cacheWrite: 3750000 },
-  },
-  'claude-fable-5': {
-    id: 'claude-fable-5',
-    name: 'Claude Fable 5',
-    brand: 'Anthropic',
-    contextWindow: 200000,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 3000000, output: 15000000, cacheRead: 300000, cacheWrite: 3750000 },
-  },
-  'claude-opus-4-8': {
-    id: 'claude-opus-4-8',
-    name: 'Claude Opus 4.8',
-    brand: 'Anthropic',
-    contextWindow: 200000,
-    maxTokens: 16384,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 15000000, output: 75000000, cacheRead: 1500000, cacheWrite: 18750000 },
-  },
-  'claude-opus-4-7': {
-    id: 'claude-opus-4-7',
-    name: 'Claude Opus 4.7',
-    brand: 'Anthropic',
-    contextWindow: 200000,
-    maxTokens: 16384,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 15000000, output: 75000000, cacheRead: 1500000, cacheWrite: 18750000 },
-  },
-  'claude-opus-4-6': {
-    id: 'claude-opus-4-6',
-    name: 'Claude Opus 4.6',
-    brand: 'Anthropic',
-    contextWindow: 200000,
-    maxTokens: 16384,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 15000000, output: 75000000, cacheRead: 1500000, cacheWrite: 18750000 },
-  },
-  'claude-sonnet-4-6': {
-    id: 'claude-sonnet-4-6',
-    name: 'Claude Sonnet 4.6',
-    brand: 'Anthropic',
-    contextWindow: 200000,
-    maxTokens: 16384,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 3000000, output: 15000000, cacheRead: 300000, cacheWrite: 3750000 },
-  },
-  'claude-haiku-4-5': {
-    id: 'claude-haiku-4-5',
-    name: 'Claude Haiku 4.5',
-    brand: 'Anthropic',
-    contextWindow: 200000,
-    maxTokens: 8192,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 250000, output: 1250000, cacheRead: 25000, cacheWrite: 312500 },
-  },
+const CATALOG_VERSION = 1;
 
-  // --- DeepSeek Series ---
-  'deepseek-v4-pro': {
-    id: 'deepseek-v4-pro',
-    name: 'DeepSeek V4 Pro',
-    brand: 'DeepSeek',
-    contextWindow: 131072,
-    maxTokens: 32768,
-    modalities: ['text'],
-    thinkingFormat: 'deepseek',
-    officialPriceMicros: { input: 550000, output: 2190000, cacheRead: 140000, cacheWrite: 550000 },
-  },
-  'deepseek-v4-flash': {
-    id: 'deepseek-v4-flash',
-    name: 'DeepSeek V4 Flash',
-    brand: 'DeepSeek',
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ['text'],
-    officialPriceMicros: { input: 140000, output: 280000, cacheRead: 14000, cacheWrite: 140000 },
-  },
-  'DeepSeek-V4-Flash-0731': {
-    id: 'DeepSeek-V4-Flash-0731',
-    name: 'DeepSeek V4 Flash (0731)',
-    brand: 'DeepSeek',
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ['text'],
-    officialPriceMicros: { input: 140000, output: 280000, cacheRead: 14000, cacheWrite: 140000 },
-  },
-  'deepseek-v4-pro-0813': {
-    id: 'deepseek-v4-pro-0813',
-    name: 'DeepSeek V4 Pro (0813)',
-    brand: 'DeepSeek',
-    contextWindow: 131072,
-    maxTokens: 32768,
-    modalities: ['text'],
-    thinkingFormat: 'deepseek',
-    officialPriceMicros: { input: 550000, output: 2190000, cacheRead: 140000, cacheWrite: 550000 },
-  },
-  'deepseek-v4-flash-vision-exp': {
-    id: 'deepseek-v4-flash-vision-exp',
-    name: 'DeepSeek V4 Flash Vision Exp',
-    brand: 'DeepSeek',
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 140000, output: 280000, cacheRead: 14000, cacheWrite: 140000 },
-  },
-  'deepseek-chat': {
-    id: 'deepseek-chat',
-    name: 'DeepSeek Chat',
-    brand: 'DeepSeek',
-    contextWindow: 65536,
-    maxTokens: 8192,
-    modalities: ['text'],
-    officialPriceMicros: { input: 140000, output: 280000, cacheRead: 14000, cacheWrite: 140000 },
-  },
-  'deepseek-reasoner': {
-    id: 'deepseek-reasoner',
-    name: 'DeepSeek Reasoner',
-    brand: 'DeepSeek',
-    contextWindow: 65536,
-    maxTokens: 16384,
-    modalities: ['text'],
-    thinkingFormat: 'deepseek',
-    officialPriceMicros: { input: 550000, output: 2190000, cacheRead: 140000, cacheWrite: 550000 },
-  },
+function dshHome(): string {
+  return process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
+}
 
-  // --- Google Gemini Series ---
-  'gemini-3.7-flash': {
-    id: 'gemini-3.7-flash',
-    name: 'Gemini 3.7 Flash',
-    brand: 'Google',
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { off: '', low: 'low', medium: 'medium', high: 'high' },
-    officialPriceMicros: { input: 100000, output: 400000, cacheRead: 25000, cacheWrite: 100000 },
-  },
-  'gemini-3.6-flash': {
-    id: 'gemini-3.6-flash',
-    name: 'Gemini 3.6 Flash',
-    brand: 'Google',
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 100000, output: 400000, cacheRead: 25000, cacheWrite: 100000 },
-  },
-  'gemini-3.5-flash': {
-    id: 'gemini-3.5-flash',
-    name: 'Gemini 3.5 Flash',
-    brand: 'Google',
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 75000, output: 300000, cacheRead: 18750, cacheWrite: 75000 },
-  },
-  'gemini-3.5-flash-high': {
-    id: 'gemini-3.5-flash-high',
-    name: 'Gemini 3.5 Flash High',
-    brand: 'Google',
-    contextWindow: 1048576,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { high: 'high' },
-    officialPriceMicros: { input: 75000, output: 300000, cacheRead: 18750, cacheWrite: 75000 },
-  },
-  'gemini-3.1-pro-preview': {
-    id: 'gemini-3.1-pro-preview',
-    name: 'Gemini 3.1 Pro Preview',
-    brand: 'Google',
-    contextWindow: 2097152,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 1250000, output: 5000000, cacheRead: 312500, cacheWrite: 1250000 },
-  },
-  'gemini-3.1-flash-lite-preview': {
-    id: 'gemini-3.1-flash-lite-preview',
-    name: 'Gemini 3.1 Flash Lite Preview',
-    brand: 'Google',
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 75000, output: 300000, cacheRead: 18750, cacheWrite: 75000 },
-  },
-  'gemini-2.5-pro': {
-    id: 'gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro',
-    brand: 'Google',
-    contextWindow: 2097152,
-    maxTokens: 65536,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 1250000, output: 5000000, cacheRead: 312500, cacheWrite: 1250000 },
-  },
-  'gemini-2.5-flash': {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
-    brand: 'Google',
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 75000, output: 300000, cacheRead: 18750, cacheWrite: 75000 },
-  },
+export function catalogFile(): string {
+  return path.join(dshHome(), 'dsh-a6api-catalog.json');
+}
 
-  // --- xAI Grok Series ---
-  'grok-4.6': {
-    id: 'grok-4.6',
-    name: 'Grok 4.6',
-    brand: 'xAI',
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    reasoningEfforts: { off: '', high: 'high' },
-    officialPriceMicros: { input: 2000000, output: 10000000, cacheRead: 200000, cacheWrite: 2500000 },
-  },
-  'grok-4.5': {
-    id: 'grok-4.5',
-    name: 'Grok 4.5',
-    brand: 'xAI',
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ['text', 'image'],
-    officialPriceMicros: { input: 2000000, output: 10000000, cacheRead: 200000, cacheWrite: 2500000 },
-  },
-  'grok-4.3': {
-    id: 'grok-4.3',
-    name: 'Grok 4.3',
-    brand: 'xAI',
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ['text'],
-    officialPriceMicros: { input: 2000000, output: 10000000, cacheRead: 200000, cacheWrite: 2500000 },
-  },
+/** 进程内缓存：resolveModelMeta 等同步路径直接读内存 */
+let catalogCache: CatalogModelEntry[] | null = null;
 
-  // --- Zhipu GLM Series ---
-  'glm-5.3': {
-    id: 'glm-5.3',
-    name: 'GLM 5.3',
-    brand: 'Zhipu',
-    contextWindow: 131072,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    thinkingFormat: 'deepseek',
-    officialPriceMicros: { input: 1000000, output: 4000000, cacheRead: 200000, cacheWrite: 1000000 },
-  },
-  'glm-5.3-flash': {
-    id: 'glm-5.3-flash',
-    name: 'GLM 5.3 Flash',
-    brand: 'Zhipu',
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ['text'],
-    officialPriceMicros: { input: 100000, output: 200000, cacheRead: 10000, cacheWrite: 100000 },
-  },
-  'glm-5.2': {
-    id: 'glm-5.2',
-    name: 'GLM 5.2',
-    brand: 'Zhipu',
-    contextWindow: 131072,
-    maxTokens: 16384,
-    modalities: ['text'],
-    officialPriceMicros: { input: 1000000, output: 4000000, cacheRead: 200000, cacheWrite: 1000000 },
-  },
+function ensureLoaded(): CatalogModelEntry[] {
+  if (catalogCache) return catalogCache;
+  try {
+    const raw = fs.readFileSync(catalogFile(), 'utf8');
+    const j = JSON.parse(raw);
+    // 形状过滤：跳过无字符串 id 的损坏条目，避免 getCatalogEntry 的 .toLowerCase() 抛错拖垮 /state
+    catalogCache = Array.isArray(j?.entries)
+      ? j.entries.filter((e: any) => e && typeof e.id === 'string')
+      : [];
+  } catch {
+    catalogCache = [];
+  }
+  const loaded = catalogCache as CatalogModelEntry[];
+  return loaded;
+}
 
-  // --- Moonshot Kimi Series ---
-  'kimi-k3': {
-    id: 'kimi-k3',
-    name: 'Kimi K3',
-    brand: 'Moonshot',
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    thinkingFormat: 'deepseek',
-    officialPriceMicros: { input: 1500000, output: 6000000, cacheRead: 300000, cacheWrite: 1500000 },
-  },
-  'kimi-k2.7-code': {
-    id: 'kimi-k2.7-code',
-    name: 'Kimi K2.7 Code',
-    brand: 'Moonshot',
-    contextWindow: 262144,
-    maxTokens: 32768,
-    modalities: ['text'],
-    officialPriceMicros: { input: 1000000, output: 4000000, cacheRead: 200000, cacheWrite: 1000000 },
-  },
+export function getCatalog(): CatalogModelEntry[] {
+  return ensureLoaded();
+}
 
-  // --- Alibaba Qwen Series ---
-  'qwen3.8-max': {
-    id: 'qwen3.8-max',
-    name: 'Qwen 3.8 Max',
-    brand: 'Alibaba',
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    thinkingFormat: 'deepseek',
-    officialPriceMicros: { input: 2000000, output: 8000000, cacheRead: 400000, cacheWrite: 2000000 },
-  },
-  'qwen3.8-flash': {
-    id: 'qwen3.8-flash',
-    name: 'Qwen 3.8 Flash',
-    brand: 'Alibaba',
-    contextWindow: 1048576,
-    maxTokens: 16384,
-    modalities: ['text'],
-    officialPriceMicros: { input: 100000, output: 300000, cacheRead: 20000, cacheWrite: 100000 },
-  },
-  'qwen3.7-max': {
-    id: 'qwen3.7-max',
-    name: 'Qwen 3.7 Max',
-    brand: 'Alibaba',
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ['text', 'image'],
-    thinkingFormat: 'deepseek',
-    officialPriceMicros: { input: 2000000, output: 8000000, cacheRead: 400000, cacheWrite: 2000000 },
-  },
+export function getCatalogEntry(id: string): CatalogModelEntry | undefined {
+  const t = id.toLowerCase();
+  return ensureLoaded().find((e) => e.id.toLowerCase() === t);
+}
 
-  // --- MiniMax Series ---
-  'minimax-m3': {
-    id: 'minimax-m3',
-    name: 'MiniMax M3',
-    brand: 'MiniMax',
-    contextWindow: 1048576,
-    maxTokens: 32768,
-    modalities: ['text'],
-    officialPriceMicros: { input: 1000000, output: 4000000, cacheRead: 200000, cacheWrite: 1000000 },
-  },
+/**
+ * 目录写操作串行队列：fetch-models / query-openrouter / update / clear 共享同一写链，
+ * 避免读-改-写交错丢更新（如「编辑保存」与「一键查询」并发时后写者覆盖先写者）。
+ */
+let writeChain: Promise<void> = Promise.resolve();
+
+function enqueueWrite(fn: () => Promise<void>): Promise<void> {
+  const next = writeChain.then(fn, fn);
+  writeChain = next.then(
+    () => {},
+    () => {},
+  );
+  return next;
+}
+
+/** 原子写盘（tmp+rename）成功后才更新内存缓存；写失败时缓存保持与磁盘一致的旧值 */
+async function writeCatalog(entries: CatalogModelEntry[]): Promise<void> {
+  const file = catalogFile();
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tmp`;
+  await fsp.writeFile(tmp, JSON.stringify({ version: CATALOG_VERSION, entries }, null, 2), {
+    encoding: 'utf8',
+    mode: 0o644,
+  });
+  await fsp.rename(tmp, file);
+  catalogCache = entries;
+}
+
+/** 合并新增条目（不覆盖已有条目的既有字段；仅补缺失字段，参数以用户已保存/查询到的为准）。
+ *  undefined 字段不参与合并（避免覆盖已有值）；按小写 id 去重（保留首个 casing，避免大小写幽灵重复）。 */
+export async function upsertCatalogEntries(entries: CatalogModelEntry[]): Promise<void> {
+  await enqueueWrite(async () => {
+    const cur = ensureLoaded();
+    const map = new Map<string, CatalogModelEntry>();
+    for (const e of cur) map.set(e.id.toLowerCase(), e);
+    for (const e of entries) {
+      const clean = Object.fromEntries(Object.entries(e).filter(([, v]) => v !== undefined)) as CatalogModelEntry;
+      const key = clean.id.toLowerCase();
+      const prev = map.get(key);
+      map.set(key, prev ? { ...prev, ...clean } : clean);
+    }
+    await writeCatalog([...map.values()]);
+  });
+}
+
+/** 清空目录（重新从 A6API 拉取/OpenRouter 填充前使用）。settings.yaml 已启用条目不受影响 */
+export async function clearCatalog(): Promise<void> {
+  await enqueueWrite(async () => {
+    await writeCatalog([]);
+  });
+}
+
+/** 全量替换式更新单个条目（模型目录页保存修改用）；patch 中值为 null 的字段 = 删除该字段。返回更新后的条目 */
+export async function updateCatalogEntry(
+  id: string,
+  patch: Partial<Omit<CatalogModelEntry, 'id'>>,
+): Promise<CatalogModelEntry | null> {
+  let result: CatalogModelEntry | null = null;
+  await enqueueWrite(async () => {
+    const cur = ensureLoaded();
+    const idx = cur.findIndex((e) => e.id.toLowerCase() === id.toLowerCase());
+    if (idx < 0) return;
+    const next: CatalogModelEntry = { ...cur[idx], ...patch, id: cur[idx].id, updatedAt: Date.now() };
+    for (const k of Object.keys(patch)) {
+      if ((patch as any)[k] === null) delete (next as any)[k];
+    }
+    const list = cur.slice();
+    list[idx] = next;
+    await writeCatalog(list);
+    result = next;
+  });
+  return result;
+}
+
+// ===== 品牌归一化（市场渠道返回的原始品牌 → 卡片展示风格） =====
+
+const BRAND_NORMALIZE: Record<string, string> = {
+  meituan: 'MeiTuan',
+  tencent: 'Tencent',
+  xiaomi: 'Xiaomi',
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  google: 'Google',
+  deepseek: 'DeepSeek',
+  zhipu: 'Zhipu',
+  moonshot: 'Moonshot',
+  alibaba: 'Alibaba',
+  minimax: 'MiniMax',
 };
 
-/** Infer Brand from model name if not in catalog. */
+function normalizeBrand(raw: string): string {
+  const k = String(raw || '').toLowerCase();
+  return BRAND_NORMALIZE[k] || raw || 'Other';
+}
+
+/** 从 A6API 模型名推断品牌（目录无数据时的展示兜底，与旧行为一致） */
 export function inferBrand(modelId: string): string {
   const m = modelId.toLowerCase();
   if (m.startsWith('gpt') || m.startsWith('o1') || m.startsWith('o3') || m.startsWith('chatgpt')) return 'OpenAI';
@@ -479,29 +166,249 @@ export function inferBrand(modelId: string): string {
   return 'Other';
 }
 
-/** Resolve metadata for any model ID, falling back to safe defaults. */
+/**
+ * 默认推理档位：DSH llm-pi-ai 支持的全部思考档位（THINKING_LEVELS），
+ * wire 值取档位名本身（identity），`off` 无 wire 值（null = 发送时不带思考参数）。
+ * 新获取的市场模型默认声明全部档位，用户可自行修改。
+ */
+export const DEFAULT_REASONING_EFFORTS: Record<string, string | null> = {
+  off: null,
+  minimal: 'minimal',
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  xhigh: 'xhigh',
+  max: 'max',
+};
+
+/**
+ * 解析模型元信息（同步）：目录数据优先，缺失时返回展示兜底值。
+ * 注意：写 settings.yaml 时不要用此函数的兜底值——缺字段应省略（见 buildA6apiBlock）。
+ */
 export function resolveModelMeta(modelId: string): A6ApiModelMeta {
-  if (A6API_CATALOG[modelId]) {
-    return A6API_CATALOG[modelId];
+  const entry = getCatalogEntry(modelId);
+  if (entry) {
+    return {
+      id: entry.id,
+      name: entry.name || entry.id,
+      brand: entry.brand || inferBrand(entry.id),
+      contextWindow: entry.contextWindow ?? 262144,
+      maxTokens: entry.maxTokens ?? 32768,
+      modalities: entry.input && entry.input.length > 0 ? [...entry.input] : ['text'],
+      ...(entry.reasoningEfforts && typeof entry.reasoningEfforts === 'object' && Object.keys(entry.reasoningEfforts).length > 0
+        ? {
+            reasoningEfforts: Object.fromEntries(
+              Object.entries(entry.reasoningEfforts).filter(([, v]) => v !== null && v !== undefined),
+            ) as Record<string, string>,
+          }
+        : {}),
+    };
   }
-  // Case-insensitive lookup
   const lowerId = modelId.toLowerCase();
-  for (const [k, v] of Object.entries(A6API_CATALOG)) {
-    if (k.toLowerCase() === lowerId) {
-      return v;
-    }
-  }
-  const brand = inferBrand(modelId);
   const isVision = lowerId.includes('vision') || lowerId.includes('vl') || lowerId.includes('image');
   const hasReasoning = lowerId.includes('think') || lowerId.includes('reason') || lowerId.includes('pro') || lowerId.includes('sol');
-
   return {
     id: modelId,
     name: modelId,
-    brand,
+    brand: inferBrand(modelId),
     contextWindow: 262144,
     maxTokens: 32768,
     modalities: isVision ? ['text', 'image'] : ['text'],
     ...(hasReasoning ? { thinkingFormat: 'deepseek' } : {}),
   };
+}
+
+// ===== A6API 市场全量模型拉取（翻页 channels/search，带 Web 会话鉴权） =====
+
+const MARKET_SEARCH = 'https://a6api.com/api/marketplace/channels/search';
+const PAGE_SIZE = 500;
+const CONCURRENCY = 6;
+
+function buildWebHeaders(userId?: string, accessToken?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+  };
+  const uid = userId ? String(userId).trim() : '';
+  const token = accessToken ? String(accessToken).trim() : '';
+  if (uid) headers['New-Api-User'] = uid;
+  if (token) {
+    headers['Authorization'] = token;
+    headers['Cookie'] = `session=${token}`;
+  }
+  return headers;
+}
+
+/**
+ * 拉取 A6API 市场支持的全部模型 ID（含品牌）。
+ * 不排除任何模型（图像生成等一并收录，参数由 OpenRouter 查询决定能否填充）。
+ */
+export async function fetchMarketplaceModels(
+  userId?: string,
+  accessToken?: string,
+): Promise<{ models: { id: string; brand?: string; reasoningEfforts: Record<string, string | null> }[]; failedPages: number }> {
+  if (!userId && !accessToken) {
+    throw new Error('需先配置系统访问令牌才能获取市场模型');
+  }
+  const headers = buildWebHeaders(userId, accessToken);
+  const first = await (async () => {
+    const res = await fetch(`${MARKET_SEARCH}?view=list&page=1&page_size=${PAGE_SIZE}`, {
+      headers,
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`A6API 市场接口 HTTP ${res.status}`);
+    return res.json();
+  })();
+  const total = Number(first?.data?.total || 0);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const all: any[] = [...(first?.data?.items || [])];
+  let failedPages = 0;
+  let idx = 2;
+  const worker = async () => {
+    while (idx <= pages) {
+      const p = idx++;
+      try {
+        const res = await fetch(`${MARKET_SEARCH}?view=list&page=${p}&page_size=${PAGE_SIZE}`, {
+          headers,
+          signal: AbortSignal.timeout(15000),
+        });
+        const j = await res.json();
+        all.push(...(j?.data?.items || []));
+      } catch (err: any) {
+        failedPages++;
+        console.warn('[dsh-a6api] fetchMarketplaceModels page', p, 'failed:', err?.message || err);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
+  const byModel = new Map<string, { id: string; brand?: string; reasoningEfforts: Record<string, string | null> }>();
+  for (const it of all) {
+    const name = it?.model_name;
+    if (!name) continue;
+    if (!byModel.has(name)) {
+      byModel.set(name, {
+        id: String(name),
+        brand: normalizeBrand(it?.brand),
+        // 默认声明 DSH 全部思考档位（用户可修改；upsert 仅补缺失字段，已有自定义不受影响）
+        reasoningEfforts: { ...DEFAULT_REASONING_EFFORTS },
+      });
+    }
+  }
+  const models = [...byModel.values()].sort((a, b) => a.id.localeCompare(b.id));
+  return { models, failedPages };
+}
+
+// ===== OpenRouter 模型参数查询（公开 /api/v1/models，进程内缓存 1h） =====
+
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/models';
+const OR_TTL_MS = 60 * 60 * 1000;
+
+let orCache: { at: number; models: any[] } | null = null;
+
+async function getOpenRouterModels(): Promise<any[]> {
+  if (orCache && Date.now() - orCache.at < OR_TTL_MS) return orCache.models;
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`);
+    const j: any = await res.json();
+    if (!Array.isArray(j?.data)) throw new Error('OpenRouter 返回格式异常');
+    orCache = { at: Date.now(), models: j.data };
+    return orCache.models;
+  } catch (err) {
+    // 拉取失败：存在过期缓存时降级用旧数据（stale 兜底），否则上抛
+    if (orCache) return orCache.models;
+    throw err;
+  }
+}
+
+const tailOf = (s: string): string => String(s).split('/').pop() || '';
+
+/** 匹配策略：tail 精确 → 归一化（. _ 空格 → -）→ 剥离日期/版本后缀 → 包含。返回 null = 查无 */
+function matchOpenRouter(models: any[], target: string): any | null {
+  const t = target.toLowerCase();
+  const tTail = tailOf(t);
+  const norm = (s: string) => s.toLowerCase().replace(/[\s_.]+/g, '-');
+
+  const byTail = models.find((m) => tailOf(String(m.id)).toLowerCase() === tTail);
+  if (byTail) return byTail;
+
+  const nTail = norm(tTail);
+  const byNorm = models.find((m) => norm(tailOf(String(m.id))) === nTail);
+  if (byNorm) return byNorm;
+
+  // 剥离日期/版本后缀：-2025-12-11 / -20251001 / -0309 / -0.1 等，再精确匹配
+  const stripped = tTail.replace(/-(?:\d{4}-\d{2}-\d{2}|\d{8}|-\d{2,4}|\d\.\d+)$/, '');
+  if (stripped && stripped !== tTail) {
+    const byStripped = models.find((m) => tailOf(String(m.id)).toLowerCase() === stripped);
+    if (byStripped) return byStripped;
+  }
+
+  // 包含匹配（最后手段）：仅接受「-」分段完整包含 target 的条目，
+  // 避免 'gpt-4o' 误命中 'gpt-4o-mini' 之类的前缀包含
+  const tSeg = t.split('/').pop() || t;
+  return (
+    models.find((m) => {
+      const id = String(m.id).toLowerCase();
+      if (!id.includes(t)) return false;
+      const tailSeg = id.split('/').pop() || '';
+      return tailSeg === t || tailSeg.split('-').includes(tSeg);
+    }) || null
+  );
+}
+
+/** 输入模态：只取 architecture.input_modalities（输出模态不声明为输入，避免文生图模型被误标 image 输入） */
+function orModalities(m: any): ('text' | 'image')[] {
+  const set = new Set<'text' | 'image'>();
+  const input: string[] = m?.architecture?.input_modalities || [];
+  for (const mod of input) {
+    const k = String(mod).toLowerCase();
+    if (k === 'text') set.add('text');
+    else if (k === 'image') set.add('image');
+  }
+  return [...set];
+}
+
+export interface OrQueryResult {
+  updated: CatalogModelEntry[];
+  notFound: string[];
+}
+
+/**
+ * 对一批模型 ID 查询 OpenRouter 并填充目录（能查到的填充，查不到的保持空参数字段）。
+ * 返回更新统计：updated 为本次填充/变更的条目，notFound 为查无的 ID。
+ */
+export async function queryOpenRouter(ids: string[]): Promise<OrQueryResult> {
+  const uniq = [...new Set(ids.map((s) => String(s).trim()).filter(Boolean))];
+  if (uniq.length === 0) return { updated: [], notFound: [] };
+  const models = await getOpenRouterModels();
+  const updated: CatalogModelEntry[] = [];
+  const notFound: string[] = [];
+
+  for (const id of uniq) {
+    const hit = matchOpenRouter(models, id);
+    if (!hit) {
+      notFound.push(id);
+      continue;
+    }
+    const patch: Partial<Omit<CatalogModelEntry, 'id'>> = {
+      updatedAt: Date.now(),
+    };
+    const ctx = hit.context_length ?? hit.top_provider?.context_length;
+    if (ctx != null && Number(ctx) > 0) patch.contextWindow = Number(ctx);
+    const maxOut = hit.top_provider?.max_completion_tokens ?? hit.max_completion_tokens;
+    if (maxOut != null && Number(maxOut) > 0) patch.maxTokens = Number(maxOut);
+    const mods = orModalities(hit);
+    if (mods.length > 0) patch.input = mods;
+    // name 仅允许用户手动填写：不从此处填充（用户未填则保持为空，写 settings.yaml 时省略）
+    updated.push({ id, ...patch });
+  }
+
+  if (updated.length > 0) {
+    await upsertCatalogEntries(updated);
+  }
+  return { updated, notFound };
 }

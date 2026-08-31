@@ -10,15 +10,18 @@ export const ConfigPanel: React.FC<{
   dshConfiguredModels: string[];
 }> = ({ config, dshConfiguredModels }) => {
   const [apiKey, setApiKey] = useState(config.apiKey || '');
-  const [accessToken, setAccessToken] = useState(
-    config.accessToken || config.sessionCookie || '',
-  );
+  const [accessToken, setAccessToken] = useState(config.accessToken || '');
   const [clearKey, setClearKey] = useState(false);
   const [clearToken, setClearToken] = useState(false);
   const [selectedNode, setSelectedNode] = useState(
     config.baseURL || 'https://api.a6api.com',
   );
-  const [customNode, setCustomNode] = useState(config.customBaseURL || '');
+  // 自定义节点输入框：baseURL 非官方节点时以其为初值（customBaseURL 死字段已移除）
+  const [customNode, setCustomNode] = useState(
+    config.baseURL && config.baseURL !== 'https://api.a6api.com' && config.baseURL !== 'https://a6.a6api.com'
+      ? config.baseURL
+      : '',
+  );
   const [isCustom, setIsCustom] = useState(
     config.baseURL !== 'https://api.a6api.com' && config.baseURL !== 'https://a6.a6api.com',
   );
@@ -35,11 +38,15 @@ export const ConfigPanel: React.FC<{
 
   useEffect(() => {
     setApiKey(config.apiKey || '');
-    setAccessToken(config.accessToken || config.sessionCookie || '');
+    setAccessToken(config.accessToken || '');
     setClearKey(false);
     setClearToken(false);
     setSelectedNode(config.baseURL || 'https://api.a6api.com');
-    setCustomNode(config.customBaseURL || '');
+    setCustomNode(
+      config.baseURL && config.baseURL !== 'https://api.a6api.com' && config.baseURL !== 'https://a6.a6api.com'
+        ? config.baseURL
+        : '',
+    );
     setIsCustom(
       config.baseURL !== 'https://api.a6api.com' && config.baseURL !== 'https://a6.a6api.com',
     );
@@ -53,9 +60,8 @@ export const ConfigPanel: React.FC<{
     const newToken = tokenSet ? (clearToken ? '' : undefined) : accessToken.trim();
     const ok = await store.saveConfig({
       ...(newApiKey !== undefined ? { apiKey: newApiKey } : {}),
-      ...(newToken !== undefined ? { accessToken: newToken, sessionCookie: newToken } : {}),
+      ...(newToken !== undefined ? { accessToken: newToken } : {}),
       baseURL: finalBaseUrl,
-      customBaseURL: customNode.trim(),
     });
     setSaving(false);
     if (ok) {

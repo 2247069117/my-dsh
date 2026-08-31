@@ -3,15 +3,16 @@ import { store, type StoreState } from '../store.js';
 import { MerchantCard } from './MerchantCard.js';
 import { AccountPanel } from './BalanceCard.js';
 import { ConfigPanel } from './ConfigPanel.js';
+import { PricePill } from './PricePill.js';
+import { ModelCatalogPanel } from './ModelCatalogPanel.js';
 
-type TabKey = 'models' | 'account' | 'config';
+type TabKey = 'models' | 'catalog' | 'account' | 'config';
 
 export const A6ApiSettingsPanel: React.FC = () => {
   const [state, setState] = useState<StoreState>(store.getState());
   const [activeTab, setActiveTab] = useState<TabKey>('models');
   const [filterMode, setFilterMode] = useState<'all' | 'enabled' | 'probed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [probingAll, setProbingAll] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshSuccess, setRefreshSuccess] = useState(false);
 
@@ -23,10 +24,14 @@ export const A6ApiSettingsPanel: React.FC = () => {
     return unsub;
   }, []);
 
-  const handleProbeAll = async () => {
-    setProbingAll(true);
-    await store.probeAll();
-    setProbingAll(false);
+  // 全量探测的运行态（进行中/进度/总数）由 store 驱动，组件只订阅；
+  // 取消/立即重开/面板重挂载时按钮与计数始终与队列真实状态一致
+  const handleProbeAll = () => {
+    store.probeAll();
+  };
+
+  const handleCancelProbeAll = () => {
+    store.cancelProbeAll();
   };
 
   const handleRefreshState = async () => {
@@ -86,42 +91,7 @@ export const A6ApiSettingsPanel: React.FC = () => {
               <span className="dsh-a6-hb-amount">{state.balance.accountBalanceFormatted}</span>
             </div>
           )}
-          {(() => {
-            const n = state.priceFluctuation?.pendingCount ?? 0;
-            const pf: any = state.priceFluctuation;
-            const hasAuth = pf?.hasAuth !== false && !pf?.authError && Boolean(state.config?.hasToken);
-            const isAuthError = Boolean(pf?.authError);
-            const isZero = n === 0;
-            const isDisabled = !hasAuth || isZero;
-            const cls = isDisabled ? ( !hasAuth ? 'dsh-a6-price-pill disabled' : 'dsh-a6-price-pill is-zero is-disabled-zero') : 'dsh-a6-price-pill has-change';
-            const title = !hasAuth ? (isAuthError ? '系统访问令牌已失效，请前往基础配置更新' : '未配置系统访问令牌，无法获取价格变动') : isZero ? '暂无价格变动' : `有 ${n} 条价格变动待处理，点击前往官网处理`;
-            const onClick = () => {
-              if (isDisabled) return;
-              window.open('https://a6api.com/console/token', '_blank', 'noopener');
-            };
-            const onKeyDown = (e: React.KeyboardEvent) => {
-              if (isDisabled) return;
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onClick();
-              }
-            };
-            return (
-              <div
-                className={cls}
-                onClick={isDisabled ? undefined : onClick}
-                onKeyDown={onKeyDown}
-                tabIndex={isDisabled ? -1 : 0}
-                title={title}
-                role="button"
-                aria-disabled={isDisabled}
-                style={isDisabled ? { cursor: 'not-allowed' } : undefined}
-              >
-                <span className="dsh-a6-price-pill-label">价格波动：</span>
-                <span className="dsh-a6-price-pill-count">{!hasAuth ? '--' : n}</span>
-              </div>
-            );
-          })()}
+          <PricePill pf={state.priceFluctuation} hasToken={Boolean(state.config?.hasToken)} />
         </div>
       </div>
 
@@ -134,6 +104,15 @@ export const A6ApiSettingsPanel: React.FC = () => {
         >
           <span>可用模型</span>
           <span className="dsh-a6-tab-badge">{state.models.length}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`dsh-a6-nav-tab ${activeTab === 'catalog' ? 'active' : ''}`}
+          onClick={() => setActiveTab('catalog')}
+        >
+          <span>模型目录</span>
+          {state.catalog.length > 0 && <span className="dsh-a6-tab-badge">{state.catalog.length}</span>}
         </button>
 
         <button
@@ -159,6 +138,12 @@ export const A6ApiSettingsPanel: React.FC = () => {
       </div>
 
       {/* 3. Tab Content Pages */}
+      {activeTab === 'catalog' && (
+        <div className="dsh-a6-tab-page catalog-page">
+          <ModelCatalogPanel />
+        </div>
+      )}
+
       {activeTab === 'models' && (
         <div className="dsh-a6-tab-page models-page">
           {/* Models Section Toolbar */}
@@ -212,23 +197,50 @@ export const A6ApiSettingsPanel: React.FC = () => {
                 type="button"
                 className={`dsh-a6-btn dsh-a6-btn-secondary dsh-a6-btn-sm ${refreshSuccess ? 'dsh-a6-btn-refresh-ok' : ''}`}
                 onClick={handleRefreshState}
-                disabled={refreshing}
-                data-tooltip="重新向 A6API 接口拉取当前令牌的可用模型列表及已缓存商户指标（不消耗 Token）"
+                disabled={refreshing || state.probeAllActive}
+                data-tooltip={
+                  state.probeAllActive
+                    ? '全量探测进行中，完成后可刷新'
+                    : '重新向 A6API 接口拉取当前令牌的可用模型列表及已缓存商户指标（不消耗 Token）'
+                }
                 data-tooltip-pos="down"
               >
                 {refreshing ? '刷新中...' : refreshSuccess ? '已刷新 ✓' : '刷新列表'}
               </button>
 
-              <button
-                type="button"
-                className="dsh-a6-btn dsh-a6-btn-primary dsh-a6-btn-sm"
-                onClick={handleProbeAll}
-                disabled={probingAll || state.models.length === 0}
-                data-tooltip="对当前令牌支持的所有模型逐个发送一次请求，批量捕获商户路由与最新行情（每个模型消耗少量Token）"
-                data-tooltip-pos="down-left"
-              >
-                {probingAll ? '全量探测中...' : '一键全量探测'}
-              </button>
+              {state.probeAllActive ? (
+                <>
+                  <button
+                    type="button"
+                    className="dsh-a6-btn dsh-a6-btn-primary dsh-a6-btn-sm"
+                    disabled
+                    data-tooltip="正在并发探测全部模型，卡片逐个回填结果"
+                    data-tooltip-pos="down-left"
+                  >
+                    全量探测中 {state.probeAllDoneCount}/{state.probeAllTotal}
+                  </button>
+                  <button
+                    type="button"
+                    className="dsh-a6-btn dsh-a6-btn-danger dsh-a6-btn-sm"
+                    onClick={handleCancelProbeAll}
+                    data-tooltip="停止取新任务，已在探测中的模型会正常完成并回填"
+                    data-tooltip-pos="down-left"
+                  >
+                    取消
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="dsh-a6-btn dsh-a6-btn-primary dsh-a6-btn-sm"
+                  onClick={handleProbeAll}
+                  disabled={state.models.length === 0}
+                  data-tooltip="对当前令牌支持的所有模型并发发送请求，批量捕获商户路由与最新行情（每个模型消耗少量Token，遇限流自动重试）"
+                  data-tooltip-pos="down-left"
+                >
+                  一键全量探测
+                </button>
+              )}
             </div>
           </div>
 

@@ -16,3 +16,4 @@ secrets.yaml
 *.p12
 *.pfx
 dsh-a6api-config.json
+dsh-a6api-catalog.json

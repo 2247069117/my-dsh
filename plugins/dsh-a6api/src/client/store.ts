@@ -2,9 +2,11 @@ import type {
   A6ApiConfig,
   A6ApiStateResponse,
   BalanceInfo,
+  CatalogModelEntry,
   ModelCardData,
   ApiRoutingLogItem,
   PriceFluctuationState,
+  MarketplacePin,
 } from '../types.js';
 
 function formatRelativeNow(tsSec: number): string {
@@ -15,6 +17,11 @@ function formatRelativeNow(tsSec: number): string {
   return `${Math.floor(diff / 86400)} 天前`;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** 限流特征：网关 429 / Too Many Requests / rate limit（Key 级并发限制时出现；\b429\b 避免误伤上游错误码如 42901） */
+const RATE_LIMIT_RE = /\b429\b|Too Many Requests|rate\s*limit/i;
+
 export interface StoreState {
   loading: boolean;
   config: A6ApiConfig;
@@ -23,6 +30,20 @@ export interface StoreState {
   dshConfiguredModels: string[];
   recentLogs: ApiRoutingLogItem[];
   probingModelNames: Set<string>;
+  /** 正在执行固定/取消固定/禁用/恢复操作的模型 */
+  actionBusyModels: Set<string>;
+  /** 全量探测是否进行中（store 驱动 UI：进度、取消按钮、重入防护） */
+  probeAllActive: boolean;
+  /** 全量探测总模型数（入队时快照） */
+  probeAllTotal: number;
+  /** 全量探测已完成数（与 state.models 解耦，/state 刷新不丢） */
+  probeAllDoneCount: number;
+  /** 平台固定记录（卡片状态跟随官网） */
+  pins: MarketplacePin[];
+  /** 模型目录（运行时 JSON，字段 = settings.yaml 原生模型字段 + brand） */
+  catalog: CatalogModelEntry[];
+  /** 目录操作进行中（获取市场模型 / OpenRouter 查询） */
+  catalogBusy: 'fetch' | 'query' | null;
   error: string | null;
   priceFluctuation: PriceFluctuationState;
 }
@@ -43,13 +64,29 @@ class A6ApiStore {
     dshConfiguredModels: [],
     recentLogs: [],
     probingModelNames: new Set(),
+    actionBusyModels: new Set(),
+    probeAllActive: false,
+    probeAllTotal: 0,
+    probeAllDoneCount: 0,
+    pins: [],
+    catalog: [],
+    catalogBusy: null,
     error: null,
     priceFluctuation: { pendingCount: 0, unseenCount: 0, totalCount: 0, updatedAt: null } as any,
   };
 
   private listeners: Set<Listener> = new Set();
   private autoRefreshTimer: any = null;
-  private pricePollTimer: any = null;
+  /** 启动预热已触发（幂等）：插件随 DSH 启动即后台拉一次完整状态 */
+  private warmedUp = false;
+  /** 全量探测取消标志：置位后不再从队列取新任务，在途探测正常完成 */
+  private probeCancelled = false;
+  /** 本轮全量探测的模型名快照（null = 未在运行），用于进度计数与 /state 刷新后重挂状态 */
+  private probeAllSnapshot: string[] | null = null;
+  /** 本轮已完成探测的模型（幂等集合，驱动 probeAllDoneCount） */
+  private probeAllDone = new Set<string>();
+  /** 入队前各模型的 probeError 暂存，取消时恢复历史错误提示 */
+  private probeQueuedPrevError = new Map<string, string | undefined>();
 
   constructor() {
     this.startAutoRefresh();
@@ -86,7 +123,24 @@ class A6ApiStore {
           this.state.config = data.config;
           this.state.balance = data.balance;
           this.state.models = data.models;
+          // 全量探测进行中：/state 只产 idle/success，重挂 queued/probing，
+          // 避免「刷新列表 / 固定操作 / 轮询发现 pins 变化」等 fetchState 打断排队与进度计数
+          const snapshot = this.probeAllSnapshot;
+          if (this.state.probeAllActive && snapshot) {
+            this.state.models = this.state.models.map((m) => {
+              if (this.state.probingModelNames.has(m.model_name)) {
+                return { ...m, probeStatus: 'probing' as const };
+              }
+              if (snapshot.includes(m.model_name) && !this.probeAllDone.has(m.model_name)) {
+                return { ...m, probeStatus: 'queued' as const, probeError: undefined };
+              }
+              return m;
+            });
+          }
           this.state.dshConfiguredModels = data.dshConfiguredModels;
+          if (Array.isArray(data.pins)) {
+            this.state.pins = data.pins;
+          }
           if (data.recentLogs) {
             this.state.recentLogs = data.recentLogs;
           }
@@ -142,6 +196,128 @@ class A6ApiStore {
     } catch {}
   }
 
+  // ===== 模型目录 =====
+
+  public async fetchCatalog(): Promise<void> {
+    try {
+      const res = await fetch('/api/dsh-a6api/catalog');
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json?.catalog)) {
+          this.state.catalog = json.catalog;
+          this.notify();
+        }
+      }
+    } catch {}
+  }
+
+  /** 从 A6API 市场拉取全部模型 ID 并入目录（仅新增/补品牌，不动已有参数） */
+  public async fetchMarketModels(): Promise<{ ok: boolean; total?: number; added?: number; failedPages?: number; error?: string }> {
+    if (this.state.catalogBusy) return { ok: false, error: '目录操作进行中' };
+    this.state.catalogBusy = 'fetch';
+    this.notify();
+    try {
+      const res = await fetch('/api/dsh-a6api/catalog/fetch-models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok) {
+        await this.fetchCatalog();
+        return { ok: true, total: json.total, added: json.added, failedPages: json.failedPages || 0 };
+      }
+      const errText = json?.error || `HTTP ${res.status}`;
+      this.state.error = errText;
+      return { ok: false, error: errText };
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      this.state.error = msg;
+      return { ok: false, error: msg };
+    } finally {
+      this.state.catalogBusy = null;
+      this.notify();
+    }
+  }
+
+  /** 对全部（或指定）目录模型查 OpenRouter 并填充参数 */
+  public async queryOpenRouter(modelIds?: string[]): Promise<{ ok: boolean; updated?: number; notFound?: string[]; error?: string }> {
+    if (this.state.catalogBusy) return { ok: false, error: '目录操作进行中' };
+    this.state.catalogBusy = 'query';
+    this.notify();
+    try {
+      const res = await fetch('/api/dsh-a6api/catalog/query-openrouter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modelIds }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok) {
+        await this.fetchCatalog();
+        return { ok: true, updated: json.updated, notFound: json.notFound || [] };
+      }
+      const errText = json?.error || `HTTP ${res.status}`;
+      this.state.error = errText;
+      return { ok: false, error: errText };
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      this.state.error = msg;
+      return { ok: false, error: msg };
+    } finally {
+      this.state.catalogBusy = null;
+      this.notify();
+    }
+  }
+
+  /** 修改目录条目参数；已启用模型由服务端即时重写 settings.yaml */
+  public async updateCatalogEntry(
+    id: string,
+    patch: Partial<CatalogModelEntry>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const res = await fetch('/api/dsh-a6api/catalog/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...patch }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok) {
+        await this.fetchCatalog();
+        return { ok: true };
+      }
+      const errText = json?.error || `HTTP ${res.status}`;
+      this.state.error = errText;
+      return { ok: false, error: errText };
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      this.state.error = msg;
+      return { ok: false, error: msg };
+    }
+  }
+
+  /** 清空模型目录（随后可重新从 A6API 拉取 / OpenRouter 填充） */
+  public async clearCatalog(): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const res = await fetch('/api/dsh-a6api/catalog/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok) {
+        await this.fetchCatalog();
+        return { ok: true };
+      }
+      const errText = json?.error || `HTTP ${res.status}`;
+      this.state.error = errText;
+      return { ok: false, error: errText };
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      this.state.error = msg;
+      return { ok: false, error: msg };
+    }
+  }
+
   public async fetchPriceFluctuation(): Promise<void> {
     try {
       const res = await fetch('/api/dsh-a6api/price-fluctuation');
@@ -176,13 +352,10 @@ class A6ApiStore {
     } catch {}
   }
 
-  public async probeModel(modelName: string): Promise<void> {
-    this.state.probingModelNames.add(modelName);
-    this.state.models = this.state.models.map((m) =>
-      m.model_name === modelName ? { ...m, probeStatus: 'probing' as const } : m,
-    );
-    this.notify();
-
+  /** 单次探测请求（不修改状态，供限流重试循环复用） */
+  private async probeOnce(
+    modelName: string,
+  ): Promise<{ kind: 'ok'; json: any } | { kind: 'http'; status: number } | { kind: 'network'; error: string }> {
     try {
       const res = await fetch('/api/dsh-a6api/probe', {
         method: 'POST',
@@ -191,88 +364,190 @@ class A6ApiStore {
       });
       if (res.ok) {
         const json = await res.json();
-        if (json?.result?.merchant) {
-          this.state.models = this.state.models.map((m) =>
-            m.model_name === modelName
-              ? {
-                  ...m,
-                  merchant: json.result.merchant,
-                  probeStatus: 'success' as const,
-                  probeLatencyMs: json.result.durationMs,
-                  probeError: undefined,
-                  lastProbedAt: Date.now(),
-                  // 探测请求本身会写路由日志,乐观更新路由快照时效,下次 /state 以日志为准
-                  lastRoutedAt: Math.floor(Date.now() / 1000),
-                  lastRoutedText: formatRelativeNow(Math.floor(Date.now() / 1000)),
-                }
-              : m,
-          );
-        } else if (json?.result?.error) {
+        return { kind: 'ok', json };
+      }
+      return { kind: 'http', status: res.status };
+    } catch (err: any) {
+      return { kind: 'network', error: err?.message || String(err) };
+    }
+  }
+
+  private isRateLimitedOutcome(
+    o: { kind: 'ok'; json: any } | { kind: 'http'; status: number } | { kind: 'network'; error: string },
+  ): boolean {
+    return (
+      (o.kind === 'ok' &&
+        Boolean(o.json?.result?.error && RATE_LIMIT_RE.test(String(o.json.result.error)))) ||
+      (o.kind === 'http' && o.status === 429)
+    );
+  }
+
+  /** 把一次探测结果应用到卡片（按结果类型走原有映射逻辑） */
+  private applyProbeResult(
+    modelName: string,
+    outcome: { kind: 'ok'; json: any } | { kind: 'http'; status: number } | { kind: 'network'; error: string },
+  ): void {
+    const patch = (p: Partial<ModelCardData>) => {
+      this.state.models = this.state.models.map((m) => (m.model_name === modelName ? { ...m, ...p } : m));
+      this.notify();
+    };
+    if (outcome.kind === 'ok') {
+      const json = outcome.json;
+      if (json?.result?.merchant) {
+        patch({
+          merchant: json.result.merchant,
+          probeStatus: 'success',
+          probeLatencyMs: json.result.durationMs,
+          probeError: undefined,
+          lastProbedAt: Date.now(),
+          // 探测请求本身会写路由日志,乐观更新路由快照时效,下次 /state 以日志为准
+          lastRoutedAt: Math.floor(Date.now() / 1000),
+          lastRoutedText: formatRelativeNow(Math.floor(Date.now() / 1000)),
+        });
+      } else if (json?.result?.error) {
+        patch({
+          merchant: undefined,
+          probeStatus: 'error',
+          probeError: json.result.error,
+          lastProbedAt: Date.now(),
+        });
+      } else {
+        patch({
+          probeStatus: json?.result?.success ? 'success' : 'idle',
+          probeLatencyMs: json?.result?.durationMs,
+          probeError: json?.result?.success
+            ? '探测成功,但未捕获商户信息(需配置系统访问令牌)'
+            : undefined,
+          lastProbedAt: Date.now(),
+        });
+      }
+    } else if (outcome.kind === 'http') {
+      patch({
+        merchant: undefined,
+        probeStatus: 'error',
+        probeError: `HTTP ${outcome.status}`,
+        lastProbedAt: Date.now(),
+      });
+    } else {
+      patch({
+        merchant: undefined,
+        probeStatus: 'error',
+        probeError: outcome.error,
+        lastProbedAt: Date.now(),
+      });
+    }
+  }
+
+  public async probeModel(modelName: string): Promise<void> {
+    this.state.probingModelNames.add(modelName);
+    this.state.models = this.state.models.map((m) =>
+      m.model_name === modelName ? { ...m, probeStatus: 'probing' as const } : m,
+    );
+    this.notify();
+
+    try {
+      let outcome = await this.probeOnce(modelName);
+      // Key 级限流(429)自动重试：退避 0.8s / 2s，共 3 次；重试期间卡片保持「探测中」
+      if (this.isRateLimitedOutcome(outcome)) {
+        for (let attempt = 2; attempt <= 3; attempt++) {
+          await sleep(attempt === 2 ? 800 : 2000);
+          outcome = await this.probeOnce(modelName);
+          if (!this.isRateLimitedOutcome(outcome)) break;
+        }
+        if (this.isRateLimitedOutcome(outcome)) {
           this.state.models = this.state.models.map((m) =>
             m.model_name === modelName
               ? {
                   ...m,
                   merchant: undefined,
                   probeStatus: 'error' as const,
-                  probeError: json.result.error,
+                  probeError: '请求被限流(429),已自动重试 3 次仍失败,请稍后再试',
                   lastProbedAt: Date.now(),
                 }
               : m,
           );
-        } else {
-          this.state.models = this.state.models.map((m) =>
-            m.model_name === modelName
-              ? {
-                  ...m,
-                  probeStatus: json?.result?.success ? ('success' as const) : ('idle' as const),
-                  probeLatencyMs: json?.result?.durationMs,
-                  probeError: json?.result?.success
-                    ? '探测成功,但未捕获商户信息(需配置系统访问令牌)'
-                    : undefined,
-                  lastProbedAt: Date.now(),
-                }
-              : m,
-          );
+          return;
         }
-      } else {
-        this.state.models = this.state.models.map((m) =>
-          m.model_name === modelName
-            ? {
-                ...m,
-                merchant: undefined,
-                probeStatus: 'error' as const,
-                probeError: `HTTP ${res.status}`,
-                lastProbedAt: Date.now(),
-              }
-            : m,
-        );
       }
-    } catch (err: any) {
-      this.state.models = this.state.models.map((m) =>
-        m.model_name === modelName
-          ? {
-              ...m,
-              merchant: undefined,
-              probeStatus: 'error' as const,
-              probeError: err?.message || String(err),
-              lastProbedAt: Date.now(),
-            }
-          : m,
-      );
+      this.applyProbeResult(modelName, outcome);
     } finally {
       this.state.probingModelNames.delete(modelName);
+      // 计入全量探测进度（仅限本轮快照内的模型；幂等集合，重复探测不重复计数）
+      if (this.probeAllSnapshot?.includes(modelName)) {
+        this.probeAllDone.add(modelName);
+        this.state.probeAllDoneCount = this.probeAllDone.size;
+      }
       this.notify();
       this.refreshBalance().catch(() => {});
     }
   }
 
   public async probeAll(): Promise<void> {
-    const allNames = this.state.models.map((m) => m.model_name);
-    // 推理模型单次探测可达 40s+,按 3 并发批次探测,避免全量串行等待过久
-    const CONCURRENCY = 3;
-    for (let i = 0; i < allNames.length; i += CONCURRENCY) {
-      await Promise.all(allNames.slice(i, i + CONCURRENCY).map((n) => this.probeModel(n)));
+    // 重入防护：运行中直接忽略（store 状态驱动 UI，正常入口已不可点，防御其他调用路径）
+    if (this.state.probeAllActive) return;
+    const names = this.state.models.map((m) => m.model_name);
+    if (names.length === 0) return;
+    this.probeCancelled = false;
+    this.probeAllSnapshot = names;
+    this.probeAllDone.clear();
+    // 暂存入队前的探测错误文案，取消时恢复（避免排队期间清空历史错误提示）
+    this.probeQueuedPrevError = new Map(this.state.models.map((m) => [m.model_name, m.probeError]));
+    this.state.probeAllActive = true;
+    this.state.probeAllTotal = names.length;
+    this.state.probeAllDoneCount = 0;
+    // 全量入队：等待中的模型按钮显示「等待探测」并禁用
+    this.state.models = this.state.models.map((m) => ({
+      ...m,
+      probeStatus: 'queued' as const,
+      probeError: undefined,
+    }));
+    this.notify();
+    // 浏览器同源 HTTP/1.1 连接池约 6 路，再高也到不了上游；8 仅保证槽位不被浏览器排队饿死
+    const CONCURRENCY = Math.min(8, names.length);
+    let idx = 0;
+    const worker = async () => {
+      while (idx < names.length && !this.probeCancelled) {
+        const name = names[idx++];
+        // 取消后立即重开时，上一次运行的在途探测仍占用该模型：跳过避免并发双探，
+        // 其结果仍会回填卡片并计入本轮进度
+        if (this.state.probingModelNames.has(name)) continue;
+        await this.probeModel(name);
+      }
+    };
+    try {
+      await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+    } finally {
+      this.state.probeAllActive = false;
+      this.probeAllSnapshot = null;
+      this.probeAllDone.clear();
+      this.state.probeAllDoneCount = 0;
+      // 取消时剩余排队模型复位为可手动探测（并恢复历史错误文案）；正常跑完时队列已空，为 no-op
+      this.restoreQueuedModels();
+      this.notify();
     }
+  }
+
+  /** 把仍处于 queued 的模型复位为 idle 并恢复入队前的错误文案 */
+  private restoreQueuedModels(): void {
+    const prev = this.probeQueuedPrevError;
+    this.state.models = this.state.models.map((m) =>
+      m.probeStatus === 'queued'
+        ? { ...m, probeStatus: 'idle' as const, probeError: prev.get(m.model_name) }
+        : m,
+    );
+    this.probeQueuedPrevError = new Map();
+  }
+
+  /** 取消全量探测：立即复位排队模型，不再取新任务，已在途的探测正常完成并回填卡片 */
+  public cancelProbeAll(): void {
+    if (!this.state.probeAllActive) return;
+    this.probeCancelled = true;
+    this.state.probeAllActive = false;
+    this.probeAllSnapshot = null;
+    this.probeAllDone.clear();
+    this.state.probeAllDoneCount = 0;
+    this.restoreQueuedModels();
+    this.notify();
   }
 
   public async toggleDshModel(modelName: string): Promise<void> {
@@ -305,28 +580,98 @@ class A6ApiStore {
     }
   }
 
+  /**
+   * 固定 / 取消固定 / 禁用 / 恢复 的统一执行器。
+   * 成功后会刷新 /state（服务端会把平台固定记录叠加回卡片，跟随官网状态）。
+   */
+  private async runMarketplaceAction(
+    modelName: string,
+    endpoint: string,
+    busySet: Set<string>,
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (busySet.has(modelName)) return { ok: false, error: '操作进行中' };
+    busySet.add(modelName);
+    this.notify();
+    try {
+      const res = await fetch(`/api/dsh-a6api/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modelName }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.ok) {
+        if (Array.isArray(json.pins)) {
+          this.state.pins = json.pins;
+        }
+        await this.fetchState();
+        return { ok: true };
+      }
+      const errText = json?.error || `HTTP ${res.status}`;
+      this.state.error = errText;
+      this.notify();
+      return { ok: false, error: errText };
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      this.state.error = msg;
+      this.notify();
+      return { ok: false, error: msg };
+    } finally {
+      busySet.delete(modelName);
+      this.notify();
+    }
+  }
+
+  /** 固定卡片当前商家到该模型 */
+  public pinModel(modelName: string): Promise<{ ok: boolean; error?: string }> {
+    return this.runMarketplaceAction(modelName, 'pin', this.state.actionBusyModels);
+  }
+
+  /** 取消该模型的固定 */
+  public unpinModel(modelName: string): Promise<{ ok: boolean; error?: string }> {
+    return this.runMarketplaceAction(modelName, 'unpin', this.state.actionBusyModels);
+  }
+
+  /** 禁用卡片当前商家对该模型的服务 */
+  public disableModel(modelName: string): Promise<{ ok: boolean; error?: string }> {
+    return this.runMarketplaceAction(modelName, 'disable', this.state.actionBusyModels);
+  }
+
+  /** 恢复被禁用的商家 */
+  public restoreModel(modelName: string): Promise<{ ok: boolean; error?: string }> {
+    return this.runMarketplaceAction(modelName, 'restore', this.state.actionBusyModels);
+  }
+
+  /**
+   * 启动预热：插件随 DSH 启动即后台拉取一次完整状态。
+   * 侧边栏按钮在应用启动时就已挂载，预热让用户打开浮层/设置页时数据早已就绪 → 秒开无 spinner。
+   * 未配置凭据时 /state 返回默认回退数据，无害；后续保存配置/轮询会持续刷新。
+   * 目录一并预热（模型目录 tab 徽标/首屏不等待首次进入）。
+   */
+  public warmUp(): void {
+    if (this.warmedUp) return;
+    this.warmedUp = true;
+    this.fetchState().catch(() => {});
+    this.fetchCatalog().catch(() => {});
+  }
+
   private startAutoRefresh() {
     if (this.autoRefreshTimer) clearInterval(this.autoRefreshTimer);
-    // Refresh balance every 60 seconds
+    // 60s 后台整体刷新：/state 单次拉取即含余额/模型/日志/固定记录（服务端已并行化），
+    // 取代原先分立的余额/价格波动/固定记录三个轮询。价格波动与固定记录由 fetchState
+    // 内部的去重逻辑按需触发；未配置 API Key 时跳过，避免无意义请求。
     this.autoRefreshTimer = setInterval(() => {
-      this.refreshBalance().catch(() => {});
-    }, 60000);
-    // 价格波动轻量轮询 60s（与余额同频，便于及时变红）
-    if (this.pricePollTimer) clearInterval(this.pricePollTimer);
-    this.pricePollTimer = setInterval(() => {
-      if (this.state.config?.hasToken) {
-        this.fetchPriceFluctuation().catch(() => {});
+      if (this.state.config?.hasApiKey) {
+        this.fetchState().catch(() => {});
       }
-    }, 60 * 1000);
+    }, 60000);
   }
 
   public stopAutoRefresh() {
     if (this.autoRefreshTimer) { clearInterval(this.autoRefreshTimer); this.autoRefreshTimer = null; }
-    if (this.pricePollTimer) { clearInterval(this.pricePollTimer); this.pricePollTimer = null; }
   }
 
   public initPricePolling() {
-    if (this.pricePollTimer) return;
+    if (this.autoRefreshTimer) return;
     this.startAutoRefresh();
     if (this.state.config?.hasToken) {
       this.fetchPriceFluctuation().catch(() => {});

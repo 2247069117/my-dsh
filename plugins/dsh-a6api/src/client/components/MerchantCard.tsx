@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { store } from '../store.js';
 import type { ModelCardData } from '../../types.js';
 
@@ -17,9 +17,26 @@ export const MerchantCard: React.FC<{
 }> = ({ model }) => {
   // 进入后默认不展开
   const [expanded, setExpanded] = useState(false);
+  const [pinConfirmOpen, setPinConfirmOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const errorTimerRef = useRef<any>(null);
 
   const isProbing = model.probeStatus === 'probing';
+  const isQueued = model.probeStatus === 'queued';
   const merchant = model.merchant;
+  const isBusy = store.getState().actionBusyModels.has(model.model_name);
+  const canWebAction = Boolean(store.getState().config?.hasToken);
+  const hasMerchant = Boolean(merchant?.channel_id);
+  const isPinnedHere = model.pinStatus === 'pin_here';
+  const isPinnedElsewhere = model.pinStatus === 'pin_elsewhere';
+  const isChannelDisabled = Boolean(merchant?.user_channel_disabled);
+
+  const flashActionError = (msg: string) => {
+    // 连续失败时先清掉旧定时器，避免前一条错误提前清掉后一条
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    setActionError(msg);
+    errorTimerRef.current = setTimeout(() => setActionError(null), 6000);
+  };
 
   const handleProbe = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -29,6 +46,43 @@ export const MerchantCard: React.FC<{
   const handleToggleDsh = (e: React.MouseEvent) => {
     e.stopPropagation();
     store.toggleDshModel(model.model_name);
+  };
+
+  const handleOpenPinConfirm = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActionError(null);
+    setPinConfirmOpen(true);
+  };
+
+  const handleConfirmPin = async () => {
+    setActionError(null);
+    const r = await store.pinModel(model.model_name);
+    if (!r.ok) {
+      flashActionError(r.error || '固定失败');
+    } else {
+      setPinConfirmOpen(false);
+    }
+  };
+
+  const handleUnpin = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActionError(null);
+    const r = await store.unpinModel(model.model_name);
+    if (!r.ok) flashActionError(r.error || '取消固定失败');
+  };
+
+  const handleDisable = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActionError(null);
+    const r = await store.disableModel(model.model_name);
+    if (!r.ok) flashActionError(r.error || '禁用失败');
+  };
+
+  const handleRestore = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActionError(null);
+    const r = await store.restoreModel(model.model_name);
+    if (!r.ok) flashActionError(r.error || '恢复失败');
   };
 
   // Success Rate Dot Generators
@@ -123,6 +177,33 @@ export const MerchantCard: React.FC<{
                   </span>
                 </>
               )}
+              {isPinnedHere && !isChannelDisabled && (
+                <span
+                  className="dsh-a6-pin-badge here"
+                  data-tooltip={
+                    `该模型已固定到当前商家${model.pinnedFallback === false ? '（严格固定）' : '，异常时自动切换智能优选'}${model.pinTokenMatched === false ? '；该固定属于其他令牌，仅供参考' : ''}`
+                  }
+                  data-tooltip-pos="down"
+                >
+                  已固定
+                </span>
+              )}
+              {isPinnedElsewhere && (
+                <span
+                  className="dsh-a6-pin-badge elsewhere"
+                  data-tooltip={
+                    `该模型已固定到${model.pinnedChannelId ? `商户 #${model.pinnedChannelId}` : '其他商家'}${model.pinnedSupplierName ? `（${model.pinnedSupplierName}）` : ''}${model.pinTokenMatched === false ? '；该固定属于其他令牌，仅供参考' : ''}`
+                  }
+                  data-tooltip-pos="down"
+                >
+                  已固定到其他商家
+                </span>
+              )}
+              {isChannelDisabled && (
+                <span className="dsh-a6-pin-badge disabled" data-tooltip="当前商家已对该模型禁用，路由不会命中此渠道" data-tooltip-pos="down">
+                  已禁用
+                </span>
+              )}
             </div>
             {merchant?.description && (
               <div className="dsh-a6-sub-desc">{merchant.description}</div>
@@ -160,7 +241,7 @@ export const MerchantCard: React.FC<{
               data-tooltip={model.probeError || undefined}
               data-tooltip-pos="down"
             >
-              {isProbing ? '商家探测中...' : model.probeError ? '探测失败' : '尚未探测商家'}
+              {isProbing ? '商家探测中...' : isQueued ? '排队等待探测...' : model.probeError ? '探测失败' : '尚未探测商家'}
             </div>
           </div>
         )}
@@ -217,37 +298,119 @@ export const MerchantCard: React.FC<{
           ))}
         </div>
 
-        {/* Col 6: Right Action & Status Group */}
-        <div className="dsh-a6-bar-actions" onClick={(e) => e.stopPropagation()}>
-          <div className="dsh-a6-time-stack">
-            <span
-              className="dsh-a6-time-ago"
-              data-tooltip="该商户路线全网最近一次成功响应时间"
-            >
-              全网最近：{merchant?.last_success_text || '刚刚'}
-            </span>
-            <span
-              className={`dsh-a6-time-ago dsh-a6-route-snapshot${model.lastRoutedAt ? '' : ' never'}`}
-              data-tooltip={
-                model.lastRoutedAt
-                  ? `个人最后一次请求该模型的时间（商家路由情况的截止时效）${formatAbsolute(model.lastRoutedAt)}`
-                  : '日志中暂无该模型的路由记录'
-              }
-            >
-              个人最近：{model.lastRoutedText || '从未路由'}
-            </span>
-          </div>
+      </div>
 
+      {/* 2. Bottom Footer: 时间戳左下角 + 操作按钮右下角 */}
+      <div className="dsh-a6-card-footer">
+        <div className="dsh-a6-time-stack">
+          <span
+            className="dsh-a6-time-ago"
+            data-tooltip="该商户路线全网最近一次成功响应时间"
+          >
+            全网最近：{merchant?.last_success_text || '刚刚'}
+          </span>
+          <span
+            className={`dsh-a6-time-ago dsh-a6-route-snapshot${model.lastRoutedAt ? '' : ' never'}`}
+            data-tooltip={
+              model.lastRoutedAt
+                ? `个人最后一次请求该商家的该模型 ${formatAbsolute(model.lastRoutedAt)}`
+                : '日志中暂无该商家的该模型路由记录'
+            }
+          >
+            个人最近：{model.lastRoutedText || '从未路由'}
+          </span>
+        </div>
+
+        {/* Col 6: 操作按钮组 — 卡片右下角 */}
+        <div className="dsh-a6-bar-actions" onClick={(e) => e.stopPropagation()}>
           <div className="dsh-a6-bar-actions-btns">
             <button
               type="button"
               className="dsh-a6-btn dsh-a6-btn-secondary dsh-a6-btn-sm"
               onClick={handleProbe}
-              disabled={isProbing}
-              data-tooltip="向该模型发送一次请求以探测并捕获其实际命中的商户 ID、价格及健康度指标（消耗少量Token）"
+              disabled={isProbing || isQueued}
+              data-tooltip={
+                isQueued
+                  ? '正在全量探测队列中等待，请勿重复点击'
+                  : '向该模型发送一次请求以探测并捕获其实际命中的商户 ID、价格及健康度指标（消耗少量Token）'
+              }
             >
-              {isProbing ? '探测中...' : '探测商家'}
+              {isProbing ? '探测中...' : isQueued ? '等待探测' : '探测商家'}
             </button>
+
+            {isPinnedHere ? (
+              <button
+                type="button"
+                className="dsh-a6-btn dsh-a6-btn-danger dsh-a6-btn-sm"
+                onClick={handleUnpin}
+                disabled={isBusy || !canWebAction || model.pinTokenMatched === false || isProbing || isQueued}
+                data-tooltip={
+                  isProbing || isQueued
+                    ? '探测完成后再取消固定'
+                    : model.pinTokenMatched === false
+                      ? '该固定属于其他令牌，无法在此取消；如需取消请到官网或先为当前令牌固定此商家'
+                      : canWebAction
+                        ? '取消固定后恢复智能优选路由，可重新探测后再决定是否固定'
+                        : '需先在「基础配置」配置系统访问令牌/会话'
+                }
+              >
+                {isBusy ? '处理中...' : '取消固定'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="dsh-a6-btn dsh-a6-btn-primary dsh-a6-btn-sm"
+                onClick={handleOpenPinConfirm}
+                disabled={isBusy || !hasMerchant || !canWebAction || isProbing || isQueued}
+                data-tooltip={
+                  isProbing || isQueued
+                    ? '探测完成后再固定商家'
+                    : !hasMerchant
+                      ? '该模型暂无商家数据，请先「探测商家」'
+                      : !canWebAction
+                        ? '需先在「基础配置」配置系统访问令牌/会话'
+                        : '把当前商家固定为该模型的服务渠道（优先路由，异常时自动切换智能优选）'
+                }
+              >
+                {isBusy ? '处理中...' : '固定商家'}
+              </button>
+            )}
+
+            {isChannelDisabled ? (
+              <button
+                type="button"
+                className="dsh-a6-btn dsh-a6-btn-secondary dsh-a6-btn-sm"
+                onClick={handleRestore}
+                disabled={isBusy || !canWebAction || isProbing || isQueued}
+                data-tooltip={
+                  isProbing || isQueued
+                    ? '探测完成后再恢复'
+                    : canWebAction
+                      ? '恢复该商家对此模型的服务'
+                      : '需先在「基础配置」配置系统访问令牌/会话'
+                }
+              >
+                {isBusy ? '处理中...' : '恢复'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="dsh-a6-btn dsh-a6-btn-secondary dsh-a6-btn-sm"
+                onClick={handleDisable}
+                disabled={isBusy || !hasMerchant || !canWebAction || isProbing || isQueued}
+                data-tooltip={
+                  isProbing || isQueued
+                    ? '探测完成后再禁用'
+                    : !hasMerchant
+                      ? '该模型暂无商家数据，请先「探测商家」'
+                      : !canWebAction
+                        ? '需先在「基础配置」配置系统访问令牌/会话'
+                        : '禁用当前商家对该模型的服务，路由将不再命中此渠道'
+                }
+              >
+                {isBusy ? '处理中...' : '禁用'}
+              </button>
+            )}
 
             <button
               type="button"
@@ -269,6 +432,12 @@ export const MerchantCard: React.FC<{
             </button>
           </div>
         </div>
+
+        {actionError && (
+          <div className="dsh-a6-action-error" role="alert">
+            {actionError}
+          </div>
+        )}
       </div>
 
       {/* 2. Bottom Detailed Price Comparison Table (Only when expanded) */}
@@ -322,6 +491,67 @@ export const MerchantCard: React.FC<{
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* 3. 固定确认弹窗（轻量，无商家选择器/兜底开关） */}
+      {pinConfirmOpen && merchant && (
+        <div
+          className="dsh-a6-pin-modal-overlay"
+          onClick={(e) => {
+            e.stopPropagation();
+            setPinConfirmOpen(false);
+          }}
+        >
+          <div
+            className="dsh-a6-pin-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="固定商家确认"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="dsh-a6-pin-modal-title">固定商家</div>
+            <div className="dsh-a6-pin-modal-body">
+              <div className="dsh-a6-pin-modal-row">
+                <span className="dsh-a6-pin-modal-label">模型</span>
+                <span className="dsh-a6-pin-modal-value">{model.model_name}</span>
+              </div>
+              <div className="dsh-a6-pin-modal-row">
+                <span className="dsh-a6-pin-modal-label">商家</span>
+                <span className="dsh-a6-pin-modal-value">
+                  {merchant.channel_name} (ID: {merchant.channel_id})
+                </span>
+              </div>
+              <div className="dsh-a6-pin-modal-row">
+                <span className="dsh-a6-pin-modal-label">当前价</span>
+                <span className="dsh-a6-pin-modal-value">
+                  输入 {merchant.input_price_cny} · 输出 {merchant.output_price_cny}
+                </span>
+              </div>
+              <p className="dsh-a6-pin-modal-note">
+                固定后该模型的流量优先走此商家；商家异常时自动切换智能优选（平台默认）。固定生效于当前 API Key 令牌，可随时取消。
+              </p>
+              {actionError && <div className="dsh-a6-action-error">{actionError}</div>}
+            </div>
+            <div className="dsh-a6-pin-modal-foot">
+              <button
+                type="button"
+                className="dsh-a6-btn dsh-a6-btn-secondary dsh-a6-btn-sm"
+                onClick={() => setPinConfirmOpen(false)}
+                disabled={isBusy}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="dsh-a6-btn dsh-a6-btn-primary dsh-a6-btn-sm"
+                onClick={handleConfirmPin}
+                disabled={isBusy}
+              >
+                {isBusy ? '固定中...' : '确认固定'}
+              </button>
+            </div>
           </div>
         </div>
       )}

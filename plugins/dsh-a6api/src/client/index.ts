@@ -1,4 +1,6 @@
+import React from 'react';
 import { A6ApiSettingsPanel } from './components/A6ApiSettings.js';
+import { A6ApiSidebarCard } from './components/A6ApiSidebarCard.js';
 import mainCss from './styles/main.css';
 import { store } from './store.js';
 
@@ -205,9 +207,11 @@ export function apply(ctx: any): void {
     } catch {}
   }
   if (typeof window === 'undefined') return;
-  // 启动价格波动轻量轮询（后台 60s，与余额同频）
+  // 启动预热 + 后台轮询：插件随 DSH 启动即后台拉取一次完整状态（服务端 /state 已并行化），
+  // 之后每 60s 整体刷新 —— 用户打开侧边栏浮层/设置页时数据已就绪，秒开无 spinner
   try {
     setTimeout(() => {
+      try { store.warmUp(); } catch {}
       try { store.initPricePolling(); } catch {}
     }, 1500);
   } catch {}
@@ -228,7 +232,27 @@ export function apply(ctx: any): void {
         A6ApiSettingsPanel,
       );
     });
+
+    // 侧边栏左下角「A6api」按钮:点击向上弹出当前会话 A6api 模型的 MerchantCard 浮层
+    // getter 在 apply 闭包创建一次,引用稳定,避免 entry 重渲染触发组件 effect 反复重订阅
+    const getModelDirectories = () =>
+      ctx && typeof ctx.get === 'function' ? ctx.get('modelDirectories') : undefined;
+    slots.inject('sidebar.footer.action', () => {
+      return slots.register(
+        {
+          name: 'sidebar.footer.action',
+          id: 'dsh-a6api-current-model',
+          order: -1,
+          label: () => 'A6api',
+        },
+        (props: any) =>
+          React.createElement(A6ApiSidebarCard, {
+            ...(props || {}),
+            getModelDirectories,
+          }),
+      );
+    });
   } catch (err) {
-    console.warn('[dsh-a6api] Failed to inject settings section:', err);
+    console.warn('[dsh-a6api] Failed to inject slots:', err);
   }
 }
