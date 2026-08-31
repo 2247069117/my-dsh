@@ -1167,6 +1167,14 @@ var AccountPanel = ({ balance, config, recentLogs = [], onNavigateToConfig }) =>
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "\u5546\u6237id" }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "\u8BF7\u6C42\u6A21\u578B" }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "\u8F93\u5165/\u8F93\u51FA" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+            "th",
+            {
+              "data-tooltip": "\u8F93\u5165\u4E2D\u547D\u4E2D\u7F13\u5B58\u7684 tokens\uFF08\u7F13\u5B58\u8BFB\uFF09\u53CA\u5176\u5360\u8F93\u5165\u7684\u6BD4\u4F8B\uFF1B\u547D\u4E2D\u90E8\u5206\u6309\u7F13\u5B58\u500D\u7387\u8BA1\u8D39\uFF0C\u663E\u8457\u66F4\u7701",
+              "data-tooltip-pos": "down",
+              children: "\u7F13\u5B58"
+            }
+          ),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "\u82B1\u8D39" }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "\u8017\u65F6" })
         ] }) }),
@@ -1186,6 +1194,21 @@ var AccountPanel = ({ balance, config, recentLogs = [], onNavigateToConfig }) =>
               " / ",
               log.completion_tokens || 0
             ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { className: "dsh-a6-log-cache", children: (() => {
+              const cached = Number(log.cache_tokens || 0);
+              const prompt = Number(log.prompt_tokens || 0);
+              if (cached > 0) {
+                const pct = prompt > 0 ? Math.round(cached / prompt * 100) : 0;
+                return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "dsh-a6-log-cache-num", children: cached.toLocaleString("en-US") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: `dsh-a6-log-cache-pct ${pct >= 60 ? "good" : ""}`, children: [
+                    pct,
+                    "%"
+                  ] })
+                ] });
+              }
+              return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "dsh-a6-log-cache-empty", children: "0" });
+            })() }),
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { className: "dsh-a6-log-cost", children: log.cost_formatted || "$0.00" }),
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { className: "dsh-a6-log-time-use", children: log.use_time ? `${log.use_time}s` : "\u2014" })
           ] }, log.id || idx);
@@ -3657,6 +3680,8 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
   border-collapse: collapse;
   font-size: 12px;
   text-align: left;
+  /* \u5217\u5185\u5BB9\u4E0D\u6362\u884C\uFF1A\u8868\u683C\u8D85\u5BBD\u65F6\u7531 wrapper \u7684 overflow-x \u51FA\u5E95\u90E8\u6EDA\u52A8\u6761\uFF0C\u800C\u975E\u538B\u7F29\u5217 */
+  white-space: nowrap;
 }
 
 .dsh-a6-logs-table th {
@@ -3670,6 +3695,34 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
 .dsh-a6-logs-table td {
   padding: 6px 8px;
   border-bottom: 1px solid var(--dsw-alias-border-l3, rgba(226, 232, 240, 0.5));
+}
+
+/* \u7F13\u5B58\u5217\uFF1A\u547D\u4E2D\u6570 + \u5360\u8F93\u5165\u6BD4\uFF08\u9AD8\u547D\u4E2D\u7EFF\u8272\u63D0\u793A\u7701\u94B1\uFF09 */
+.dsh-a6-log-cache {
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary, #475569);
+}
+
+.dsh-a6-log-cache-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.dsh-a6-log-cache-pct {
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-size: 10px;
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--dsw-alias-label-tertiary, #64748b);
+}
+
+.dsh-a6-log-cache-pct.good {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.dsh-a6-log-cache-empty {
+  color: var(--dsw-alias-label-tertiary, #94a3b8);
 }
 
 .dsh-a6-log-time {

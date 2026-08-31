@@ -548,18 +548,22 @@ async function fetchRecentLogs(userId, accessToken, limit = 30) {
           }
           const rawChannel = Number(it.channel || 0);
           let channelId = rawChannel > 0 ? rawChannel : void 0;
-          if (!channelId && it.other) {
+          let otherObj = null;
+          if (it.other) {
             try {
-              const otherObj = JSON.parse(it.other);
-              if (otherObj.actual_channel_id && Number(otherObj.actual_channel_id) > 0) {
-                channelId = Number(otherObj.actual_channel_id);
-              } else if (otherObj.billed_channel_id && Number(otherObj.billed_channel_id) > 0) {
-                channelId = Number(otherObj.billed_channel_id);
-              }
+              otherObj = JSON.parse(it.other);
             } catch {
             }
           }
+          if (!channelId && otherObj) {
+            if (otherObj.actual_channel_id && Number(otherObj.actual_channel_id) > 0) {
+              channelId = Number(otherObj.actual_channel_id);
+            } else if (otherObj.billed_channel_id && Number(otherObj.billed_channel_id) > 0) {
+              channelId = Number(otherObj.billed_channel_id);
+            }
+          }
           const isError = it.type !== 2 || it.other && (it.other.includes('"request_final_status":"failed"') || it.other.includes('"request_final_status":"error"') || it.other.includes('"request_final_status":"upstream_error"')) || Boolean(it.content && it.content.startsWith("status_code="));
+          const cacheTokens = otherObj && Number.isFinite(Number(otherObj.cache_tokens)) && Number(otherObj.cache_tokens) > 0 ? Number(otherObj.cache_tokens) : 0;
           return {
             id: it.id || it.request_id || String(Math.random()),
             created_at: Number(it.created_at || Date.now() / 1e3),
@@ -569,6 +573,7 @@ async function fetchRecentLogs(userId, accessToken, limit = 30) {
             token_id: it.token_id !== void 0 && it.token_id !== null ? Number(it.token_id) : void 0,
             prompt_tokens: Number(it.prompt_tokens || 0),
             completion_tokens: Number(it.completion_tokens || 0),
+            cache_tokens: cacheTokens,
             use_time: Number(it.use_time || 0),
             quota: rawQuota,
             cost_usd: costUsd,

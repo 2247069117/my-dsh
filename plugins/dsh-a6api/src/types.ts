@@ -252,6 +252,8 @@ export interface ApiRoutingLogItem {
   token_id?: number;
   prompt_tokens?: number;
   completion_tokens?: number;
+  /** 输入中命中缓存的 tokens（other.cache_tokens，缓存读；输出无缓存概念） */
+  cache_tokens?: number;
   use_time?: number;
   quota?: number;
   cost_usd?: number;

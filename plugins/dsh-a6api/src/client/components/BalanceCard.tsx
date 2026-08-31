@@ -149,6 +149,12 @@ export const AccountPanel: React.FC<{
                   <th>商户id</th>
                   <th>请求模型</th>
                   <th>输入/输出</th>
+                  <th
+                    data-tooltip="输入中命中缓存的 tokens（缓存读）及其占输入的比例；命中部分按缓存倍率计费，显著更省"
+                    data-tooltip-pos="down"
+                  >
+                    缓存
+                  </th>
                   <th>花费</th>
                   <th>耗时</th>
                 </tr>
@@ -194,6 +200,26 @@ export const AccountPanel: React.FC<{
                       </td>
                       <td className="dsh-a6-log-tokens">
                         {log.prompt_tokens || 0} / {log.completion_tokens || 0}
+                      </td>
+                      <td className="dsh-a6-log-cache">
+                        {(() => {
+                          const cached = Number(log.cache_tokens || 0);
+                          const prompt = Number(log.prompt_tokens || 0);
+                          if (cached > 0) {
+                            const pct = prompt > 0 ? Math.round((cached / prompt) * 100) : 0;
+                            return (
+                              <>
+                                <span className="dsh-a6-log-cache-num">
+                                  {cached.toLocaleString('en-US')}
+                                </span>
+                                <span className={`dsh-a6-log-cache-pct ${pct >= 60 ? 'good' : ''}`}>
+                                  {pct}%
+                                </span>
+                              </>
+                            );
+                          }
+                          return <span className="dsh-a6-log-cache-empty">0</span>;
+                        })()}
                       </td>
                       <td className="dsh-a6-log-cost">
                         {log.cost_formatted || '$0.00'}

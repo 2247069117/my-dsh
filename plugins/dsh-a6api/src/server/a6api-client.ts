@@ -226,15 +226,19 @@ export async function fetchRecentLogs(
 
           const rawChannel = Number(it.channel || 0);
           let channelId: number | undefined = rawChannel > 0 ? rawChannel : undefined;
-          if (!channelId && it.other) {
+          // other JSON 只解析一次：渠道回退与缓存 tokens 共用
+          let otherObj: any = null;
+          if (it.other) {
             try {
-              const otherObj = JSON.parse(it.other);
-              if (otherObj.actual_channel_id && Number(otherObj.actual_channel_id) > 0) {
-                channelId = Number(otherObj.actual_channel_id);
-              } else if (otherObj.billed_channel_id && Number(otherObj.billed_channel_id) > 0) {
-                channelId = Number(otherObj.billed_channel_id);
-              }
+              otherObj = JSON.parse(it.other);
             } catch {}
+          }
+          if (!channelId && otherObj) {
+            if (otherObj.actual_channel_id && Number(otherObj.actual_channel_id) > 0) {
+              channelId = Number(otherObj.actual_channel_id);
+            } else if (otherObj.billed_channel_id && Number(otherObj.billed_channel_id) > 0) {
+              channelId = Number(otherObj.billed_channel_id);
+            }
           }
 
           const isError =
@@ -246,6 +250,12 @@ export async function fetchRecentLogs(
             )) ||
             Boolean(it.content && it.content.startsWith('status_code='));
 
+          // 缓存命中 tokens（缓存读；日志无缓存写/缓存输出用量字段，缺失时留 undefined）
+          const cacheTokens =
+            otherObj && Number.isFinite(Number(otherObj.cache_tokens)) && Number(otherObj.cache_tokens) > 0
+              ? Number(otherObj.cache_tokens)
+              : 0;
+
           return {
             id: it.id || it.request_id || String(Math.random()),
             created_at: Number(it.created_at || Date.now() / 1000),
@@ -255,6 +265,7 @@ export async function fetchRecentLogs(
             token_id: it.token_id !== undefined && it.token_id !== null ? Number(it.token_id) : undefined,
             prompt_tokens: Number(it.prompt_tokens || 0),
             completion_tokens: Number(it.completion_tokens || 0),
+            cache_tokens: cacheTokens,
             use_time: Number(it.use_time || 0),
             quota: rawQuota,
             cost_usd: costUsd,

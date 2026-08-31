@@ -1003,6 +1003,8 @@
   border-collapse: collapse;
   font-size: 12px;
   text-align: left;
+  /* 列内容不换行：表格超宽时由 wrapper 的 overflow-x 出底部滚动条，而非压缩列 */
+  white-space: nowrap;
 }
 
 .dsh-a6-logs-table th {
@@ -1016,6 +1018,34 @@
 .dsh-a6-logs-table td {
   padding: 6px 8px;
   border-bottom: 1px solid var(--dsw-alias-border-l3, rgba(226, 232, 240, 0.5));
+}
+
+/* 缓存列：命中数 + 占输入比（高命中绿色提示省钱） */
+.dsh-a6-log-cache {
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary, #475569);
+}
+
+.dsh-a6-log-cache-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.dsh-a6-log-cache-pct {
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-size: 10px;
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--dsw-alias-label-tertiary, #64748b);
+}
+
+.dsh-a6-log-cache-pct.good {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.dsh-a6-log-cache-empty {
+  color: var(--dsw-alias-label-tertiary, #94a3b8);
 }
 
 .dsh-a6-log-time {
