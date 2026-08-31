@@ -14,6 +14,7 @@
 | [@lynn123411/dsh-oil-sticky-prompt](./plugins/dsh-oil-sticky-prompt) | `dsh.bundle` + `dsh.client/web` | **对话吸顶提示**：将最近的用户 Prompt 悬浮固定在对话流顶部，点击平滑回滚至对应消息，告别长对话迷路 | `dsh plugin --profile web add @lynn123411/dsh-oil-sticky-prompt` |
 | [@lynn123411/dsh-chat-translate](./plugins/dsh-chat-translate) | `dsh.bundle` + `dsh.client/web` | **聊天翻译**：工具调用与思考摘要自动译中（仅当前会话、正文不翻）：OpenAI 兼容 AI 通道（可配 Base URL/模型，Key 存 `~/.dsh/.credentials.yaml`）+ 免 Key Bing 兜底双通道，内置「聊天翻译」面板 | `dsh plugin --profile web add @lynn123411/dsh-chat-translate` |
 | [@lynn123411/dsh-a6api](./plugins/dsh-a6api) | `dsh.bundle` + `dsh.client/web` | **A6API 接入**：将 A6API 聚合网关注册为 DSH 原生 LLM 提供商，提供多标签页视图、余额（$ / ¥）与调用明细、模型白名单同步、商户线路实时探测与全景指标卡片（含官方 vs 商户价格对比） | `dsh plugin --profile web add @lynn123411/dsh-a6api` |
+| [dsh-check-update](./plugins/dsh-check-update) | `dsh.bundle` + `dsh.client/web` | **更新检查器**：检查 DSH 与已安装插件版本，支持一键更新、备份回滚，并可一键复制更新命令 | `dsh plugin --profile web add dsh-check-update` |
 
 ---
 
