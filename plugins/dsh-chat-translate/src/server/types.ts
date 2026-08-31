@@ -7,7 +7,7 @@ export interface PluginConfig {
   bingEnabled: boolean; // Bing web translation channel switch
   baseUrl: string; // OpenAI-compatible base URL; empty = AI not configured
   model: string; // model name; empty = AI not configured
-  targetLang?: string; // target language, default 'zh-Hans'
+  targetLang: string; // target language, default 'zh-Hans'
 }
 
 export interface MaskedPluginConfig {

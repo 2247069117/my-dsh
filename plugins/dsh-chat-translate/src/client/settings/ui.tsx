@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as React from 'react';
-import { settingsStore, type ClientSettingsState } from './store.ts';
+import { settingsStore, SETTINGS_NAMESPACE, type ClientSettingsState } from './store.ts';
 import { SETTINGS_CSS } from './styles.ts';
 let stylesInjected = false;
 function ensureSettingsStyles(): void {
@@ -250,6 +250,25 @@ export function TidySettingsPanel(): React.ReactElement {
 
 export function setupSettingsUi(ctx: any): void {
   if (typeof window === 'undefined') return;
+
+  // Ride DSH's own settings surface: the `settingsScope` service mirrors the
+  // host document (per-namespace describe) and the `credentials` Remote API
+  // writes the API key. No custom config HTTP endpoint since 1.2.
+  try {
+    // Declared via inject: 'settingsScope' and 'remote.credentials' (plus the
+    // 'remote' root). Fall back to optional lookup so a degraded environment
+    // degrades to an in-memory store instead of failing loudly.
+    const settingsScope = ctx?.settingsScope || (ctx?.get ? ctx.get('settingsScope') : null);
+    const remoteCredentials =
+      ctx?.remote?.credentials || (ctx?.get ? ctx.get('remote.credentials') : null);
+    if (settingsScope && typeof settingsScope.bind === 'function') {
+      const scope = settingsScope.bind({ namespace: SETTINGS_NAMESPACE });
+      settingsStore.attach(scope, remoteCredentials ?? null);
+    }
+  } catch (err) {
+    console.warn('[dsh-chat-translate] Failed to bind settings scope:', err);
+  }
+
   try {
     const slots = ctx?.slots || (ctx?.get ? ctx.get('slots') : null);
     if (!slots || typeof slots.inject !== 'function') return;

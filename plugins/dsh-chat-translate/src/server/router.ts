@@ -1,9 +1,17 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { ConfigManager } from './config.ts';
 import type { TranslationDispatcher } from './dispatcher.ts';
-import type { CredentialsReader } from './credentials.ts';
 
 const MAX_BODY_BYTES = 1024 * 1024; // 1MB body limit to prevent DoS
+
+/**
+ * HTTP surface for the translation proxy only.
+ *
+ * Config and credentials no longer have HTTP endpoints: since 1.2 the
+ * settings panel reads/writes through DSH's own channels — the
+ * `settingsScope` client service and the `credentials` Remote API — so the
+ * plugin exposes exactly one route family to the browser: translation.
+ */
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   const json = JSON.stringify(body);
@@ -37,11 +45,7 @@ function readBody(req: IncomingMessage): Promise<string> {
   });
 }
 
-export function createHttpHandler(
-  configManager: ConfigManager,
-  dispatcher: TranslationDispatcher,
-  credentials?: CredentialsReader
-) {
+export function createHttpHandler(configManager: ConfigManager, dispatcher: TranslationDispatcher) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url || '/', 'http://localhost');
     const pathParts = url.pathname.split('/').filter(Boolean);
@@ -76,53 +80,6 @@ export function createHttpHandler(
 
         const results = await dispatcher.translateBatch(texts, forceRefresh);
         sendJson(res, 200, { ok: true, results });
-        return;
-      }
-
-      if (endpoint === 'config') {
-        if (req.method === 'GET') {
-          sendJson(res, 200, { ok: true, config: configManager.getMaskedConfig() });
-          return;
-        }
-        if (req.method === 'POST') {
-          const raw = await readBody(req);
-          let updates: any;
-          try {
-            updates = JSON.parse(raw || '{}');
-          } catch {
-            sendJson(res, 400, { ok: false, error: 'Invalid JSON body' });
-            return;
-          }
-          if (typeof updates !== 'object' || updates === null || Array.isArray(updates)) {
-            sendJson(res, 400, { ok: false, error: 'Invalid config payload' });
-            return;
-          }
-          await configManager.updateConfig(updates);
-          sendJson(res, 200, { ok: true, config: configManager.getMaskedConfig() });
-          return;
-        }
-      }
-
-      if (endpoint === 'credentials' && req.method === 'POST') {
-        if (!credentials) {
-          sendJson(res, 500, { ok: false, error: 'Credentials reader unavailable' });
-          return;
-        }
-        const raw = await readBody(req);
-        let parsed: any;
-        try {
-          parsed = JSON.parse(raw || '{}');
-        } catch {
-          sendJson(res, 400, { ok: false, error: 'Invalid JSON body' });
-          return;
-        }
-        const apiKey = typeof parsed.apiKey === 'string' ? parsed.apiKey : '';
-        try {
-          await credentials.setApiKey(apiKey);
-          sendJson(res, 200, { ok: true, configured: Boolean(credentials.getApiKey()) });
-        } catch (err: any) {
-          sendJson(res, 500, { ok: false, error: err?.message || String(err) });
-        }
         return;
       }
 

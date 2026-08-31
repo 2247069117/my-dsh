@@ -1,5 +1,5 @@
-import { fetchServerConfig, updateServerConfig, testServerChannel, saveCredentials } from '../translate/api.ts';
 import { chatTranslateObserver } from '../translate/observer.ts';
+import { testServerChannel } from '../translate/api.ts';
 
 export interface ClientSettingsState {
   enabled: boolean;
@@ -11,13 +11,39 @@ export interface ClientSettingsState {
   aiConfigured: boolean;
 }
 
-const LS_PREFIX = 'dsh-chat-translate:';
-export const LS_ENABLED = `${LS_PREFIX}enabled`;
-export const LS_CONCURRENCY = `${LS_PREFIX}concurrency`;
-export const LS_AI_ENABLED = `${LS_PREFIX}aiEnabled`;
-export const LS_BING_ENABLED = `${LS_PREFIX}bingEnabled`;
-export const LS_BASE_URL = `${LS_PREFIX}baseUrl`;
-export const LS_MODEL = `${LS_PREFIX}model`;
+/** Settings namespace + credentials ref, mirroring the host constants. */
+export const SETTINGS_NAMESPACE = 'dsh-chat-translate';
+export const TRANSLATE_API_KEY_REF = 'TRANSLATE_API_KEY';
+
+/**
+ * Minimal structural shapes of the DSH browser services this store rides on:
+ * `settingsScope` (from @deepseek-ai/dsh-client-ui-settings) and the
+ * `credentials` Remote namespace. Keeping them structural keeps this bundle
+ * free of host-service imports and lets tests inject fakes.
+ */
+export interface SettingsScopeLike {
+  getSnapshot(): {
+    status: string;
+    value?: Record<string, unknown>;
+    writable: boolean;
+  };
+  subscribe(listener: () => void): () => void;
+  set(field: string, value: unknown): Promise<unknown>;
+  unset(field: string): Promise<unknown>;
+}
+
+/** Shape of every DSH client Remote call: {ok, value} / {ok, error} wrapper. */
+export type RemoteResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code?: string; message: string; details?: unknown } };
+
+export interface CredentialsRemoteLike {
+  describe(
+    refs: string[]
+  ): Promise<RemoteResult<Record<string, { configured: boolean; source?: string; writable: boolean }>>>;
+  set(ref: string, value: string): Promise<RemoteResult<void>>;
+  unset(ref: string): Promise<RemoteResult<void>>;
+}
 
 const DEFAULT_STATE: ClientSettingsState = {
   enabled: true,
@@ -29,131 +55,43 @@ const DEFAULT_STATE: ClientSettingsState = {
   aiConfigured: false,
 };
 
+/**
+ * Client settings store backed by the DSH settings namespace.
+ *
+ * Since 1.2 there is no localStorage overlay and no custom config HTTP
+ * endpoint: the store derives from the bound `settingsScope` (which mirrors
+ * the host document and folds every write answer back), and writes go
+ * through `scope.set` — serialized, revision-checked, persisted by DSH.
+ * Without a bound scope (e.g. non-loopback pages, unit tests) it degrades to
+ * an in-memory store with the same semantics DSH itself uses for memory
+ * persistence.
+ */
 class SettingsStore {
   private state: ClientSettingsState = { ...DEFAULT_STATE };
-
   private listeners = new Set<() => void>();
-  private storageListener: ((e: StorageEvent) => void) | null = null;
-  private pushTimer: number | null = null;
-  private pushSeq = 0;
-  private userTouched = false;
+  private scope: SettingsScopeLike | null = null;
+  private credentials: CredentialsRemoteLike | null = null;
+  private unsubscribeScope: (() => void) | null = null;
+  private keyConfigured = false;
+  private writeTimer: number | null = null;
+  private pendingFields = new Set<string>();
 
-  constructor() {
-    this.loadFromLocalStorage();
-    this.initStorageListener();
-    this.syncFromServer();
-  }
-
-  private loadFromLocalStorage(): void {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      const enabledRaw = localStorage.getItem(LS_ENABLED);
-      if (enabledRaw !== null) {
-        this.state.enabled = enabledRaw === 'true';
-      }
-      const concurrencyRaw = localStorage.getItem(LS_CONCURRENCY);
-      if (concurrencyRaw !== null) {
-        const c = parseInt(concurrencyRaw, 10);
-        if (Number.isFinite(c) && c >= 1 && c <= 100) {
-          this.state.concurrency = c;
-        }
-      }
-      const aiRaw = localStorage.getItem(LS_AI_ENABLED);
-      if (aiRaw !== null) {
-        this.state.aiEnabled = aiRaw === 'true';
-      }
-      const bingRaw = localStorage.getItem(LS_BING_ENABLED);
-      if (bingRaw !== null) {
-        this.state.bingEnabled = bingRaw === 'true';
-      }
-      const baseUrlRaw = localStorage.getItem(LS_BASE_URL);
-      if (baseUrlRaw !== null) {
-        this.state.baseUrl = baseUrlRaw;
-      }
-      const modelRaw = localStorage.getItem(LS_MODEL);
-      if (modelRaw !== null) {
-        this.state.model = modelRaw;
-      }
-    } catch {
-      // Ignore storage access errors
+  /**
+   * Bind the DSH services. Called once from the settings UI setup; re-binding
+   * (e.g. after a reconnect) detaches the previous subscription first.
+   */
+  attach(scope: SettingsScopeLike | null, credentials: CredentialsRemoteLike | null): void {
+    if (this.unsubscribeScope) {
+      this.unsubscribeScope();
+      this.unsubscribeScope = null;
     }
-    try {
-      chatTranslateObserver.setEnabled(this.state.enabled);
-    } catch {}
-  }
-
-  private initStorageListener(): void {
-    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
-    this.storageListener = (e: StorageEvent) => {
-      if (!e.key || !e.key.startsWith(LS_PREFIX)) return;
-      let changed = false;
-      if (e.key === LS_ENABLED && e.newValue !== null) {
-        const val = e.newValue === 'true';
-        if (this.state.enabled !== val) {
-          this.state.enabled = val;
-          chatTranslateObserver.setEnabled(val);
-          changed = true;
-        }
-      } else if (e.key === LS_CONCURRENCY && e.newValue !== null) {
-        const c = parseInt(e.newValue, 10);
-        if (Number.isFinite(c) && c >= 1 && c <= 100 && this.state.concurrency !== c) {
-          this.state.concurrency = c;
-          changed = true;
-        }
-      } else if (e.key === LS_AI_ENABLED && e.newValue !== null) {
-        const val = e.newValue === 'true';
-        if (this.state.aiEnabled !== val) {
-          this.state.aiEnabled = val;
-          changed = true;
-        }
-      } else if (e.key === LS_BING_ENABLED && e.newValue !== null) {
-        const val = e.newValue === 'true';
-        if (this.state.bingEnabled !== val) {
-          this.state.bingEnabled = val;
-          changed = true;
-        }
-      } else if (e.key === LS_BASE_URL && e.newValue !== null && this.state.baseUrl !== e.newValue) {
-        this.state.baseUrl = e.newValue;
-        changed = true;
-      } else if (e.key === LS_MODEL && e.newValue !== null && this.state.model !== e.newValue) {
-        this.state.model = e.newValue;
-        changed = true;
-      }
-      if (changed) {
-        this.notify();
-        this.schedulePush();
-      }
-    };
-    window.addEventListener('storage', this.storageListener);
-  }
-
-  private async syncFromServer(): Promise<void> {
-    try {
-      const config = await fetchServerConfig();
-      if (config) {
-        // If the user already edited something before the first server
-        // snapshot arrived, keep their values — otherwise the echo would
-        // overwrite the edit and (since no push is queued for it) it would be
-        // lost forever. aiConfigured is a server-derived status, always safe.
-        const touched = this.userTouched;
-        this.state = {
-          enabled: !touched && typeof config.enabled === 'boolean' ? config.enabled : this.state.enabled,
-          concurrency:
-            !touched && typeof config.concurrency === 'number' && Number.isFinite(config.concurrency)
-              ? config.concurrency
-              : this.state.concurrency,
-          aiEnabled: !touched && typeof config.aiEnabled === 'boolean' ? config.aiEnabled : this.state.aiEnabled,
-          bingEnabled: !touched && typeof config.bingEnabled === 'boolean' ? config.bingEnabled : this.state.bingEnabled,
-          baseUrl: !touched && typeof config.baseUrl === 'string' ? config.baseUrl : this.state.baseUrl,
-          model: !touched && typeof config.model === 'string' ? config.model : this.state.model,
-          aiConfigured: typeof config.aiConfigured === 'boolean' ? config.aiConfigured : this.state.aiConfigured,
-        };
-        chatTranslateObserver.setEnabled(this.state.enabled);
-        this.notify();
-      }
-    } catch {
-      // Host route may be unavailable during early boot — keep local defaults.
+    this.scope = scope;
+    this.credentials = credentials;
+    if (scope) {
+      this.unsubscribeScope = scope.subscribe(() => this.derive());
+      this.derive();
     }
+    void this.refreshKeyStatus();
   }
 
   getState(): ClientSettingsState {
@@ -167,155 +105,151 @@ class SettingsStore {
     };
   }
 
-  private notify(): void {
-    this.listeners.forEach((l) => {
+  /** Map the resolved namespace value into client state and notify. */
+  private derive(): void {
+    if (!this.scope) return;
+    const snap = this.scope.getSnapshot();
+    const value = snap.value;
+    if (!value || typeof value !== 'object') return;
+    const next: ClientSettingsState = { ...this.state };
+    if (typeof value.enabled === 'boolean') next.enabled = value.enabled;
+    const c = value.concurrency;
+    if (typeof c === 'number' && Number.isFinite(c)) {
+      next.concurrency = Math.min(Math.max(Math.round(c), 1), 100);
+    }
+    if (typeof value.aiEnabled === 'boolean') next.aiEnabled = value.aiEnabled;
+    if (typeof value.bingEnabled === 'boolean') next.bingEnabled = value.bingEnabled;
+    if (typeof value.baseUrl === 'string') next.baseUrl = value.baseUrl;
+    if (typeof value.model === 'string') next.model = value.model;
+    this.applyState(next);
+  }
+
+  private applyState(next: ClientSettingsState): void {
+    next.aiConfigured = Boolean(next.baseUrl && next.model && this.keyConfigured);
+    const enabledChanged = next.enabled !== this.state.enabled;
+    this.state = next;
+    if (enabledChanged) {
       try {
-        l();
+        chatTranslateObserver.setEnabled(this.state.enabled);
       } catch {}
-    });
+    }
+    this.notify();
+  }
+
+  private notify(): void {
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch {}
+    }
+  }
+
+  /** Pull the key's status-only view and re-derive aiConfigured. */
+  private async refreshKeyStatus(): Promise<void> {
+    if (!this.credentials) return;
+    try {
+      const res = await this.credentials.describe([TRANSLATE_API_KEY_REF]);
+      if (!res.ok) return;
+      const info = res.value[TRANSLATE_API_KEY_REF];
+      const configured = Boolean(info?.configured);
+      if (configured !== this.keyConfigured) {
+        this.keyConfigured = configured;
+        this.applyState({ ...this.state });
+      }
+    } catch {
+      // Credentials surface unavailable — keep the last known status.
+    }
   }
 
   /**
-   * Debounced server push: fast typing in the baseUrl/model/concurrency inputs
-   * collapses into a single POST (300ms trailing). A monotonic sequence number
-   * ensures an out-of-order older response never overwrites newer state.
+   * Optimistically apply locally, then persist each touched field through the
+   * settings scope. Writes are trailing-debounced (300ms) so typing in the
+   * baseUrl/model inputs collapses into a single queued mutation instead of
+   * one write per keystroke — which would otherwise flash stale mirror values
+   * back into the inputs between commits. A failed write makes the scope
+   * reload its mirror, which re-derives this store from the host document
+   * (conflict-safe recovery).
    */
-  private schedulePush(): void {
-    if (this.pushTimer !== null || typeof window === 'undefined') return;
-    this.pushTimer = window.setTimeout(() => {
-      this.pushTimer = null;
-      this.pushToServer();
-    }, 300);
-  }
-
-  private async pushToServer(): Promise<void> {
-    const seq = ++this.pushSeq;
-    const sent = {
-      enabled: this.state.enabled,
-      concurrency: this.state.concurrency,
-      aiEnabled: this.state.aiEnabled,
-      bingEnabled: this.state.bingEnabled,
-      baseUrl: this.state.baseUrl,
-      model: this.state.model,
-    };
-    try {
-      const updated = await updateServerConfig(sent);
-      if (!updated || seq !== this.pushSeq) return; // superseded by a newer push
-      // Per-field echo guard: only write back fields the user has NOT edited
-      // since this request was sent. Otherwise a slow response could clobber a
-      // newer local edit (a later push is already queued with the new value).
-      this.state = {
-        ...this.state,
-        enabled:
-          this.state.enabled === sent.enabled && typeof updated.enabled === 'boolean'
-            ? updated.enabled
-            : this.state.enabled,
-        concurrency:
-          this.state.concurrency === sent.concurrency && typeof updated.concurrency === 'number'
-            ? updated.concurrency
-            : this.state.concurrency,
-        aiEnabled:
-          this.state.aiEnabled === sent.aiEnabled && typeof updated.aiEnabled === 'boolean'
-            ? updated.aiEnabled
-            : this.state.aiEnabled,
-        bingEnabled:
-          this.state.bingEnabled === sent.bingEnabled && typeof updated.bingEnabled === 'boolean'
-            ? updated.bingEnabled
-            : this.state.bingEnabled,
-        baseUrl:
-          this.state.baseUrl === sent.baseUrl && typeof updated.baseUrl === 'string'
-            ? updated.baseUrl
-            : this.state.baseUrl,
-        model:
-          this.state.model === sent.model && typeof updated.model === 'string'
-            ? updated.model
-            : this.state.model,
-        aiConfigured: typeof updated.aiConfigured === 'boolean' ? updated.aiConfigured : this.state.aiConfigured,
-      };
-      this.notify();
-    } catch {
-      // Host route may be unavailable — keep local state.
-    }
-  }
-
   async update(partial: Partial<ClientSettingsState>): Promise<void> {
-    this.userTouched = true;
     let sanitizedConcurrency = this.state.concurrency;
-    if (typeof partial.concurrency === 'number') {
-      if (Number.isFinite(partial.concurrency)) {
-        sanitizedConcurrency = Math.min(Math.max(Math.round(partial.concurrency), 1), 100);
-      }
+    if (typeof partial.concurrency === 'number' && Number.isFinite(partial.concurrency)) {
+      sanitizedConcurrency = Math.min(Math.max(Math.round(partial.concurrency), 1), 100);
     }
-
-    this.state = {
+    const next: ClientSettingsState = {
       ...this.state,
       ...partial,
       concurrency: sanitizedConcurrency,
     };
+    this.applyState(next);
 
-    if (typeof partial.enabled === 'boolean') {
-      try {
-        localStorage.setItem(LS_ENABLED, String(partial.enabled));
-      } catch {}
-      chatTranslateObserver.setEnabled(partial.enabled);
+    if (this.scope) {
+      const fields = ['enabled', 'concurrency', 'aiEnabled', 'bingEnabled', 'baseUrl', 'model'] as const;
+      for (const field of fields) {
+        if (partial[field] !== undefined) {
+          this.pendingFields.add(field);
+        }
+      }
+      this.scheduleWrite();
     }
-    if (typeof partial.concurrency === 'number' && Number.isFinite(partial.concurrency)) {
-      try {
-        localStorage.setItem(LS_CONCURRENCY, String(sanitizedConcurrency));
-      } catch {}
-    }
-    if (typeof partial.aiEnabled === 'boolean') {
-      try {
-        localStorage.setItem(LS_AI_ENABLED, String(partial.aiEnabled));
-      } catch {}
-    }
-    if (typeof partial.bingEnabled === 'boolean') {
-      try {
-        localStorage.setItem(LS_BING_ENABLED, String(partial.bingEnabled));
-      } catch {}
-    }
-    if (typeof partial.baseUrl === 'string') {
-      try {
-        localStorage.setItem(LS_BASE_URL, partial.baseUrl);
-      } catch {}
-    }
-    if (typeof partial.model === 'string') {
-      try {
-        localStorage.setItem(LS_MODEL, partial.model);
-      } catch {}
-    }
+  }
 
-    this.notify();
-    this.schedulePush();
+  private scheduleWrite(): void {
+    if (this.writeTimer !== null || typeof window === 'undefined') return;
+    this.writeTimer = window.setTimeout(() => {
+      this.writeTimer = null;
+      void this.flushWrite();
+    }, 300);
+  }
+
+  private async flushWrite(): Promise<void> {
+    if (!this.scope) return;
+    const fields = [...this.pendingFields];
+    this.pendingFields.clear();
+    const writes: Promise<unknown>[] = [];
+    for (const field of fields) {
+      writes.push(this.scope.set(field, this.state[field as keyof ClientSettingsState]));
+    }
+    await Promise.all(writes).catch(() => {});
   }
 
   async testChannel(channel: string): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
     return testServerChannel(channel);
   }
 
-  /** Persist the API key via the host and refresh the server-derived status. */
+  /** Write (or clear) the API key through the credentials Remote API. */
   async saveApiKey(apiKey: string): Promise<{ ok: boolean; error?: string }> {
-    const res = await saveCredentials(apiKey);
-    if (res.ok) {
-      await this.syncFromServer();
+    if (!this.credentials) {
+      return { ok: false, error: '凭据服务不可用（非回环页面）' };
     }
-    return { ok: Boolean(res.ok), error: res.error };
-  }
-
-  /** Re-pull the server config (e.g. after the API key changed). */
-  async refreshFromServer(): Promise<void> {
-    await this.syncFromServer();
+    try {
+      const key = apiKey.trim();
+      // Remote calls resolve with {ok:false} instead of rejecting on refusal
+      // (e.g. env-shadowed refs), so the .ok check decides the outcome.
+      const res = key
+        ? await this.credentials.set(TRANSLATE_API_KEY_REF, key)
+        : await this.credentials.unset(TRANSLATE_API_KEY_REF);
+      if (!res.ok) {
+        return { ok: false, error: res.error?.message || '保存失败' };
+      }
+      await this.refreshKeyStatus();
+      return { ok: true };
+    } catch (err: any) {
+      return { ok: false, error: err?.message || String(err) };
+    }
   }
 
   dispose(): void {
-    if (this.pushTimer !== null && typeof window !== 'undefined') {
-      clearTimeout(this.pushTimer);
-      this.pushTimer = null;
+    if (this.writeTimer !== null && typeof window !== 'undefined') {
+      clearTimeout(this.writeTimer);
+      this.writeTimer = null;
     }
-    if (this.storageListener && typeof window !== 'undefined') {
-      window.removeEventListener('storage', this.storageListener);
-      this.storageListener = null;
+    this.pendingFields.clear();
+    if (this.unsubscribeScope) {
+      this.unsubscribeScope();
+      this.unsubscribeScope = null;
     }
+    this.scope = null;
+    this.credentials = null;
     this.listeners.clear();
   }
 }

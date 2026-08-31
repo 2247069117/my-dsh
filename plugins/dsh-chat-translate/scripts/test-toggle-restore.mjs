@@ -21,10 +21,6 @@ global.fetch = async (url, opts) => {
     const body = JSON.parse(opts.body);
     return { ok: true, json: async () => ({ ok: true, results: body.texts.map(t => ({ original: t, translated: `译文[${t}]`, channel: 'mock', cached: false })) }) };
   }
-  if (u.includes('/api/dsh-chat-translate/config')) {
-    if (opts?.method === 'POST') { const b = JSON.parse(opts.body); return { ok: true, json: async () => ({ config: { enabled: !!b.enabled, concurrency: b.concurrency ?? 3 } }) }; }
-    return { ok: true, json: async () => ({ config: { enabled: true, concurrency: 3 } }) };
-  }
   return { ok: false, json: async () => ({}) };
 };
 window.fetch = global.fetch;

@@ -1,7 +1,7 @@
 import type { TranslateItemResult } from './types.ts';
 import type { ConfigManager } from './config.ts';
 import type { LruDiskCache } from './cache.ts';
-import type { CredentialsReader } from './credentials.ts';
+import type { KeyReader } from './credentials.ts';
 export declare class TranslationDispatcher {
     private configManager;
     private cache;
@@ -12,7 +12,7 @@ export declare class TranslationDispatcher {
     private inFlightMap;
     private activeCount;
     private queue;
-    constructor(configManager: ConfigManager, cache: LruDiskCache, credentials?: CredentialsReader);
+    constructor(configManager: ConfigManager, cache: LruDiskCache, credentials?: KeyReader);
     private registerAdapter;
     /**
      * Decide which channels are active for the current config, in priority order.

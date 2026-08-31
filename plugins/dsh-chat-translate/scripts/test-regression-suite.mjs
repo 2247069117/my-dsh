@@ -23,9 +23,11 @@ import { ContentMaskingPipeline } from '../src/server/pipeline/masking.ts';
 import { TranslationDispatcher } from '../src/server/dispatcher.ts';
 import { ConfigManager } from '../src/server/config.ts';
 import { LruDiskCache } from '../src/server/cache.ts';
+import { CredentialsReader } from '../src/server/credentials.ts';
 import { ClientCache } from '../src/client/translate/client-cache.ts';
 import { NonDestructiveTranslationMount } from '../src/client/translate/mount.ts';
 import { createHttpHandler } from '../src/server/router.ts';
+import { createFakeSettingsScope, createFakeCredentials } from './test-helpers.mjs';
 
 let passed = 0;
 let total = 0;
@@ -134,8 +136,7 @@ test('Robust unmasking handles MT engine spacing and casing changes', () => {
 console.log('\n--- Suite 2: Concurrency Pool & Circuit Breaker State Machine ---');
 
 await testAsync('In-flight deduplication merges identical concurrent requests', async () => {
-  const config = new ConfigManager();
-  await config.init();
+  const config = new ConfigManager(createFakeSettingsScope(), new CredentialsReader(createFakeCredentials()));
   const cache = new LruDiskCache();
   await cache.init();
   const dispatcher = new TranslationDispatcher(config, cache);
@@ -171,8 +172,7 @@ await testAsync('In-flight deduplication merges identical concurrent requests', 
 });
 
 await testAsync('Circuit Breaker trips to OPEN after 3 failures and resets on recovery', async () => {
-  const config = new ConfigManager();
-  await config.init();
+  const config = new ConfigManager(createFakeSettingsScope(), new CredentialsReader(createFakeCredentials()));
   const cache = new LruDiskCache();
   const dispatcher = new TranslationDispatcher(config, cache);
 
@@ -266,14 +266,46 @@ await testAsync('LruDiskCache handles TTL expiration and LRU eviction', async ()
   assert.equal(cache.get('k4'), 'v4', 'k4 should still exist');
 });
 
+await testAsync('LruDiskCache relocates the legacy root-level cache file', async () => {
+  const legacyPath = path.join(TMP_HOME, 'dsh-chat-translate-cache.json');
+  const now = Date.now();
+  await fs.writeFile(legacyPath, JSON.stringify({ k1: { t: now, v: 'v1' } }), 'utf-8');
+
+  const cache = new LruDiskCache();
+  await cache.init();
+  assert.equal(cache.get('k1'), 'v1', 'legacy entry survives the relocation');
+
+  const newPath = path.join(TMP_HOME, 'dsh-chat-translate', 'cache.json');
+  await fs.access(newPath); // the plugin subdir + file must exist now
+  await assert.rejects(fs.access(legacyPath), 'legacy file removed after relocation');
+
+  cache.set('k2', 'v2');
+  await cache.flush();
+  const onDisk = JSON.parse(await fs.readFile(newPath, 'utf-8'));
+  assert.ok(onDisk.k2, 'flush writes to the relocated path');
+});
+
+await testAsync('LruDiskCache retires a stale legacy file when the new cache exists', async () => {
+  const newPath = path.join(TMP_HOME, 'dsh-chat-translate', 'cache.json');
+  const now = Date.now();
+  await fs.writeFile(newPath, JSON.stringify({ fresh: { t: now, v: 'nv' } }), 'utf-8');
+  const legacyPath = path.join(TMP_HOME, 'dsh-chat-translate-cache.json');
+  await fs.writeFile(legacyPath, JSON.stringify({ stale: { t: now, v: 'ov' } }), 'utf-8');
+
+  const cache = new LruDiskCache();
+  await cache.init();
+  assert.equal(cache.get('fresh'), 'nv', 'new cache wins');
+  assert.equal(cache.get('stale'), undefined, 'stale legacy entries are not merged');
+  await assert.rejects(fs.access(legacyPath), 'stale legacy file retired');
+});
+
 // -------------------------------------------------------------
 // Suite 4: ConfigManager Validation & Change Notification
 // -------------------------------------------------------------
 console.log('\n--- Suite 4: ConfigManager Validation & Change Notification ---');
 
 await testAsync('ConfigManager clamps numeric bounds and notifies listeners', async () => {
-  const cfg = new ConfigManager();
-  await cfg.init();
+  const cfg = new ConfigManager(createFakeSettingsScope(), new CredentialsReader(createFakeCredentials()));
 
   let notified = false;
   const unsub = cfg.onConfigChange((next) => {
@@ -349,8 +381,7 @@ test('Mounts translation without destroying child nodes or event listeners', () 
 console.log('\n--- Suite 6: HttpRouter 1MB DoS Protection & API Endpoints ---');
 
 await testAsync('Router rejects bodies exceeding 1MB with 413 Payload Too Large', async () => {
-  const cfg = new ConfigManager();
-  await cfg.init();
+  const cfg = new ConfigManager(createFakeSettingsScope(), new CredentialsReader(createFakeCredentials()));
   const cache = new LruDiskCache();
   const dispatcher = new TranslationDispatcher(cfg, cache);
   const handler = createHttpHandler(cfg, dispatcher);
@@ -378,34 +409,77 @@ await testAsync('Router rejects bodies exceeding 1MB with 413 Payload Too Large'
   assert.equal(responseStatus, 413, 'Over-limit body must return 413 Payload Too Large');
 });
 
-await testAsync('Router POST /config and GET /config work correctly', async () => {
-  const cfg = new ConfigManager();
-  await cfg.init();
+await testAsync('Retired config/credentials endpoints return 404', async () => {
+  const cfg = new ConfigManager(createFakeSettingsScope(), new CredentialsReader(createFakeCredentials()));
   const cache = new LruDiskCache();
   const dispatcher = new TranslationDispatcher(cfg, cache);
   const handler = createHttpHandler(cfg, dispatcher);
 
+  const mockReq = (url, method, body) => ({
+    url,
+    method,
+    on: (evt, cb) => {
+      if (evt === 'data' && body) cb(Buffer.from(JSON.stringify(body)));
+      if (evt === 'end') cb();
+    },
+  });
+  const mockRes = () => {
+    let status = 0;
+    let body = null;
+    return {
+      get status() { return status; },
+      get body() { return body; },
+      writeHead: (s) => { status = s; },
+      end: (data) => { body = data ? JSON.parse(data) : null; },
+    };
+  };
+
+  // Since 1.2 config/credentials live on DSH's own surfaces, not this router.
+  for (const [url, method, body] of [
+    ['/api/dsh-chat-translate/config', 'GET', null],
+    ['/api/dsh-chat-translate/config', 'POST', { concurrency: 8 }],
+    ['/api/dsh-chat-translate/credentials', 'POST', { apiKey: 'sk-x' }],
+  ]) {
+    const res = mockRes();
+    await handler(mockReq(url, method, body), res);
+    assert.equal(res.status, 404, `${method} ${url} must be retired (404)`);
+    assert.equal(res.body.ok, false);
+  }
+});
+
+await testAsync('Router POST /translate still proxies to the dispatcher', async () => {
+  const cfg = new ConfigManager(createFakeSettingsScope(), new CredentialsReader(createFakeCredentials()));
+  const cache = new LruDiskCache();
+  const dispatcher = new TranslationDispatcher(cfg, cache);
+  dispatcher.adapters.set('mock', {
+    id: 'mock',
+    name: 'Mock',
+    isAvailable: () => true,
+    translate: async (t) => `译:${t}`,
+  });
+  // Only the injected mock is active — real channels must not leak into the test.
+  await cfg.updateConfig({ aiEnabled: false, bingEnabled: false });
+  const handler = createHttpHandler(cfg, dispatcher);
+
   let responseStatus = 0;
   let responseBody = null;
-
-  const mockPostReq = {
-    url: '/api/dsh-chat-translate/config',
+  const mockReq = {
+    url: '/api/dsh-chat-translate/translate',
     method: 'POST',
     on: (evt, cb) => {
-      if (evt === 'data') cb(Buffer.from(JSON.stringify({ concurrency: 8 })));
+      if (evt === 'data') cb(Buffer.from(JSON.stringify({ texts: ['Hello'] })));
       if (evt === 'end') cb();
     },
   };
-
   const mockRes = {
-    writeHead: (status, headers) => { responseStatus = status; },
+    writeHead: (status) => { responseStatus = status; },
     end: (data) => { responseBody = JSON.parse(data); },
   };
 
-  await handler(mockPostReq, mockRes);
+  await handler(mockReq, mockRes);
   assert.equal(responseStatus, 200);
   assert.equal(responseBody.ok, true);
-  assert.equal(responseBody.config.concurrency, 8);
+  assert.equal(responseBody.results[0].translated, '译:Hello');
 });
 
 console.log('\n======================================================');

@@ -1,13 +1,14 @@
-// Channel truth table (user contract), credentials parsing tolerance and
+// Channel truth table (user contract), legacy-config migration and
 // circuit-breaker single-flight probe verification.
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { ConfigManager } from '../src/server/config.ts';
+import { ConfigManager, migrateLegacyConfigFile } from '../src/server/config.ts';
 import { LruDiskCache } from '../src/server/cache.ts';
 import { TranslationDispatcher } from '../src/server/dispatcher.ts';
-import { parseRefs, CredentialsReader } from '../src/server/credentials.ts';
+import { CredentialsReader } from '../src/server/credentials.ts';
+import { createFakeSettingsScope, createFakeCredentials } from './test-helpers.mjs';
 
 // Isolate file-backed state into a temp dir.
 const TMP_HOME = await fs.mkdtemp(path.join(os.tmpdir(), 'dsh-chat-translate-chtest-'));
@@ -38,51 +39,7 @@ async function testAsync(name, fn) {
   }
 }
 
-console.log('=== Suite A: credentials parseRefs tolerance ===');
-
-test('parses plain, quoted and numeric values', () => {
-  const refs = parseRefs(`version: 1
-refs:
-  PLAIN_API_KEY: sk-abc123
-  QUOTED_API_KEY: "sk-quoted"
-  NUMERIC_API_KEY: "123456"
-  SINGLE_QUOTED: 'sk-single'
-records:
-  some/record:
-    kind: grant
-`);
-  assert.equal(refs.PLAIN_API_KEY, 'sk-abc123');
-  assert.equal(refs.QUOTED_API_KEY, 'sk-quoted');
-  assert.equal(refs.NUMERIC_API_KEY, '123456');
-  assert.equal(refs.SINGLE_QUOTED, 'sk-single');
-  assert.equal(refs['some/record'], undefined, 'nested records must not leak into refs');
-});
-
-test('strips inline comments before quotes', () => {
-  const refs = parseRefs(`refs:
-  COMMENTED: sk-abc # primary key
-  QUOTED_COMMENTED: "sk-quoted" # with note
-  HASH_INSIDE: "a#b"
-  HASH_SPACE_INSIDE: "ab #cd"
-`);
-  assert.equal(refs.COMMENTED, 'sk-abc');
-  assert.equal(refs.QUOTED_COMMENTED, 'sk-quoted', 'quotes must be stripped after comment removal');
-  assert.equal(refs.HASH_INSIDE, 'a#b', 'quoted value containing # must survive');
-  assert.equal(refs.HASH_SPACE_INSIDE, 'ab #cd', 'a " #" INSIDE quotes must not be treated as a comment');
-});
-
-test('skips empty values and top-level keys', () => {
-  const refs = parseRefs(`version: 1
-refs:
-  EMPTY: ""
-  FILLED: sk-x
-`);
-  assert.equal(refs.EMPTY, undefined);
-  assert.equal(refs.FILLED, 'sk-x');
-  assert.equal(refs.version, undefined);
-});
-
-console.log('\n=== Suite B: dual-channel truth table (user contract) ===');
+console.log('=== Suite A: dual-channel truth table (user contract) ===');
 
 await testAsync('AI on+configured, Bing on -> AI only', async () => {
   const { dispatcher, calls } = await setupDispatcher();
@@ -133,10 +90,9 @@ await testAsync('AI failure falls back to Bing', async () => {
 });
 
 async function setupDispatcher({ failOpenai = false } = {}) {
-  const cfg = new ConfigManager();
-  await cfg.init();
-  // Reset to a clean baseline — ConfigManager persists to the shared temp dir
-  // across tests, so stale baseUrl/model from a previous test must not leak in.
+  const cfg = new ConfigManager(createFakeSettingsScope(), new CredentialsReader(createFakeCredentials()));
+  // Reset to a clean baseline — the fake scope is fresh per setup, so nothing
+  // leaks between tests by construction.
   await cfg.updateConfig({ enabled: true, aiEnabled: false, bingEnabled: false, baseUrl: '', model: '', concurrency: 3 });
   const cache = new LruDiskCache();
   await cache.init();
@@ -158,11 +114,10 @@ async function setupDispatcher({ failOpenai = false } = {}) {
   return { dispatcher, calls };
 }
 
-console.log('\n=== Suite C: circuit breaker half-open single-flight ===');
+console.log('\n=== Suite B: circuit breaker half-open single-flight ===');
 
 await testAsync('Only one probe passes while half-open', async () => {
-  const cfg = new ConfigManager();
-  await cfg.init();
+  const cfg = new ConfigManager(createFakeSettingsScope(), new CredentialsReader(createFakeCredentials()));
   const cache = new LruDiskCache();
   await cache.init();
   const dispatcher = new TranslationDispatcher(cfg, cache);
@@ -214,8 +169,7 @@ await testAsync('Only one probe passes while half-open', async () => {
 });
 
 await testAsync('Empty probe result releases the single-flight flag', async () => {
-  const cfg = new ConfigManager();
-  await cfg.init();
+  const cfg = new ConfigManager(createFakeSettingsScope(), new CredentialsReader(createFakeCredentials()));
   const cache = new LruDiskCache();
   await cache.init();
   const dispatcher = new TranslationDispatcher(cfg, cache);
@@ -261,87 +215,143 @@ await testAsync('Empty probe result releases the single-flight flag', async () =
   assert.equal(state.state, 'closed');
 });
 
-console.log('\n=== Suite D: config sanitization ===');
+console.log('\n=== Suite C: legacy config migration (pre-1.2 standalone file) ===');
 
-await testAsync('Non-boolean enabled from old config is reset to default', async () => {
+await testAsync('Legacy config migrates into the settings namespace and the file is removed', async () => {
+  const legacyPath = path.join(TMP_HOME, 'dsh-chat-translate-config.json');
   await fs.writeFile(
-    path.join(TMP_HOME, 'dsh-chat-translate-config.json'),
-    JSON.stringify({ enabled: 'false', channels: ['bing'], concurrency: 3 }),
+    legacyPath,
+    JSON.stringify({ enabled: true, channels: ['bing'], baseUrl: ' http://x ', model: 'm', concurrency: 3 }),
     'utf-8'
   );
-  const cfg = new ConfigManager();
-  await cfg.init();
-  assert.equal(typeof cfg.getConfig().enabled, 'boolean');
-  assert.equal(cfg.getConfig().enabled, true, 'string "false" is reset to the default (true)');
+  const scope = createFakeSettingsScope();
+  // The migration entry takes the settings-service face (ns + patch); the
+  // scope itself takes a single-arg patch — adapt one to the other.
+  const settingsFace = {
+    describe: () => scope.describe(),
+    update: (ns, patch) => scope.update(patch),
+  };
+  const migrated = await migrateLegacyConfigFile(settingsFace, legacyPath);
+  assert.equal(migrated, true, 'legacy values must be reported as migrated');
+
+  const cfg = new ConfigManager(scope, new CredentialsReader(createFakeCredentials()));
+  assert.equal(cfg.getConfig().enabled, true);
+  assert.equal(cfg.getConfig().baseUrl, 'http://x', 'string values are trimmed');
+  assert.equal(cfg.getConfig().model, 'm');
   assert.equal(cfg.getConfig().channels, undefined, 'retired channels field is dropped');
+
+  await assert.rejects(fs.access(legacyPath), 'legacy file must be removed after migration');
 });
 
-console.log('\n=== Suite E: CredentialsReader.setApiKey ===');
+await testAsync('Migration sanitizes per-field: bad values skipped, valid ones migrate', async () => {
+  // A hand-edited string "false" must not block the rest of the migration;
+  // out-of-range numerics are clamped to the schema bounds.
+  const legacyPath = path.join(TMP_HOME, 'dsh-chat-translate-mixed-config.json');
+  await fs.writeFile(
+    legacyPath,
+    JSON.stringify({ enabled: 'false', concurrency: 9999, baseUrl: ' http://x ', model: 'm' }),
+    'utf-8'
+  );
+  const scope = createFakeSettingsScope();
+  const settingsFace = {
+    describe: () => scope.describe(),
+    update: (ns, patch) => scope.update(patch),
+  };
+  const migrated = await migrateLegacyConfigFile(settingsFace, legacyPath);
+  assert.equal(migrated, true, 'valid fields still migrate when others are rejected');
 
-await testAsync('setApiKey inserts into existing refs and preserves the rest of the file', async () => {
-  const credPath = path.join(TMP_HOME, '.credentials.yaml');
-  await fs.writeFile(credPath, `version: 1
-refs:
-  DEEPSEEK_API_KEY: sk-keep
-records:
-  x/y:
-    kind: grant
-    payload:
-      version: 1
-      secret: abc
-`, 'utf-8');
-  const reader = new CredentialsReader();
+  const cfg = new ConfigManager(scope, new CredentialsReader(createFakeCredentials()));
+  assert.equal(cfg.getConfig().enabled, true, 'string "false" skipped -> schema default');
+  assert.equal(cfg.getConfig().concurrency, 100, 'out-of-range clamped to the max');
+  assert.equal(cfg.getConfig().baseUrl, 'http://x', 'valid string trimmed and migrated');
+  assert.equal(cfg.getConfig().model, 'm');
+
+  await assert.rejects(fs.access(legacyPath), 'file removed after migration');
+});
+
+await testAsync('Migration keeps the file when the provider write fails (retry next boot)', async () => {
+  // A sanitized patch can only be rejected by a provider-level failure
+  // (read-only document, disk trouble); destroying the only copy then would
+  // lose the user's values, so the file must stay for the next boot.
+  const legacyPath = path.join(TMP_HOME, 'dsh-chat-translate-providerfail-config.json');
+  await fs.writeFile(legacyPath, JSON.stringify({ baseUrl: 'http://x' }), 'utf-8');
+  const scope = createFakeSettingsScope();
+  const failingFace = {
+    describe: () => scope.describe(),
+    update: async () => {
+      throw new Error('provider is read-only');
+    },
+  };
+  const migrated = await migrateLegacyConfigFile(failingFace, legacyPath);
+  assert.equal(migrated, false, 'no migration reported');
+  await fs.access(legacyPath); // must still exist
+  assert.equal(new ConfigManager(scope, new CredentialsReader(createFakeCredentials())).getConfig().baseUrl, '');
+});
+
+await testAsync('Migration never overwrites an existing user layer', async () => {
+  const legacyPath = path.join(TMP_HOME, 'dsh-chat-translate-config.json');
+  await fs.writeFile(legacyPath, JSON.stringify({ baseUrl: 'http://old', model: 'old-model' }), 'utf-8');
+  const scope = createFakeSettingsScope();
+  scope.setUserLayer({ baseUrl: 'http://new', model: 'new-model' }); // user already edited via UI
+
+  const settingsFace = {
+    describe: () => scope.describe(),
+    update: (ns, patch) => scope.update(patch),
+  };
+  const migrated = await migrateLegacyConfigFile(settingsFace, legacyPath);
+  assert.equal(migrated, false, 'nothing migrated when a user layer exists');
+
+  const cfg = new ConfigManager(scope, new CredentialsReader(createFakeCredentials()));
+  assert.equal(cfg.getConfig().baseUrl, 'http://new', 'existing user layer wins');
+  assert.equal(cfg.getConfig().model, 'new-model');
+
+  await assert.rejects(fs.access(legacyPath), 'legacy file must still be removed');
+});
+
+await testAsync('Missing or corrupt legacy file is a no-op', async () => {
+  const missingPath = path.join(TMP_HOME, 'no-such-config.json');
+  const scope = createFakeSettingsScope();
+  assert.equal(await migrateLegacyConfigFile(scope, missingPath), false);
+
+  const corruptPath = path.join(TMP_HOME, 'corrupt-config.json');
+  await fs.writeFile(corruptPath, '{not json', 'utf-8');
+  assert.equal(await migrateLegacyConfigFile(scope, corruptPath), false);
+  await assert.rejects(fs.access(corruptPath), 'corrupt legacy file is dropped');
+});
+
+console.log('\n=== Suite D: CredentialsReader over the DSH credentials service ===');
+
+await testAsync('init loads the stored key; setApiKey stores and refreshes the cache', async () => {
+  const service = createFakeCredentials('sk-old');
+  const reader = new CredentialsReader(service);
+  await reader.init();
+  assert.equal(reader.getApiKey(), 'sk-old', 'init must load the stored key');
+
   await reader.setApiKey('sk-new');
-  const content = await fs.readFile(credPath, 'utf-8');
-  assert.ok(content.includes('TRANSLATE_API_KEY: "sk-new"'), 'new ref must be present');
-  assert.ok(content.includes('DEEPSEEK_API_KEY: sk-keep'), 'existing ref preserved');
-  assert.ok(content.includes('records:'), 'records section preserved');
-  assert.ok(content.includes('x/y:'), 'records content preserved');
-  assert.ok(content.includes('secret: abc'), 'records payload preserved');
-  assert.equal(reader.getApiKey(), 'sk-new', 'cached key must reflect the new value immediately');
+  assert.equal(reader.getApiKey(), 'sk-new', 'cache must reflect the new value immediately');
+  assert.equal((await reader.describe()).configured, true);
+  assert.equal((await reader.describe()).writable, true);
 });
 
-await testAsync('setApiKey replaces an existing TRANSLATE_API_KEY line in place', async () => {
-  const credPath = path.join(TMP_HOME, '.credentials.yaml');
-  await fs.writeFile(credPath, `version: 1
-refs:
-  TRANSLATE_API_KEY: "sk-old"
-  DEEPSEEK_API_KEY: sk-keep
-`, 'utf-8');
-  const reader = new CredentialsReader();
-  await reader.setApiKey('sk-newer');
-  const content = await fs.readFile(credPath, 'utf-8');
-  assert.ok(content.includes('TRANSLATE_API_KEY: "sk-newer"'));
-  assert.ok(!content.includes('sk-old'));
-  assert.equal(content.match(/TRANSLATE_API_KEY/g)?.length, 1, 'no duplicated lines');
-  assert.ok(content.includes('DEEPSEEK_API_KEY: sk-keep'));
-});
-
-await testAsync('setApiKey with empty value removes the ref (clear)', async () => {
-  const credPath = path.join(TMP_HOME, '.credentials.yaml');
-  await fs.writeFile(credPath, `version: 1
-refs:
-  TRANSLATE_API_KEY: "sk-old"
-  DEEPSEEK_API_KEY: sk-keep
-`, 'utf-8');
-  const reader = new CredentialsReader();
+await testAsync('setApiKey with empty value clears the ref', async () => {
+  const service = createFakeCredentials('sk-old');
+  const reader = new CredentialsReader(service);
+  await reader.init();
   await reader.setApiKey('   ');
-  const content = await fs.readFile(credPath, 'utf-8');
-  assert.ok(!content.includes('TRANSLATE_API_KEY'), 'ref must be removed');
-  assert.ok(content.includes('DEEPSEEK_API_KEY: sk-keep'));
   assert.equal(reader.getApiKey(), '', 'cleared key reads back empty');
+  assert.equal((await reader.describe()).configured, false);
 });
 
-await testAsync('setApiKey creates the file with 0600 permissions when missing', async () => {
-  const defaultPath = path.join(TMP_HOME, '.credentials.yaml');
-  await fs.rm(defaultPath, { force: true });
-  const reader = new CredentialsReader();
-  await reader.setApiKey('sk-fresh');
-  const stat = await fs.stat(defaultPath);
-  assert.equal(stat.mode & 0o777, 0o600, 'credentials file must be 0600');
-  const content = await fs.readFile(defaultPath, 'utf-8');
-  assert.ok(content.includes('TRANSLATE_API_KEY: "sk-fresh"'));
-  assert.ok(content.includes('version: 1'));
+await testAsync('refresh picks up external changes and a missing key reads empty', async () => {
+  const service = createFakeCredentials();
+  const reader = new CredentialsReader(service);
+  await reader.init();
+  assert.equal(reader.getApiKey(), '', 'absent key reads empty');
+
+  // Simulate an external write (credentials/reference-updated) landing after init.
+  await service.set('TRANSLATE_API_KEY', 'sk-external');
+  await reader.refresh();
+  assert.equal(reader.getApiKey(), 'sk-external', 'refresh must observe external writes');
 });
 
 console.log('\n======================================================');

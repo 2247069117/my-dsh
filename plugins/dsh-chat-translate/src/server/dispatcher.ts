@@ -2,7 +2,7 @@ import type { ITranslationAdapter, PluginConfig, TranslateItemResult } from './t
 import type { ConfigManager } from './config.ts';
 import { MAX_CONCURRENCY } from './config.ts';
 import type { LruDiskCache } from './cache.ts';
-import type { CredentialsReader } from './credentials.ts';
+import type { KeyReader } from './credentials.ts';
 import { BingWebAdapter } from './adapters/bing.ts';
 import { OpenAiCompatibleAdapter } from './adapters/openai.ts';
 import { ContentMaskingPipeline } from './pipeline/masking.ts';
@@ -19,7 +19,7 @@ interface CircuitState {
 export class TranslationDispatcher {
   private configManager: ConfigManager;
   private cache: LruDiskCache;
-  private credentials: CredentialsReader;
+  private credentials: KeyReader;
   private masking = new ContentMaskingPipeline();
   private adapters = new Map<string, ITranslationAdapter>();
   private circuitStates = new Map<string, CircuitState>();
@@ -27,10 +27,10 @@ export class TranslationDispatcher {
   private activeCount = 0;
   private queue: Array<() => void> = [];
 
-  constructor(configManager: ConfigManager, cache: LruDiskCache, credentials?: CredentialsReader) {
+  constructor(configManager: ConfigManager, cache: LruDiskCache, credentials?: KeyReader) {
     this.configManager = configManager;
     this.cache = cache;
-    this.credentials = credentials ?? (configManager as any).credentials ?? { getApiKey: () => '' };
+    this.credentials = credentials ?? { getApiKey: () => '' };
 
     // AI channel first (primary), Bing second (fallback) — map iteration order
     // follows registration order, so computeChannels() yields ['openai', 'bing'].

@@ -7,7 +7,7 @@ export interface PluginConfig {
     bingEnabled: boolean;
     baseUrl: string;
     model: string;
-    targetLang?: string;
+    targetLang: string;
 }
 export interface MaskedPluginConfig {
     enabled: boolean;

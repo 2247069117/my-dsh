@@ -1,5 +1,5 @@
 import type { ITranslationAdapter, PluginConfig } from './base.ts';
-import type { CredentialsReader } from '../credentials.ts';
+import type { KeyReader } from '../credentials.ts';
 
 /**
  * OpenAI-compatible Chat Completions translation channel.
@@ -31,9 +31,9 @@ export class OpenAiCompatibleAdapter implements ITranslationAdapter {
   readonly id = 'openai';
   readonly name = 'OpenAI 兼容 (Chat Completions)';
 
-  private credentials: CredentialsReader;
+  private credentials: KeyReader;
 
-  constructor(credentials: CredentialsReader) {
+  constructor(credentials: KeyReader) {
     this.credentials = credentials;
   }
 

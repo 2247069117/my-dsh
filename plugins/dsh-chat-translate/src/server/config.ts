@@ -1,8 +1,6 @@
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import * as os from 'node:os';
 import type { PluginConfig, MaskedPluginConfig } from './types.ts';
-import { CredentialsReader, TRANSLATE_API_KEY_REF } from './credentials.ts';
+import type { CredentialsReader } from './credentials.ts';
 
 /** Hard cap for the translation concurrency pool. */
 export const MAX_CONCURRENCY = 100;
@@ -11,7 +9,14 @@ export const MAX_CONCURRENCY = 100;
 export const AI_TIMEOUT_MIN = 500;
 export const AI_TIMEOUT_MAX = 120000;
 
-const DEFAULT_CONFIG: PluginConfig = {
+/**
+ * The settings namespace this plugin owns. The user-editable layer lives in
+ * the DSH-managed document (~/.dsh/settings.yaml) under this key; the
+ * standalone ~/.dsh/dsh-chat-translate-config.json file is legacy (<=1.1).
+ */
+export const SETTINGS_NAMESPACE = 'dsh-chat-translate';
+
+export const DEFAULT_CONFIG: PluginConfig = {
   enabled: true,
   concurrency: 3,
   timeoutMs: 2000,
@@ -23,171 +28,176 @@ const DEFAULT_CONFIG: PluginConfig = {
   targetLang: 'zh-Hans',
 };
 
+/**
+ * Minimal shape of the owner scope returned by `ctx.settings.register()`.
+ * Keeping this structural (instead of importing the DSH package) lets tests
+ * inject an in-memory fake and keeps the bundle free of host-service code.
+ */
+export interface SettingsScopeLike {
+  /** Resolved value: schema defaults, then composition base, then user layer. */
+  get(): PluginConfig;
+  /** Observe resolved-value changes; returns the disposer. */
+  watch(listener: (config: PluginConfig) => void): () => void;
+  /** Merge a patch into the user layer and persist through the provider. */
+  update(patch: Partial<PluginConfig>): Promise<unknown>;
+}
+
+/**
+ * Config facade over the DSH `ctx.settings` service. No file I/O lives here
+ * anymore: persistence, atomic writes, external-edit hot reload and the
+ * browser-facing describe/mutate API are all owned by DSH itself.
+ */
 export class ConfigManager {
-  private config: PluginConfig = { ...DEFAULT_CONFIG };
-  private configPath: string;
+  private scope: SettingsScopeLike;
   private credentials: CredentialsReader;
-  private listeners = new Set<(config: PluginConfig) => void>();
 
-  constructor(credentials?: CredentialsReader) {
-    this.credentials = credentials ?? new CredentialsReader();
-    const dshHome = process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
-    this.configPath = path.join(dshHome, 'dsh-chat-translate-config.json');
-  }
-
-  async init(): Promise<void> {
-    try {
-      const data = await fs.readFile(this.configPath, 'utf-8');
-      const parsed = JSON.parse(data);
-      this.config = {
-        ...DEFAULT_CONFIG,
-        ...parsed,
-      };
-    } catch {
-      this.config = { ...DEFAULT_CONFIG };
-    }
-
-    // Sanitize values
-    if (!Number.isFinite(this.config.concurrency) || this.config.concurrency < 1) {
-      this.config.concurrency = DEFAULT_CONFIG.concurrency;
-    } else {
-      this.config.concurrency = Math.min(Math.max(Math.round(this.config.concurrency), 1), MAX_CONCURRENCY);
-    }
-
-    if (!Number.isFinite(this.config.timeoutMs) || this.config.timeoutMs < 500) {
-      this.config.timeoutMs = DEFAULT_CONFIG.timeoutMs;
-    } else {
-      this.config.timeoutMs = Math.min(Math.max(Math.round(this.config.timeoutMs), 500), 10000);
-    }
-
-    if (!Number.isFinite(this.config.aiTimeoutMs) || this.config.aiTimeoutMs < AI_TIMEOUT_MIN) {
-      this.config.aiTimeoutMs = DEFAULT_CONFIG.aiTimeoutMs;
-    } else {
-      this.config.aiTimeoutMs = Math.min(
-        Math.max(Math.round(this.config.aiTimeoutMs), AI_TIMEOUT_MIN),
-        AI_TIMEOUT_MAX
-      );
-    }
-
-    if (typeof this.config.enabled !== 'boolean') this.config.enabled = DEFAULT_CONFIG.enabled;
-    if (typeof this.config.aiEnabled !== 'boolean') this.config.aiEnabled = DEFAULT_CONFIG.aiEnabled;
-    if (typeof this.config.bingEnabled !== 'boolean') this.config.bingEnabled = DEFAULT_CONFIG.bingEnabled;
-    if (typeof this.config.baseUrl !== 'string') this.config.baseUrl = DEFAULT_CONFIG.baseUrl;
-    if (typeof this.config.model !== 'string') this.config.model = DEFAULT_CONFIG.model;
-    if (!this.config.targetLang || typeof this.config.targetLang !== 'string') {
-      this.config.targetLang = DEFAULT_CONFIG.targetLang;
-    }
-
-    // Drop the retired `channels` field carried over from pre-1.1 configs so
-    // it is not re-persisted on the next save.
-    delete (this.config as Partial<PluginConfig> & { channels?: unknown }).channels;
+  constructor(scope: SettingsScopeLike, credentials: CredentialsReader) {
+    this.scope = scope;
+    this.credentials = credentials;
   }
 
   getConfig(): PluginConfig {
-    return { ...this.config };
+    return this.scope.get();
   }
 
   /** Whether the AI channel has every required piece: baseUrl, model and key. */
   isAiConfigured(): boolean {
+    const config = this.getConfig();
     return Boolean(
-      this.config.baseUrl.trim() &&
-        this.config.model.trim() &&
+      config.baseUrl.trim() &&
+        config.model.trim() &&
         this.credentials.getApiKey()
     );
   }
 
   getMaskedConfig(): MaskedPluginConfig {
+    const config = this.getConfig();
     return {
-      enabled: this.config.enabled,
-      concurrency: this.config.concurrency,
-      timeoutMs: this.config.timeoutMs,
-      aiTimeoutMs: this.config.aiTimeoutMs,
-      aiEnabled: this.config.aiEnabled,
-      bingEnabled: this.config.bingEnabled,
-      baseUrl: this.config.baseUrl,
-      model: this.config.model,
-      targetLang: this.config.targetLang || 'zh-Hans',
+      enabled: config.enabled,
+      concurrency: config.concurrency,
+      timeoutMs: config.timeoutMs,
+      aiTimeoutMs: config.aiTimeoutMs,
+      aiEnabled: config.aiEnabled,
+      bingEnabled: config.bingEnabled,
+      baseUrl: config.baseUrl,
+      model: config.model,
+      targetLang: config.targetLang || 'zh-Hans',
       aiConfigured: this.isAiConfigured(),
     };
   }
 
   onConfigChange(listener: (config: PluginConfig) => void): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.scope.watch(listener);
   }
 
-  private notifyListeners(): void {
-    const snapshot = this.getConfig();
-    for (const listener of this.listeners) {
-      try {
-        listener(snapshot);
-      } catch (err) {
-        console.warn('[dsh-chat-translate] Config listener error:', err);
-      }
-    }
-  }
-
+  /**
+   * Merge a partial update into the settings namespace. Values are sanitized
+   * here (bounds, trimming) so the schema's own constraints act as a second
+   * line of defence rather than the only one.
+   */
   async updateConfig(partial: Partial<PluginConfig>): Promise<PluginConfig> {
-    const next: PluginConfig = {
-      ...this.config,
-      ...partial,
-    };
-    // Never let retired/unknown keys (e.g. the pre-1.1 `channels`) be
-    // re-persisted through an update path.
-    delete (next as Partial<PluginConfig> & { channels?: unknown }).channels;
-
-    // Bounds check with Number.isFinite
-    if (typeof partial.concurrency === 'number' && Number.isFinite(partial.concurrency)) {
-      next.concurrency = Math.min(Math.max(Math.round(partial.concurrency), 1), MAX_CONCURRENCY);
-    } else {
-      next.concurrency = this.config.concurrency;
-    }
-
-    if (typeof partial.timeoutMs === 'number' && Number.isFinite(partial.timeoutMs)) {
-      next.timeoutMs = Math.min(Math.max(Math.round(partial.timeoutMs), 500), 10000);
-    } else {
-      next.timeoutMs = this.config.timeoutMs;
-    }
-
-    if (typeof partial.aiTimeoutMs === 'number' && Number.isFinite(partial.aiTimeoutMs)) {
-      next.aiTimeoutMs = Math.min(
-        Math.max(Math.round(partial.aiTimeoutMs), AI_TIMEOUT_MIN),
-        AI_TIMEOUT_MAX
-      );
-    } else {
-      next.aiTimeoutMs = this.config.aiTimeoutMs;
-    }
-
-    if (typeof partial.enabled === 'boolean') next.enabled = partial.enabled;
-    if (typeof partial.aiEnabled === 'boolean') next.aiEnabled = partial.aiEnabled;
-    if (typeof partial.bingEnabled === 'boolean') next.bingEnabled = partial.bingEnabled;
-    if (typeof partial.baseUrl === 'string') next.baseUrl = partial.baseUrl.trim();
-    if (typeof partial.model === 'string') next.model = partial.model.trim();
-    if (typeof partial.targetLang === 'string' && partial.targetLang.trim()) {
-      next.targetLang = partial.targetLang.trim();
-    }
-
-    this.config = next;
-    await this.save();
-    this.notifyListeners();
+    await this.scope.update(sanitizePatch({ ...partial }));
     return this.getConfig();
-  }
-
-  private async save(): Promise<void> {
-    const tmpPath = `${this.configPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-    try {
-      await fs.mkdir(path.dirname(this.configPath), { recursive: true });
-      await fs.writeFile(tmpPath, JSON.stringify(this.config, null, 2), 'utf-8');
-      await fs.rename(tmpPath, this.configPath);
-    } catch (err) {
-      console.warn('[dsh-chat-translate] Failed to save config file atomically:', err);
-      try {
-        await fs.unlink(tmpPath);
-      } catch {}
-    }
   }
 }
 
-export { TRANSLATE_API_KEY_REF };
+/**
+ * Coerce a raw record (legacy config file, HTTP-era partials) into a
+ * validated partial config patch. Unknown fields are dropped, type-mismatched
+ * values are skipped (the schema default wins), and numerics are clamped —
+ * so one bad field never takes down a whole migration.
+ */
+export function sanitizePatch(input: Record<string, unknown>): Partial<PluginConfig> {
+  const next: Partial<PluginConfig> = {};
+  if (typeof input.enabled === 'boolean') next.enabled = input.enabled;
+  if (typeof input.aiEnabled === 'boolean') next.aiEnabled = input.aiEnabled;
+  if (typeof input.bingEnabled === 'boolean') next.bingEnabled = input.bingEnabled;
+
+  if (typeof input.concurrency === 'number' && Number.isFinite(input.concurrency)) {
+    next.concurrency = Math.min(Math.max(Math.round(input.concurrency), 1), MAX_CONCURRENCY);
+  }
+  if (typeof input.timeoutMs === 'number' && Number.isFinite(input.timeoutMs)) {
+    next.timeoutMs = Math.min(Math.max(Math.round(input.timeoutMs), 500), 10000);
+  }
+  if (typeof input.aiTimeoutMs === 'number' && Number.isFinite(input.aiTimeoutMs)) {
+    next.aiTimeoutMs = Math.min(
+      Math.max(Math.round(input.aiTimeoutMs), AI_TIMEOUT_MIN),
+      AI_TIMEOUT_MAX
+    );
+  }
+  if (typeof input.baseUrl === 'string') next.baseUrl = input.baseUrl.trim();
+  if (typeof input.model === 'string') next.model = input.model.trim();
+  if (typeof input.targetLang === 'string' && input.targetLang.trim()) {
+    next.targetLang = input.targetLang.trim();
+  }
+  return next;
+}
+
+/**
+ * One-shot migration from the pre-1.2 standalone config file. Runs only while
+ * the settings namespace has no user layer yet, so values the user edited
+ * after upgrading are never overwritten. The legacy file is removed whether
+ * or not a migration happened.
+ * @returns whether any legacy values were migrated.
+ */
+export async function migrateLegacyConfigFile(
+  settings: {
+    describe(): Array<{ ns: string; user?: unknown }>;
+    update(ns: string, patch: Record<string, unknown>): Promise<unknown>;
+  },
+  legacyPath: string
+): Promise<boolean> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(legacyPath, 'utf-8');
+  } catch {
+    return false; // no legacy file — nothing to do
+  }
+
+  let legacy: unknown;
+  try {
+    legacy = JSON.parse(raw);
+  } catch {
+    // Corrupt legacy file — drop it and keep schema defaults.
+    await fs.unlink(legacyPath).catch(() => {});
+    return false;
+  }
+  if (typeof legacy !== 'object' || legacy === null || Array.isArray(legacy)) {
+    await fs.unlink(legacyPath).catch(() => {});
+    return false;
+  }
+  const record = legacy as Record<string, unknown>;
+
+  // Never overwrite a user layer the user already has (e.g. edited through
+  // the settings UI after upgrading). The legacy file is still retired.
+  const descriptor = settings.describe().find((d) => d.ns === SETTINGS_NAMESPACE);
+  if (descriptor?.user !== undefined) {
+    await fs.unlink(legacyPath).catch(() => {});
+    return false;
+  }
+
+  // Per-field sanitize: known fields only (retired keys like pre-1.1
+  // `channels` drop by construction), type-mismatched values skipped, numeric
+  // bounds clamped — one bad field never blocks the rest of the migration.
+  const patch = sanitizePatch(record);
+  if (Object.keys(patch).length === 0) {
+    // Nothing migratable — retire the file and keep schema defaults.
+    await fs.unlink(legacyPath).catch(() => {});
+    return false;
+  }
+
+  try {
+    await settings.update(SETTINGS_NAMESPACE, patch);
+  } catch (err) {
+    // The patch is already sanitized, so a rejection here is a provider-level
+    // failure (read-only document, disk trouble). Keep the file so the next
+    // boot retries — destroying the only copy would lose the user's values.
+    console.warn('[dsh-chat-translate] Legacy config migration failed; will retry on next boot:', err);
+    return false;
+  }
+
+  await fs.unlink(legacyPath).catch((err) => {
+    console.warn('[dsh-chat-translate] Failed to remove legacy config file:', err);
+  });
+  return true;
+}
