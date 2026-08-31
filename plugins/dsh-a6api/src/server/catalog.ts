@@ -1,14 +1,17 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
+import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
 import type { A6ApiModelMeta, CatalogModelEntry } from '../types.js';
 
 /**
  * 模型目录（运行时数据，取代旧的静态 A6API_CATALOG）。
  *
- * - 持久化：`$DSH_HOME/dsh-a6api-catalog.json`（结构 `{ version: 1, entries: [...] }`），
+ * - 持久化：`$DSH_HOME/dsh-a6api/catalog.json`（结构 `{ version: 1, entries: [...] }`），
  *   初始为空；「模型目录」页从 A6API 市场拉取模型 ID、从 OpenRouter 查询参数后建立。
+ *   v1.4 起位于插件子目录（与 DSH「组件自建 home 子目录」惯例一致），不再占用
+ *   `$DSH_HOME` 根目录；旧版根目录文件（<=1.3 `dsh-a6api-catalog.json`）首次读取时
+ *   自动搬迁（保持数据无损），搬迁后旧文件即删除。
  * - 条目字段 = DSH settings.yaml 的 llm-pi-ai 原生模型字段（id/name/contextWindow/
  *   maxTokens/input/reasoningEfforts），外加内部附带的 brand（来自 A6API 市场渠道，
  *   仅用于可用模型卡片展示，不写入 settings.yaml）。
@@ -18,12 +21,42 @@ import type { A6ApiModelMeta, CatalogModelEntry } from '../types.js';
 
 const CATALOG_VERSION = 1;
 
-function dshHome(): string {
-  return process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
+/** 当前 catalog 文件路径（v1.4+：插件子目录，不再占用 DSH home 根目录）。
+ *  dshHomePath 与 DSH 的 resolveDshHome 完全一致：显式配置 home → $DSH_HOME（~ 展开）→ ~/.dsh。 */
+export function catalogFile(): string {
+  return dshHomePath('dsh-a6api', 'catalog.json');
 }
 
-export function catalogFile(): string {
-  return path.join(dshHome(), 'dsh-a6api-catalog.json');
+/** 旧版（<=1.3）根目录文件，仅用于一次性搬迁。 */
+function legacyCatalogFile(): string {
+  return dshHomePath('dsh-a6api-catalog.json');
+}
+
+/**
+ * 一次性搬迁旧版根目录 catalog（<=1.3）到插件子目录，保持数据无损。
+ * 同步执行（ensureLoaded 为同步路径），幂等：
+ *  - 新路径已有文件 → 旧文件只是残留，直接清理；
+ *  - 新路径缺失且旧文件存在 → 建目录后 rename（同卷原子）；失败则由读取侧回退旧路径；
+ *  - 都无 → 空目录。
+ */
+function ensureRelocated(): void {
+  const target = catalogFile();
+  const legacy = legacyCatalogFile();
+  try {
+    fs.accessSync(target);
+    try {
+      fs.unlinkSync(legacy);
+    } catch {}
+    return;
+  } catch {
+    // target 不存在，继续搬迁
+  }
+  try {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.renameSync(legacy, target);
+  } catch {
+    // 旧文件不存在或搬迁失败：由读取侧回退到旧路径
+  }
 }
 
 /** 进程内缓存：resolveModelMeta 等同步路径直接读内存 */
@@ -31,18 +64,29 @@ let catalogCache: CatalogModelEntry[] | null = null;
 
 function ensureLoaded(): CatalogModelEntry[] {
   if (catalogCache) return catalogCache;
-  try {
-    const raw = fs.readFileSync(catalogFile(), 'utf8');
-    const j = JSON.parse(raw);
-    // 形状过滤：跳过无字符串 id 的损坏条目，避免 getCatalogEntry 的 .toLowerCase() 抛错拖垮 /state
-    catalogCache = Array.isArray(j?.entries)
-      ? j.entries.filter((e: any) => e && typeof e.id === 'string')
-      : [];
-  } catch {
-    catalogCache = [];
+  ensureRelocated();
+  const sources = [catalogFile(), legacyCatalogFile()];
+  for (const file of sources) {
+    try {
+      const raw = fs.readFileSync(file, 'utf8');
+      const j = JSON.parse(raw);
+      // 形状过滤：跳过无字符串 id 的损坏条目，避免 getCatalogEntry 的 .toLowerCase() 抛错拖垮 /state
+      catalogCache = Array.isArray(j?.entries)
+        ? j.entries.filter((e: any) => e && typeof e.id === 'string')
+        : [];
+      if (file !== catalogFile()) {
+        // 搬迁失败的回退读取：数据已进内存，清理旧文件
+        try {
+          fs.unlinkSync(file);
+        } catch {}
+      }
+      return catalogCache as CatalogModelEntry[];
+    } catch {
+      // 尝试下一个源（损坏/缺失都跳过）
+    }
   }
-  const loaded = catalogCache as CatalogModelEntry[];
-  return loaded;
+  catalogCache = [];
+  return catalogCache as CatalogModelEntry[];
 }
 
 export function getCatalog(): CatalogModelEntry[] {

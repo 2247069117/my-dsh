@@ -2,26 +2,78 @@
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import os from "node:os";
-var CATALOG_VERSION = 1;
-function dshHome() {
-  return process.env.DSH_HOME || path.join(os.homedir(), ".dsh");
+
+// node_modules/.pnpm/@deepseek-ai+dsh-home-paths@0.1.2-alpha.2_@deepseek-ai+cordis@4.0.2_@deepseek-ai+dsh-in_201e0f99eb7c6b9ed77157bb5f14e24e/node_modules/@deepseek-ai/dsh-home-paths/lib/index.js
+import { opendir, realpath } from "node:fs/promises";
+import { homedir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+var DSH_HOME_DIR_NAME = ".dsh";
+var DEFAULT_DSH_HOME_DISPLAY = `~/${DSH_HOME_DIR_NAME}`;
+var DSH_HOME_ENV = "DSH_HOME";
+function defaultDshHome() {
+  return join(homedir(), DSH_HOME_DIR_NAME);
 }
+function expandHomePath(path3) {
+  if (path3 === "~") return homedir();
+  if (path3.startsWith("~/") || path3.startsWith("~\\")) return join(homedir(), path3.slice(2));
+  return path3;
+}
+function resolveDshHome(configured, env = process.env) {
+  const fromEnv = env[DSH_HOME_ENV];
+  return resolve(expandHomePath(configured ?? (fromEnv !== void 0 && fromEnv.trim().length > 0 ? fromEnv : defaultDshHome())));
+}
+function dshHomePath(...segments) {
+  return join(resolveDshHome(), ...segments);
+}
+
+// src/server/catalog.ts
+var CATALOG_VERSION = 1;
 function catalogFile() {
-  return path.join(dshHome(), "dsh-a6api-catalog.json");
+  return dshHomePath("dsh-a6api", "catalog.json");
+}
+function legacyCatalogFile() {
+  return dshHomePath("dsh-a6api-catalog.json");
+}
+function ensureRelocated() {
+  const target = catalogFile();
+  const legacy = legacyCatalogFile();
+  try {
+    fs.accessSync(target);
+    try {
+      fs.unlinkSync(legacy);
+    } catch {
+    }
+    return;
+  } catch {
+  }
+  try {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.renameSync(legacy, target);
+  } catch {
+  }
 }
 var catalogCache = null;
 function ensureLoaded() {
   if (catalogCache) return catalogCache;
-  try {
-    const raw = fs.readFileSync(catalogFile(), "utf8");
-    const j = JSON.parse(raw);
-    catalogCache = Array.isArray(j?.entries) ? j.entries.filter((e) => e && typeof e.id === "string") : [];
-  } catch {
-    catalogCache = [];
+  ensureRelocated();
+  const sources = [catalogFile(), legacyCatalogFile()];
+  for (const file of sources) {
+    try {
+      const raw = fs.readFileSync(file, "utf8");
+      const j = JSON.parse(raw);
+      catalogCache = Array.isArray(j?.entries) ? j.entries.filter((e) => e && typeof e.id === "string") : [];
+      if (file !== catalogFile()) {
+        try {
+          fs.unlinkSync(file);
+        } catch {
+        }
+      }
+      return catalogCache;
+    } catch {
+    }
   }
-  const loaded = catalogCache;
-  return loaded;
+  catalogCache = [];
+  return catalogCache;
 }
 function getCatalog() {
   return ensureLoaded();
@@ -928,7 +980,7 @@ async function marketplaceRestoreChannel(userId, accessToken, channelId, model) 
 }
 
 // src/server/probe.ts
-var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+var sleep = (ms) => new Promise((resolve2) => setTimeout(resolve2, ms));
 async function probeSingleModel(baseURL, apiKey, userId, accessToken, modelName) {
   const targetModel = modelName || "";
   const cleanUrl = cleanBaseUrl(baseURL);
@@ -1061,7 +1113,7 @@ async function getKnownMerchantsFromLogs(userId, accessToken, modelNames = [], l
 import * as fs2 from "node:fs";
 import * as fsp2 from "node:fs/promises";
 import * as path2 from "node:path";
-import * as os2 from "node:os";
+import * as os from "node:os";
 var A6API_CRED_REF = "A6API_API_KEY";
 var A6API_TOKEN_REF = "A6API_ACCESS_TOKEN";
 var A6API_USER_REF = "A6API_USER_ID";
@@ -1076,17 +1128,17 @@ async function atomicWriteFile(filePath, content, mode = 384) {
   await fsp2.writeFile(tmpPath, content, { mode });
   await fsp2.rename(tmpPath, filePath);
 }
-function dshHome2() {
-  return process.env.DSH_HOME || path2.join(os2.homedir(), ".dsh");
+function dshHome() {
+  return process.env.DSH_HOME || path2.join(os.homedir(), ".dsh");
 }
 function legacyConfigFile() {
-  return path2.join(dshHome2(), LEGACY_CONFIG_NAME);
+  return path2.join(dshHome(), LEGACY_CONFIG_NAME);
 }
 function credentialsFile() {
-  return path2.join(dshHome2(), ".credentials.yaml");
+  return path2.join(dshHome(), ".credentials.yaml");
 }
 function settingsFile() {
-  return path2.join(dshHome2(), "settings.yaml");
+  return path2.join(dshHome(), "settings.yaml");
 }
 function getCredentials(ctx) {
   try {
@@ -1656,7 +1708,7 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 function readBody(req) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve2, reject) => {
     let data = "";
     req.on("data", (chunk) => {
       data += chunk;
@@ -1665,7 +1717,7 @@ function readBody(req) {
         reject(new Error("Body too large"));
       }
     });
-    req.on("end", () => resolve(data.trim()));
+    req.on("end", () => resolve2(data.trim()));
     req.on("error", reject);
   });
 }
@@ -1799,7 +1851,7 @@ function apply(ctx) {
                   try {
                     found = await Promise.race([
                       getKnownMerchantsFromLogs(config.userId, token, missing, allLogs),
-                      new Promise((resolve) => setTimeout(() => resolve({}), 1e4))
+                      new Promise((resolve2) => setTimeout(() => resolve2({}), 1e4))
                     ]);
                   } catch {
                     found = {};
@@ -1867,7 +1919,7 @@ function apply(ctx) {
                         );
                       }
                     })(),
-                    new Promise((resolve) => setTimeout(() => resolve(), 1e4))
+                    new Promise((resolve2) => setTimeout(() => resolve2(), 1e4))
                   ]);
                 } catch {
                 }
