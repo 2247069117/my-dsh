@@ -1,0 +1,105 @@
+{
+  "at": "2026-08-25T17:52:36.120Z",
+  "providers": [
+    {
+      "id": "opencode-zen",
+      "name": "OpenCode Zen"
+    },
+    {
+      "id": "deepseek-official",
+      "name": "DeepSeek"
+    },
+    {
+      "id": "vision-http",
+      "name": "Vision HTTP"
+    },
+    {
+      "id": "opencode-zen-vision",
+      "name": "OpenCode Zen + 自动识图"
+    }
+  ],
+  "models": [
+    {
+      "provider": "opencode-zen",
+      "id": "x-preview-f-free",
+      "name": "X Preview F Free",
+      "inputModalities": [
+        "text"
+      ]
+    },
+    {
+      "provider": "opencode-zen",
+      "id": "hy3-free",
+      "name": "Hy3 Free",
+      "inputModalities": [
+        "text"
+      ]
+    },
+    {
+      "provider": "opencode-zen",
+      "id": "nemotron-3-ultra-free",
+      "name": "Nemotron 3 Ultra Free",
+      "inputModalities": [
+        "text"
+      ]
+    },
+    {
+      "provider": "opencode-zen",
+      "id": "nemotron-3.5-lightning-free",
+      "name": "Nemotron 3 5 Lightning Free",
+      "inputModalities": [
+        "text"
+      ]
+    },
+    {
+      "provider": "opencode-zen",
+      "id": "laguna-s-2.1-free",
+      "name": "Laguna S 2 1 Free",
+      "inputModalities": [
+        "text"
+      ]
+    }
+  ],
+  "resolved": {
+    "provider": "opencode-zen",
+    "id": "hy3-free",
+    "name": "Hy3 Free",
+    "inputModalities": [
+      "text"
+    ],
+    "context": {
+      "contextWindow": 128000
+    },
+    "defaultMaxTokens": 8192,
+    "reasoning": {
+      "efforts": [
+        {
+          "id": "off",
+          "name": "Off"
+        }
+      ],
+      "defaultEffort": "off"
+    }
+  },
+  "finish": {
+    "kind": "stop"
+  },
+  "text": "正常",
+  "reasoning": "用户要求只回复两个字：“正常”。\n所以我的回复应该就是“正常”。",
+  "usage": {
+    "type": "usage",
+    "usage": {
+      "inputTokens": 17,
+      "outputTokens": 20,
+      "cacheReadTokens": 0
+    }
+  },
+  "chunkTypes": [
+    "block-start",
+    "reasoning-delta",
+    "text-delta",
+    "block-end",
+    "usage",
+    "finish"
+  ]
+}

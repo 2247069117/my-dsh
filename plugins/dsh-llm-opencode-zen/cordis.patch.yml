@@ -1,0 +1,5 @@
+# dsh-llm-opencode-zen bundle 层：把 OpenCode Zen 免费模型插件挂进装配。
+# 模型只读（Config 无模型字段），供应商开关见插件设置区 enabled。
+- insert:
+    - id: llm-opencode-zen
+      name: '@dsh-external/dsh-llm-opencode-zen'

@@ -15,6 +15,8 @@
 | [@lynn123411/dsh-chat-translate](./plugins/dsh-chat-translate) | `dsh.bundle` + `dsh.client/web` | **聊天翻译**：工具调用与思考摘要自动译中（仅当前会话、正文不翻）：OpenAI 兼容 AI 通道（可配 Base URL/模型，Key 存 `~/.dsh/.credentials.yaml`）+ 免 Key Bing 兜底双通道，内置「聊天翻译」面板 | `dsh plugin --profile web add @lynn123411/dsh-chat-translate` |
 | [@lynn123411/dsh-a6api](./plugins/dsh-a6api) | `dsh.bundle` + `dsh.client/web` | **A6API 接入**：将 A6API 聚合网关注册为 DSH 原生 LLM 提供商，提供多标签页视图、余额（$ / ¥）与调用明细、模型白名单同步、商户线路实时探测与全景指标卡片（含官方 vs 商户价格对比） | `dsh plugin --profile web add @lynn123411/dsh-a6api` |
 | [dsh-check-update](./plugins/dsh-check-update) | `dsh.bundle` + `dsh.client/web` | **更新检查器**：检查 DSH 与已安装插件版本，支持一键更新、备份回滚，并可一键复制更新命令 | `dsh plugin --profile web add dsh-check-update` |
+| [dsh-llm-opencode-zen](./plugins/dsh-llm-opencode-zen) | `dsh.bundle` + `dsh.client/web` | **OpenCode Zen 免费模型**：自动探测并注册可用的 `*-free` 模型，支持供应商开关、失效移除和思考强度 | `dsh plugin --profile web add github:2247069117/dsh-llm-opencode-zen` |
+| [dsh-web-mobile](./plugins/dsh-web-mobile) | `dsh.bundle` + `dsh.client/web` | **移动端适配**：手机竖屏抽屉、底部浮层、输入区布局、响应压缩与平板适配，桌面端自动 no-op | `dsh plugin --profile web add github:2247069117/dsh-web-mobile` |
 
 ---
 
@@ -23,16 +25,6 @@
 | preset | 说明 |
 | --- | --- |
 | [ptc-creative-cordis](./dsh-presets/ptc-creative-cordis) | **PTC 创造·混合模式**：融合 PTC `code` 多步工具编排与 Cordis 动态插件编辑（`preset.yml` + `agent.cordis.yml`），含 `cordis-plugin-development` / `editing-cordis-compositions` 随附技能，开箱与官方 `standard` / `code` / `cordis` 并列可选 |
-
----
-
-## 🛠️ 本地补丁脚本（patches/）
-
-| 目录 | 说明 |
-| --- | --- |
-| [patch-dsh-finish-reason](./patches/patch-dsh-finish-reason/) | 修复「流结束不带 `finish_reason`」导致的 `Stream ended without finish_reason` 报错、内容丢弃与整轮重试（`openai-completions` 通用检查，覆盖 opencode.ai zen/go 等中转网关）。详见 [README](./patches/patch-dsh-finish-reason/README.md) |
-| [patch-dsh-escalation-noop](./patches/patch-dsh-escalation-noop/) | 修复 `dsh-sandbox` 同模式 `sandbox_permissions` 升级报错（`danger→danger` no-op 放行，真实升级仍审批）。详见 [README](./patches/patch-dsh-escalation-noop/README.md) |
-| [dsh-message-edit-log-compat](./patches/dsh-message-edit-log-compat/) | 修复第三方插件 `dsh-message-edit` 写入自定义事件 `message-edit/version` 导致的历史会话加载失败。详见 [README](./patches/dsh-message-edit-log-compat/README.md) |
 
 ---
 

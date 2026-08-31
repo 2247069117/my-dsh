@@ -1,0 +1,62 @@
+{
+  "updatedAt": "2026-08-25T17:52:35.952Z",
+  "mode": "auto",
+  "baseURL": "https://opencode.ai/zen/v1",
+  "models": {
+    "x-preview-f-free": {
+      "id": "x-preview-f-free",
+      "name": "X Preview F Free",
+      "reasoning": false,
+      "toolCall": true,
+      "attachment": false,
+      "context": 128000,
+      "output": 8192,
+      "firstSeen": "2026-08-25T16:47:20.138Z",
+      "lastProbed": "2026-08-25T16:47:20.138Z"
+    },
+    "hy3-free": {
+      "id": "hy3-free",
+      "name": "Hy3 Free",
+      "reasoning": false,
+      "toolCall": true,
+      "attachment": false,
+      "context": 128000,
+      "output": 8192,
+      "firstSeen": "2026-08-25T16:47:20.138Z",
+      "lastProbed": "2026-08-25T16:47:20.138Z"
+    },
+    "nemotron-3-ultra-free": {
+      "id": "nemotron-3-ultra-free",
+      "name": "Nemotron 3 Ultra Free",
+      "reasoning": false,
+      "toolCall": true,
+      "attachment": false,
+      "context": 128000,
+      "output": 8192,
+      "firstSeen": "2026-08-25T16:47:20.138Z",
+      "lastProbed": "2026-08-25T16:47:20.138Z"
+    },
+    "nemotron-3.5-lightning-free": {
+      "id": "nemotron-3.5-lightning-free",
+      "name": "Nemotron 3 5 Lightning Free",
+      "reasoning": false,
+      "toolCall": true,
+      "attachment": false,
+      "context": 128000,
+      "output": 8192,
+      "firstSeen": "2026-08-25T17:24:18.591Z",
+      "lastProbed": "2026-08-25T17:24:18.591Z"
+    },
+    "laguna-s-2.1-free": {
+      "id": "laguna-s-2.1-free",
+      "name": "Laguna S 2 1 Free",
+      "reasoning": false,
+      "toolCall": true,
+      "attachment": false,
+      "context": 128000,
+      "output": 8192,
+      "firstSeen": "2026-08-25T16:47:20.138Z",
+      "lastProbed": "2026-08-25T16:47:20.138Z"
+    }
+  }
+}
