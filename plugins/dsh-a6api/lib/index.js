@@ -1857,6 +1857,16 @@ var merchantCardCache = /* @__PURE__ */ new Map();
 var MERCHANT_CARD_TTL_MS = 15 * 60 * 1e3;
 var tokenResolveCache = null;
 var TOKEN_RESOLVE_TTL_MS = 10 * 60 * 1e3;
+async function syncActiveModelsFromCatalog(configAccess) {
+  try {
+    const config = await configAccess.readConfig();
+    if (config.activeModels.length > 0) {
+      await configAccess.syncModels(config.baseURL, config.activeModels);
+    }
+  } catch (err) {
+    console.warn("[dsh-a6api] \u76EE\u5F55\u66F4\u65B0\u540E\u540C\u6B65\u5DF2\u542F\u7528\u6A21\u578B\u5931\u8D25:", err?.message || err);
+  }
+}
 async function resolveTokenId(config) {
   if (tokenResolveCache && Date.now() - tokenResolveCache.at < TOKEN_RESOLVE_TTL_MS) {
     return tokenResolveCache.tokenId;
@@ -1917,6 +1927,7 @@ function overlayPinsOnModels(models, pins, tokenId) {
 function apply(ctx) {
   const configAccess = createConfigAccess(ctx);
   void configAccess.ensureMigrated();
+  void syncActiveModelsFromCatalog(configAccess);
   const webServer = ctx.webServer || (ctx.get ? ctx.get("webServer") : null);
   if (webServer && typeof webServer.register === "function") {
     ctx.effect(() => {
@@ -2341,6 +2352,7 @@ function apply(ctx) {
               await upsertCatalogEntries(
                 models.map((m) => ({ id: m.id, brand: m.brand, reasoningEfforts: m.reasoningEfforts }))
               );
+              await syncActiveModelsFromCatalog(configAccess);
               return sendJson(res, 200, {
                 ok: true,
                 total: models.length,
@@ -2356,6 +2368,7 @@ function apply(ctx) {
                 return sendJson(res, 400, { ok: false, error: "\u76EE\u5F55\u4E3A\u7A7A\uFF0C\u8BF7\u5148\u300C\u4ECE A6API \u83B7\u53D6\u5E02\u573A\u6A21\u578B\u300D" });
               }
               const result = await queryOpenRouter(modelIds);
+              await syncActiveModelsFromCatalog(configAccess);
               return sendJson(res, 200, {
                 ok: true,
                 updated: result.updated.length,

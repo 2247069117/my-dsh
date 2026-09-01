@@ -97,6 +97,24 @@ let tokenResolveCache: { tokenId: number; at: number } | null = null;
 const TOKEN_RESOLVE_TTL_MS = 10 * 60 * 1000;
 
 /**
+ * 目录参数（尤其 reasoningEfforts）可能在模型已经启用后才被拉取或补齐。
+ * 这种情况下只更新 catalog.json 不会自动改变 DSH settings.yaml，导致 DSH
+ * 选择器仍拿到旧模型描述（例如 hy4-preview 只有 id，没有推理档位）。
+ * 目录写入完成后主动把当前已启用模型重新同步一次；syncModels 是合并/替换
+ * a6api 自有块的幂等操作，不影响其他 provider。
+ */
+async function syncActiveModelsFromCatalog(configAccess: ReturnType<typeof createConfigAccess>): Promise<void> {
+  try {
+    const config = await configAccess.readConfig();
+    if (config.activeModels.length > 0) {
+      await configAccess.syncModels(config.baseURL, config.activeModels);
+    }
+  } catch (err: any) {
+    console.warn('[dsh-a6api] 目录更新后同步已启用模型失败:', err?.message || err);
+  }
+}
+
+/**
  * 把配置的 API Key 解析为平台 token_id（固定/取消固定/禁用按令牌绑定）。
  * 解析链：内存缓存（TTL）→ 令牌列表按 key 精确匹配 → 唯一令牌兜底。
  * 返回 null 表示无法解析（调用方可再用「探测日志 token_id」兜底）。
@@ -176,6 +194,10 @@ export function apply(ctx: any): void {
   // DSH 原生配置访问器：启动即触发旧配置文件自动迁移（幂等，首次读取会等待其完成）
   const configAccess = createConfigAccess(ctx);
   void configAccess.ensureMigrated();
+  // 启动时修复「模型已启用、目录参数后来补齐」的历史配置（如 hy4-preview）：
+  // 目录是参数真相源，下一次 DSH 模型目录读取前确保 settings.yaml 已包含
+  // reasoningEfforts/contextWindow/maxTokens/input 等字段。
+  void syncActiveModelsFromCatalog(configAccess);
 
   // Register Web API routes
   const webServer = ctx.webServer || (ctx.get ? ctx.get('webServer') : null);
@@ -715,6 +737,8 @@ export function apply(ctx: any): void {
               await upsertCatalogEntries(
                 models.map((m) => ({ id: m.id, brand: m.brand, reasoningEfforts: m.reasoningEfforts })),
               );
+              // 模型可能早已启用，目录首次拉取后立即把推理档位等字段同步进 DSH
+              await syncActiveModelsFromCatalog(configAccess);
               return sendJson(res, 200, {
                 ok: true,
                 total: models.length,
@@ -736,6 +760,8 @@ export function apply(ctx: any): void {
                 return sendJson(res, 400, { ok: false, error: '目录为空，请先「从 A6API 获取市场模型」' });
               }
               const result = await queryOpenRouter(modelIds);
+              // OpenRouter 只补目录参数；若模型已启用，也要立即同步到 DSH
+              await syncActiveModelsFromCatalog(configAccess);
               return sendJson(res, 200, {
                 ok: true,
                 updated: result.updated.length,
