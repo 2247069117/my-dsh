@@ -385,6 +385,13 @@
   color: var(--dsw-alias-label-secondary, #475569);
 }
 
+.dsh-a6-pinned-target-text {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #d97706;
+  white-space: nowrap;
+}
+
 .dsh-a6-probe-fail-chip {
   margin-left: 8px;
   font-size: 11px;

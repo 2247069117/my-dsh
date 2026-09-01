@@ -308,11 +308,16 @@ export async function fetchChannelDetails(
       const json = await res.json();
       const items: any[] = json?.data?.items || [];
       if (items.length > 0) {
-        // Find match for targetModelName if provided, otherwise first item
-        const item =
-          (targetName
-            ? items.find((it) => it.model_name?.toLowerCase() === targetName.toLowerCase())
-            : null) || items[0];
+        // The channel search endpoint may return several model listings for one channel.
+        // When a model is supplied, require an exact match; items[0] could be another
+        // model's card and would make the realtime route look like a fixed/stale merchant.
+        const item = targetName
+          ? items.find((it) => it.model_name?.toLowerCase() === targetName.toLowerCase())
+          : items[0];
+        if (!item) {
+          // The caller can use the exact logSnapshot fallback for this channel/model.
+          throw new Error(`channel ${channelId} has no listing for model ${targetName}`);
+        }
 
         const rate = Number(item.realtime_ratio_exchange_rate || 6.7209);
         const inMicros = Number(item.input_price_micros || 0);

@@ -2,7 +2,7 @@ import { fetchBalance, fetchTokenModels, fetchRecentLogs, fetchPriceFluctuation,
 import { getKnownMerchantsFromLogs, probeSingleModel } from './server/probe.js';
 import { resolveModelMeta, getCatalog, upsertCatalogEntries, clearCatalog, queryOpenRouter, fetchMarketplaceModels, updateCatalogEntry } from './server/catalog.js';
 import { createConfigAccess, deriveUserIdFromAccessToken } from './server/sync.js';
-import type { A6ApiConfig, A6ApiStateResponse, MarketplacePin, MerchantChannelInfo, ModelCardData } from './types.js';
+import type { A6ApiConfig, A6ApiStateResponse, ApiRoutingLogItem, MarketplacePin, MerchantChannelInfo, ModelCardData } from './types.js';
 import { validateReasoningEfforts } from './types.js';
 
 export const name = '@lynn123411/dsh-a6api';
@@ -80,7 +80,15 @@ async function parseJsonBody(req: any): Promise<any> {
 }
 
 // In-memory cache for merchant cards to avoid duplicate log calls
-const merchantCardCache = new Map<string, { card: MerchantChannelInfo; at: number }>();
+interface MerchantCardCacheEntry {
+  card: MerchantChannelInfo;
+  at: number;
+  /** 该卡片对应的实际路由渠道；固定状态不参与卡片主体选择 */
+  channelId?: number;
+  /** 生成该卡片的个人路由日志时间（秒） */
+  routedAt?: number;
+}
+const merchantCardCache = new Map<string, MerchantCardCacheEntry>();
 /** 卡片缓存有效期:过期后 /state 从最新日志重新推导,避免永远展示陈旧商户 */
 const MERCHANT_CARD_TTL_MS = 15 * 60 * 1000;
 
@@ -239,36 +247,50 @@ export function apply(ctx: any): void {
               // 防御性排序：依赖“最新在前”，若网关排序变更仍能正确取首条
               allLogs.sort((a, b) => (Number(b.created_at) || 0) - (Number(a.created_at) || 0));
 
-              // Match known merchant cards from recent logs if not yet in cache (with 10s total timeout to avoid /state hang)
-              if (config.userId || token) {
-                const missing = modelIds.filter((m) => {
-                  const entry = merchantCardCache.get(m.toLowerCase());
-                  return !entry || Date.now() - entry.at >= MERCHANT_CARD_TTL_MS;
-                });
-                if (missing.length > 0) {
-                  let found: Record<string, MerchantChannelInfo> = {};
-                  try {
-                    found = await Promise.race([
-                      getKnownMerchantsFromLogs(config.userId, token, missing, allLogs),
-                      new Promise<Record<string, MerchantChannelInfo>>((resolve) => setTimeout(() => resolve({}), 10000)),
-                    ]);
-                  } catch {
-                    found = {};
-                  }
-                  for (const [mName, card] of Object.entries(found)) {
-                    merchantCardCache.set(mName.toLowerCase(), { card, at: Date.now() });
-                  }
+              // 路由快照：每个模型最新一条带渠道日志就是最近一次实际命中的商户。
+              // merchant 主体必须与该渠道一致，不能因为模型级缓存而继续显示旧/固定商户。
+              const latestRouteByModel = new Map<string, ApiRoutingLogItem>();
+              for (const log of allLogs) {
+                const modelKey = (log.model_name || '').toLowerCase();
+                if (modelKey && Number(log.channel) > 0 && !latestRouteByModel.has(modelKey)) {
+                  latestRouteByModel.set(modelKey, log);
                 }
               }
 
-              // 路由快照时效: 每个模型最新一条「带 channel 的调用日志」时间 —— 与预填充卡片商户数据同一条规则(取最新命中商户路由的请求)
-              const lastRoutedMap = new Map<string, number>();
-              for (const log of allLogs) {
-                const mName = log.model_name;
-                const chId = Number(log.channel);
-                const ts = Number(log.created_at) || 0;
-                if (mName && chId > 0 && ts > 0 && !lastRoutedMap.has(mName.toLowerCase())) {
-                  lastRoutedMap.set(mName.toLowerCase(), ts);
+              const routeTargets: Array<{ modelName: string; channelId: number; routedAt: number; logSnapshot?: any }> = [];
+              for (const modelName of modelIds) {
+                const log = latestRouteByModel.get(modelName.toLowerCase());
+                if (!log) continue;
+                const channelId = Number(log.channel);
+                const routedAt = Number(log.created_at) || 0;
+                const entry = merchantCardCache.get(modelName.toLowerCase());
+                if (!entry || entry.channelId !== channelId || (entry.routedAt || 0) < routedAt || Date.now() - entry.at >= MERCHANT_CARD_TTL_MS) {
+                  let logSnapshot: any;
+                  if (log.other) {
+                    try {
+                      logSnapshot = { ...JSON.parse(log.other), channel_name: log.channel_name, model_name: log.model_name };
+                    } catch {}
+                  }
+                  routeTargets.push({ modelName, channelId, routedAt, logSnapshot });
+                }
+              }
+
+              if ((config.userId || token) && routeTargets.length > 0) {
+                for (let i = 0; i < routeTargets.length; i += 4) {
+                  await Promise.all(
+                    routeTargets.slice(i, i + 4).map(async ({ modelName, channelId, routedAt, logSnapshot }) => {
+                      try {
+                        const card = await fetchChannelDetails(channelId, config.userId, token, modelName, logSnapshot);
+                        // 严格确认详情属于「这次日志的模型 + 实际渠道」；防止渠道搜索接口
+                        // 返回同渠道下的其他模型，或返回固定商户旧条目污染实时卡片。
+                        const channelMatches = card && Number(card.channel_id) === channelId;
+                        const modelMatches = card && (!card.model_name || card.model_name.toLowerCase() === modelName.toLowerCase());
+                        if (card && channelMatches && modelMatches) {
+                          merchantCardCache.set(modelName.toLowerCase(), { card, at: Date.now(), channelId, routedAt });
+                        }
+                      } catch {}
+                    }),
+                  );
                 }
               }
 
@@ -276,11 +298,13 @@ export function apply(ctx: any): void {
               let models: ModelCardData[] = modelIds.map((mId) => {
                 const meta = resolveModelMeta(mId);
                 const cacheEntry = merchantCardCache.get(mId.toLowerCase());
-                const cachedCard =
-                  cacheEntry && Date.now() - cacheEntry.at < MERCHANT_CARD_TTL_MS
-                    ? cacheEntry.card
-                    : undefined;
-                const routedAt = lastRoutedMap.get(mId.toLowerCase());
+                const latestRoute = latestRouteByModel.get(mId.toLowerCase());
+                const latestChannelId = latestRoute ? Number(latestRoute.channel) : 0;
+                // 没有个人路由日志时不显示商户卡，避免把历史缓存误认为当前实际渠道。
+                const cachedCard = cacheEntry && latestRoute && cacheEntry.channelId === latestChannelId && Date.now() - cacheEntry.at < MERCHANT_CARD_TTL_MS
+                  ? cacheEntry.card
+                  : undefined;
+                const routedAt = latestRoute ? Number(latestRoute.created_at) || 0 : undefined;
                 return {
                   model_name: mId,
                   brand: meta.brand,
@@ -301,70 +325,9 @@ export function apply(ctx: any): void {
               const resolvedTokenId = pins.length > 0 ? await resolveTokenId(config) : null;
               models = overlayPinsOnModels(models, pins, resolvedTokenId);
 
-              // 固定商家自动接管卡片：模型已固定到「非当前卡片」的商家时（当前令牌的固定），
-              // 拉取该固定商家的渠道详情替换卡片，而不是提示「已固定到其他商家」。
-              // 拉取失败/固定属于其他令牌时保持原卡片并回退到提示徽标。
-              const rePointTargets = models
-                .filter(
-                  (m) =>
-                    m.pinStatus === 'pin_elsewhere' &&
-                    m.pinTokenMatched === true &&
-                    m.pinnedChannelId &&
-                    m.pinnedChannelId > 0,
-                )
-                .map((m) => ({ modelName: m.model_name, channelId: m.pinnedChannelId as number }));
-              if (rePointTargets.length > 0 && config.userId && token) {
-                try {
-                  await Promise.race([
-                    (async () => {
-                      for (let i = 0; i < rePointTargets.length; i += 4) {
-                        const batch = rePointTargets.slice(i, i + 4);
-                        await Promise.all(
-                          batch.map(async ({ modelName, channelId }) => {
-                            try {
-                              const pinnedCard = await fetchChannelDetails(
-                                channelId,
-                                config.userId,
-                                token,
-                                modelName,
-                              );
-                              // 校验返回卡片确实属于目标固定渠道，避免官方搜索返回其他条目污染缓存
-                              if (pinnedCard && Number(pinnedCard.channel_id) === Number(channelId)) {
-                                merchantCardCache.set(modelName.toLowerCase(), { card: pinnedCard, at: Date.now() });
-                              }
-                            } catch {}
-                          }),
-                        );
-                      }
-                    })(),
-                    new Promise<void>((resolve) => setTimeout(() => resolve(), 10000)),
-                  ]);
-                } catch {}
-                // 用回填后的缓存重建卡片（固定商家即卡片商家 → 状态升级为 pin_here）
-                models = models.map((m) => {
-                  if (m.pinStatus !== 'pin_elsewhere' || m.pinTokenMatched !== true) return m;
-                  const entry = merchantCardCache.get(m.model_name.toLowerCase());
-                  const card = entry && Date.now() - entry.at < MERCHANT_CARD_TTL_MS ? entry.card : undefined;
-                  if (card && Number(card.channel_id) === Number(m.pinnedChannelId)) {
-                    // 路由快照口径对齐：取「该商家的该模型」最近一次请求（卡片已切换到固定商家，时间不能再按任意商家取）
-                    const pinnedLog = allLogs.find(
-                      (l) =>
-                        l.model_name?.toLowerCase() === m.model_name.toLowerCase() &&
-                        Number(l.channel) === m.pinnedChannelId,
-                    );
-                    const pinnedAt = pinnedLog ? Number(pinnedLog.created_at) || 0 : undefined;
-                    return {
-                      ...m,
-                      merchant: card,
-                      pinStatus: 'pin_here' as const,
-                      probeStatus: 'success' as const,
-                      lastRoutedAt: pinnedAt,
-                      lastRoutedText: pinnedAt ? formatRelativeTime(pinnedAt) : undefined,
-                    };
-                  }
-                  return m;
-                });
-              }
+              // 固定状态只作为徽标/对比信息叠加，绝不替换 merchant 主体。
+              // merchant.channel_id 始终是最近个人日志的实际命中渠道；若它与固定目标不同，
+              // 卡片显示实际渠道并标记「已固定到其他商家」。
 
               // Account 页明细保持原有窗口 (20 条)
               const recentLogs = allLogs.slice(0, 20);
@@ -486,7 +449,12 @@ export function apply(ctx: any): void {
               if (modelName && modelName !== 'all') {
                 const result = await probeSingleModel(config.baseURL, config.apiKey, config.userId, token, modelName);
                 if (result.merchant) {
-                  merchantCardCache.set(modelName.toLowerCase(), { card: result.merchant, at: Date.now() });
+                  merchantCardCache.set(modelName.toLowerCase(), {
+                    card: result.merchant,
+                    at: Date.now(),
+                    channelId: result.channelId,
+                    routedAt: Math.floor(Date.now() / 1000),
+                  });
                 }
                 return sendJson(res, 200, { ok: true, result });
               }
@@ -504,7 +472,12 @@ export function apply(ctx: any): void {
               for (const m of modelIds) {
                 const r = await probeSingleModel(config.baseURL, config.apiKey, config.userId, token, m);
                 if (r.merchant) {
-                  merchantCardCache.set(m.toLowerCase(), { card: r.merchant, at: Date.now() });
+                  merchantCardCache.set(m.toLowerCase(), {
+                    card: r.merchant,
+                    at: Date.now(),
+                    channelId: r.channelId,
+                    routedAt: Math.floor(Date.now() / 1000),
+                  });
                 }
                 results.push(r);
               }

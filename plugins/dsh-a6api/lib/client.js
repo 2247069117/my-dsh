@@ -760,8 +760,12 @@ var MerchantCard = ({ model }) => {
           merchant?.channel_id && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "dsh-a6-dot-sep", children: "\xB7" }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "dsh-a6-merchant-id-text", children: [
-              "\u5546\u6237ID ",
+              "\u5B9E\u9645\u5546\u6237ID ",
               merchant.channel_id
+            ] }),
+            isPinnedElsewhere && model.pinnedChannelId && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "dsh-a6-pinned-target-text", title: "\u8BE5\u6A21\u578B\u7684\u56FA\u5B9A\u8DEF\u7531\u76EE\u6807\uFF0C\u4E0E\u6700\u8FD1\u4E00\u6B21\u5B9E\u9645\u547D\u4E2D\u6E20\u9053\u5206\u5F00\u663E\u793A", children: [
+              "\u56FA\u5B9A\u76EE\u6807 #",
+              model.pinnedChannelId
             ] })
           ] }),
           isPinnedHere && !isChannelDisabled && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -3060,6 +3064,13 @@ var main_default = `/* A6API Plugin Styles - Clean Professional DSH Native Theme
   font-size: 12px;
   font-weight: 500;
   color: var(--dsw-alias-label-secondary, #475569);
+}
+
+.dsh-a6-pinned-target-text {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #d97706;
+  white-space: nowrap;
 }
 
 .dsh-a6-probe-fail-chip {

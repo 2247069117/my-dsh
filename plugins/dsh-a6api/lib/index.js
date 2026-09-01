@@ -607,7 +607,10 @@ async function fetchChannelDetails(channelId, userId, accessToken, targetModelNa
       const json = await res.json();
       const items = json?.data?.items || [];
       if (items.length > 0) {
-        const item = (targetName ? items.find((it) => it.model_name?.toLowerCase() === targetName.toLowerCase()) : null) || items[0];
+        const item = targetName ? items.find((it) => it.model_name?.toLowerCase() === targetName.toLowerCase()) : items[0];
+        if (!item) {
+          throw new Error(`channel ${channelId} has no listing for model ${targetName}`);
+        }
         const rate = Number(item.realtime_ratio_exchange_rate || 6.7209);
         const inMicros = Number(item.input_price_micros || 0);
         const outMicros = Number(item.output_price_micros || 0);
@@ -1962,41 +1965,56 @@ function apply(ctx) {
                 ];
               }
               allLogs.sort((a, b) => (Number(b.created_at) || 0) - (Number(a.created_at) || 0));
-              if (config.userId || token) {
-                const missing = modelIds.filter((m) => {
-                  const entry = merchantCardCache.get(m.toLowerCase());
-                  return !entry || Date.now() - entry.at >= MERCHANT_CARD_TTL_MS;
-                });
-                if (missing.length > 0) {
-                  let found = {};
-                  try {
-                    found = await Promise.race([
-                      getKnownMerchantsFromLogs(config.userId, token, missing, allLogs),
-                      new Promise((resolve2) => setTimeout(() => resolve2({}), 1e4))
-                    ]);
-                  } catch {
-                    found = {};
-                  }
-                  for (const [mName, card] of Object.entries(found)) {
-                    merchantCardCache.set(mName.toLowerCase(), { card, at: Date.now() });
-                  }
+              const latestRouteByModel = /* @__PURE__ */ new Map();
+              for (const log of allLogs) {
+                const modelKey = (log.model_name || "").toLowerCase();
+                if (modelKey && Number(log.channel) > 0 && !latestRouteByModel.has(modelKey)) {
+                  latestRouteByModel.set(modelKey, log);
                 }
               }
-              const lastRoutedMap = /* @__PURE__ */ new Map();
-              for (const log of allLogs) {
-                const mName = log.model_name;
-                const chId = Number(log.channel);
-                const ts = Number(log.created_at) || 0;
-                if (mName && chId > 0 && ts > 0 && !lastRoutedMap.has(mName.toLowerCase())) {
-                  lastRoutedMap.set(mName.toLowerCase(), ts);
+              const routeTargets = [];
+              for (const modelName of modelIds) {
+                const log = latestRouteByModel.get(modelName.toLowerCase());
+                if (!log) continue;
+                const channelId = Number(log.channel);
+                const routedAt = Number(log.created_at) || 0;
+                const entry = merchantCardCache.get(modelName.toLowerCase());
+                if (!entry || entry.channelId !== channelId || (entry.routedAt || 0) < routedAt || Date.now() - entry.at >= MERCHANT_CARD_TTL_MS) {
+                  let logSnapshot;
+                  if (log.other) {
+                    try {
+                      logSnapshot = { ...JSON.parse(log.other), channel_name: log.channel_name, model_name: log.model_name };
+                    } catch {
+                    }
+                  }
+                  routeTargets.push({ modelName, channelId, routedAt, logSnapshot });
+                }
+              }
+              if ((config.userId || token) && routeTargets.length > 0) {
+                for (let i = 0; i < routeTargets.length; i += 4) {
+                  await Promise.all(
+                    routeTargets.slice(i, i + 4).map(async ({ modelName, channelId, routedAt, logSnapshot }) => {
+                      try {
+                        const card = await fetchChannelDetails(channelId, config.userId, token, modelName, logSnapshot);
+                        const channelMatches = card && Number(card.channel_id) === channelId;
+                        const modelMatches = card && (!card.model_name || card.model_name.toLowerCase() === modelName.toLowerCase());
+                        if (card && channelMatches && modelMatches) {
+                          merchantCardCache.set(modelName.toLowerCase(), { card, at: Date.now(), channelId, routedAt });
+                        }
+                      } catch {
+                      }
+                    })
+                  );
                 }
               }
               const dshSet = new Set(dshConfiguredModels);
               let models = modelIds.map((mId) => {
                 const meta = resolveModelMeta(mId);
                 const cacheEntry = merchantCardCache.get(mId.toLowerCase());
-                const cachedCard = cacheEntry && Date.now() - cacheEntry.at < MERCHANT_CARD_TTL_MS ? cacheEntry.card : void 0;
-                const routedAt = lastRoutedMap.get(mId.toLowerCase());
+                const latestRoute = latestRouteByModel.get(mId.toLowerCase());
+                const latestChannelId = latestRoute ? Number(latestRoute.channel) : 0;
+                const cachedCard = cacheEntry && latestRoute && cacheEntry.channelId === latestChannelId && Date.now() - cacheEntry.at < MERCHANT_CARD_TTL_MS ? cacheEntry.card : void 0;
+                const routedAt = latestRoute ? Number(latestRoute.created_at) || 0 : void 0;
                 return {
                   model_name: mId,
                   brand: meta.brand,
@@ -2013,58 +2031,6 @@ function apply(ctx) {
               });
               const resolvedTokenId = pins.length > 0 ? await resolveTokenId(config) : null;
               models = overlayPinsOnModels(models, pins, resolvedTokenId);
-              const rePointTargets = models.filter(
-                (m) => m.pinStatus === "pin_elsewhere" && m.pinTokenMatched === true && m.pinnedChannelId && m.pinnedChannelId > 0
-              ).map((m) => ({ modelName: m.model_name, channelId: m.pinnedChannelId }));
-              if (rePointTargets.length > 0 && config.userId && token) {
-                try {
-                  await Promise.race([
-                    (async () => {
-                      for (let i = 0; i < rePointTargets.length; i += 4) {
-                        const batch = rePointTargets.slice(i, i + 4);
-                        await Promise.all(
-                          batch.map(async ({ modelName, channelId }) => {
-                            try {
-                              const pinnedCard = await fetchChannelDetails(
-                                channelId,
-                                config.userId,
-                                token,
-                                modelName
-                              );
-                              if (pinnedCard && Number(pinnedCard.channel_id) === Number(channelId)) {
-                                merchantCardCache.set(modelName.toLowerCase(), { card: pinnedCard, at: Date.now() });
-                              }
-                            } catch {
-                            }
-                          })
-                        );
-                      }
-                    })(),
-                    new Promise((resolve2) => setTimeout(() => resolve2(), 1e4))
-                  ]);
-                } catch {
-                }
-                models = models.map((m) => {
-                  if (m.pinStatus !== "pin_elsewhere" || m.pinTokenMatched !== true) return m;
-                  const entry = merchantCardCache.get(m.model_name.toLowerCase());
-                  const card = entry && Date.now() - entry.at < MERCHANT_CARD_TTL_MS ? entry.card : void 0;
-                  if (card && Number(card.channel_id) === Number(m.pinnedChannelId)) {
-                    const pinnedLog = allLogs.find(
-                      (l) => l.model_name?.toLowerCase() === m.model_name.toLowerCase() && Number(l.channel) === m.pinnedChannelId
-                    );
-                    const pinnedAt = pinnedLog ? Number(pinnedLog.created_at) || 0 : void 0;
-                    return {
-                      ...m,
-                      merchant: card,
-                      pinStatus: "pin_here",
-                      probeStatus: "success",
-                      lastRoutedAt: pinnedAt,
-                      lastRoutedText: pinnedAt ? formatRelativeTime(pinnedAt) : void 0
-                    };
-                  }
-                  return m;
-                });
-              }
               const recentLogs = allLogs.slice(0, 20);
               const response = {
                 config: maskConfig(config),
@@ -2142,7 +2108,12 @@ function apply(ctx) {
               if (modelName && modelName !== "all") {
                 const result = await probeSingleModel(config.baseURL, config.apiKey, config.userId, token, modelName);
                 if (result.merchant) {
-                  merchantCardCache.set(modelName.toLowerCase(), { card: result.merchant, at: Date.now() });
+                  merchantCardCache.set(modelName.toLowerCase(), {
+                    card: result.merchant,
+                    at: Date.now(),
+                    channelId: result.channelId,
+                    routedAt: Math.floor(Date.now() / 1e3)
+                  });
                 }
                 return sendJson(res, 200, { ok: true, result });
               }
@@ -2157,7 +2128,12 @@ function apply(ctx) {
               for (const m of modelIds) {
                 const r = await probeSingleModel(config.baseURL, config.apiKey, config.userId, token, m);
                 if (r.merchant) {
-                  merchantCardCache.set(m.toLowerCase(), { card: r.merchant, at: Date.now() });
+                  merchantCardCache.set(m.toLowerCase(), {
+                    card: r.merchant,
+                    at: Date.now(),
+                    channelId: r.channelId,
+                    routedAt: Math.floor(Date.now() / 1e3)
+                  });
                 }
                 results.push(r);
               }

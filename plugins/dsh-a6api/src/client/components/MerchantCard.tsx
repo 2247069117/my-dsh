@@ -173,8 +173,13 @@ export const MerchantCard: React.FC<{
                 <>
                   <span className="dsh-a6-dot-sep">·</span>
                   <span className="dsh-a6-merchant-id-text">
-                    商户ID {merchant.channel_id}
+                    实际商户ID {merchant.channel_id}
                   </span>
+                  {isPinnedElsewhere && model.pinnedChannelId && (
+                    <span className="dsh-a6-pinned-target-text" title="该模型的固定路由目标，与最近一次实际命中渠道分开显示">
+                      固定目标 #{model.pinnedChannelId}
+                    </span>
+                  )}
                 </>
               )}
               {isPinnedHere && !isChannelDisabled && (
